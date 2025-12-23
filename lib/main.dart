@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/core/router/app_router.dart';
 import 'package:money_manager/core/theme/app_theme.dart';
 import 'package:money_manager/core/database/isar_service.dart';
+import 'package:dynamic_color/dynamic_color.dart';
+import 'package:money_manager/core/theme/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,14 +21,19 @@ class MoneyManagerApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
-    return MaterialApp.router(
-      title: 'Money Manager',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      routerConfig: router,
-      debugShowCheckedModeBanner: false,
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        return MaterialApp.router(
+          title: 'Money Manager',
+          theme: AppTheme.lightTheme(lightDynamic),
+          darkTheme: AppTheme.darkTheme(darkDynamic),
+          themeMode: themeMode,
+          routerConfig: router,
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }

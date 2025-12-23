@@ -18,8 +18,9 @@ subprojects {
 
 subprojects {
     afterEvaluate {
-        if (project.plugins.hasPlugin("com.android.library")) {
-            val android = project.extensions.getByName("android") as com.android.build.gradle.LibraryExtension
+        if (project.plugins.hasPlugin("com.android.library") || project.plugins.hasPlugin("com.android.application")) {
+            val android = project.extensions.getByName("android") as com.android.build.gradle.BaseExtension
+            android.compileSdkVersion(36)
             if (android.namespace == null) {
                 android.namespace = project.group.toString()
             }

@@ -1,67 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:money_manager/features/accounts/application/accounts_providers.dart';
-import 'package:money_manager/features/accounts/data/accounts_repository.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
-
-class AccountsPage extends ConsumerWidget {
-  const AccountsPage({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final accountsAsync = ref.watch(accountsWithBalanceProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Accounts'),
-      ),
-      body: accountsAsync.when(
-        data: (accounts) {
-          final totalBalance = accounts.fold(0.0, (sum, item) => sum + item.balance);
-
-          if (accounts.isEmpty) {
-            return const Center(
-              child: Text('No accounts yet. Add one!'),
-            );
-          }
-          return ListView(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80), // Added bottom padding
-            children: [
-              // Total Balance Header
-              Card(
-                color: Theme.of(context).colorScheme.tertiaryContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Text('Total Wallet Balance', style: Theme.of(context).textTheme.titleMedium),
-                      const Gap(8),
-                      Text('\$${totalBalance.toStringAsFixed(2)}', style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ),
-              const Gap(16),
-              
-              // Accounts List
-              ...accounts.map((item) => AccountCard(item: item)).toList(),
-            ],
-          );
-        },
-        error: (err, stack) => Center(child: Text('Error: $err')),
-        loading: () => const Center(child: CircularProgressIndicator()),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          context.push('/add-account'); 
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('New Wallet'),
-      ),
-    );
-  }
-}
+import 'package:money_manager/features/accounts/application/accounts_providers.dart';
+import 'package:money_manager/features/accounts/data/accounts_repository.dart';
 
 class AccountCard extends ConsumerWidget {
   const AccountCard({super.key, required this.item});
@@ -123,7 +65,7 @@ class AccountCard extends ConsumerWidget {
                         icon: const Icon(Icons.swap_horiz_outlined),
                         color: theme.colorScheme.primary,
                         tooltip: 'Transfer',
-                        onPressed: () => context.push('/add-transaction', extra: null /* Type=Transfer not passed easily here without modifying AddTransactionPage, user can switch type */),
+                        onPressed: () => context.push('/add-transaction', extra: null),
                       ),
                        IconButton(
                         icon: const Icon(Icons.add_circle),

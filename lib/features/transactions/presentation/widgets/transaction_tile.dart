@@ -3,16 +3,20 @@ import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 
+import 'package:money_manager/features/categories/domain/category.dart';
+
 class TransactionTile extends StatelessWidget {
   const TransactionTile({
     super.key,
     required this.transaction,
     required this.accountName,
+    this.category,
     this.onTap,
   });
 
   final Transaction transaction;
   final String accountName;
+  final Category? category;
   final VoidCallback? onTap;
 
   @override
@@ -27,16 +31,23 @@ class TransactionTile extends StatelessWidget {
             ? Colors.redAccent
             : Colors.blue;
 
-    final icon = t.type == TransactionType.income
+    IconData icon;
+    if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
+      icon = Icons.call_split;
+    } else if (category != null) {
+      icon = IconData(category!.icon, fontFamily: 'MaterialIcons');
+    } else {
+      icon = t.type == TransactionType.income
         ? Icons.arrow_downward
         : t.type == TransactionType.expense
             ? Icons.arrow_upward
             : Icons.compare_arrows;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12), // Increased margin
       elevation: 0,
-       shape: RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
       color: theme.colorScheme.surfaceVariant.withOpacity(0.3), // Slightly transparent
@@ -65,24 +76,37 @@ class TransactionTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      t.note?.isNotEmpty == true ? t.note! : t.type.name.toUpperCase(),
+                      category?.name ?? (t.subTransactions?.isNotEmpty == true ? 'Split Transaction' : (t.type.name[0].toUpperCase() + t.type.name.substring(1))),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const Gap(4),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (t.note?.isNotEmpty == true)
+                          Text(t.note!, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
+                        
                         if (t.subTransactions != null && t.subTransactions!.isNotEmpty) ...[
-                             Icon(Icons.call_split, size: 12, color: theme.colorScheme.onSurfaceVariant),
-                             const Gap(4),
-                             Text('${t.subTransactions!.length} splits',
-                                 style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
-                              const Gap(8),
+                             const Gap(2),
+                             // Show first 2 splits as example
+                             ...t.subTransactions!.take(2).map((s) => Text(
+                               '• \$${s.amount.toStringAsFixed(0)} ${s.note?.isNotEmpty==true ? "(${s.note})" : ""}',
+                               style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8)),
+                             )),
+                             if (t.subTransactions!.length > 2)
+                               Text('+ ${t.subTransactions!.length - 2} more', style: TextStyle(fontSize: 10, color: theme.colorScheme.primary)),
                         ],
-                        Text(
-                          DateFormat.yMMMd().format(t.date),
-                          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+
+                        const Gap(4),
+                        Row(
+                          children: [
+                            Text(
+                              DateFormat.yMMMd().add_jm().format(t.date), // Added time
+                              style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                          ],
                         ),
                       ],
                     ),

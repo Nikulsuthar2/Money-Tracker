@@ -29,6 +29,24 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
     Colors.brown, Colors.grey, Colors.blueGrey,
   ];
 
+  final List<IconData> _icons = [
+    Icons.category, Icons.restaurant, Icons.shopping_cart, Icons.directions_car,
+    Icons.train, Icons.flight, Icons.hotel, Icons.local_hospital,
+    Icons.school, Icons.work, Icons.fitness_center, Icons.pets,
+    Icons.home, Icons.build, Icons.local_cafe, Icons.local_bar,
+    Icons.movie, Icons.music_note, Icons.sports_esports, Icons.card_giftcard,
+    Icons.savings, Icons.attach_money, Icons.account_balance, Icons.credit_card,
+    Icons.smartphone, Icons.wifi, Icons.electric_bolt, Icons.water_drop,
+    Icons.local_gas_station, Icons.local_parking, Icons.local_taxi,
+    Icons.shopping_bag, Icons.fastfood, Icons.coffee, Icons.icecream,
+    Icons.local_grocery_store, Icons.healing, Icons.medication, Icons.child_care,
+    Icons.sports_soccer, Icons.music_video, Icons.tv, Icons.computer,
+    Icons.print, Icons.camera_alt, Icons.brush, Icons.cleaning_services,
+    Icons.checkroom, Icons.stroller, Icons.family_restroom, Icons.people,
+    Icons.support_agent, Icons.language, Icons.public, Icons.map,
+    Icons.star, Icons.heart_broken, Icons.favorite, Icons.celebration,
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -91,22 +109,46 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
             const Text('Color'),
             const Gap(8),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 12,
+              runSpacing: 12,
               children: _colors.map((c) => InkWell(
                 onTap: () => setState(() => _color = c.value),
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: c,
                     shape: BoxShape.circle,
                     border: _color == c.value ? Border.all(color: Colors.white, width: 3) : null,
+                    boxShadow: [
+                      if (_color == c.value) BoxShadow(color: c.withOpacity(0.4), blurRadius: 8, spreadRadius: 2)
+                    ]
                   ),
-                  child: _color == c.value ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
+                  child: _color == c.value ? const Icon(Icons.check, color: Colors.white, size: 24) : null,
                 ),
               )).toList(),
             ),
+             const Gap(24),
+             const Text('Icon'),
+             const Gap(12),
+             Wrap(
+               spacing: 12,
+               runSpacing: 12,
+               children: _icons.map((icon) => InkWell(
+                 onTap: () => setState(() => _icon = icon.codePoint),
+                 borderRadius: BorderRadius.circular(12),
+                 child: Container(
+                   width: 56,
+                   height: 56,
+                   decoration: BoxDecoration(
+                     color: _icon == icon.codePoint ? Color(_color).withOpacity(0.2) : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                     borderRadius: BorderRadius.circular(16),
+                     border: _icon == icon.codePoint ? Border.all(color: Color(_color), width: 2) : null,
+                   ),
+                   child: Icon(icon, color: _icon == icon.codePoint ? Color(_color) : Theme.of(context).colorScheme.onSurfaceVariant, size: 28),
+                 ),
+               )).toList(),
+             ),
              const Gap(24),
              ElevatedButton(
                onPressed: _save,

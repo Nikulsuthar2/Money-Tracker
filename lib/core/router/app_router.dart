@@ -15,7 +15,9 @@ import 'package:money_manager/features/categories/presentation/add_category_page
 import 'package:money_manager/features/transactions/presentation/transaction_details_page.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
+import 'package:money_manager/features/transactions/presentation/all_transactions_table_page.dart';
 import 'package:money_manager/features/accounts/domain/account.dart';
+import 'package:money_manager/features/accounts/presentation/account_details_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -38,19 +40,20 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Accounts branch removed - merged into Dashboard
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/accounts',
-                builder: (context, state) => const AccountsPage(),
+                path: '/transactions',
+                builder: (context, state) => const TransactionsPage(),
               ),
             ],
           ),
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/transactions',
-                builder: (context, state) => const TransactionsPage(),
+                path: '/analytics',
+                builder: (context, state) => const AnalyticsPage(),
               ),
             ],
           ),
@@ -65,8 +68,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/analytics',
-                builder: (context, state) => const AnalyticsPage(),
+                path: '/settings',
+                builder: (context, state) => const SettingsPage(),
               ),
             ],
           ),
@@ -114,6 +117,24 @@ final routerProvider = Provider<GoRouter>((ref) {
           final transaction = state.extra as Transaction;
           return TransactionDetailsPage(transaction: transaction);
         },
+      ),
+      GoRoute(
+        path: '/account-details',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final account = state.extra as Account;
+          return AccountDetailsPage(account: account);
+        },
+      ),
+      GoRoute(
+        path: '/transactions-table',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AllTransactionsTablePage(),
+      ),
+      GoRoute(
+        path: '/subscriptions',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const SubscriptionsPage(),
       ),
     ],
   );

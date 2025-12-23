@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/settings/data/backup_service.dart';
 import 'package:money_manager/core/database/isar_service.dart';
+import 'package:money_manager/core/theme/theme_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -22,6 +25,8 @@ class SettingsPage extends ConsumerWidget {
             },
             trailing: const Icon(Icons.chevron_right),
           ),
+          const Divider(),
+          const _ThemeSelector(),
           const Divider(),
           const Padding(
             padding: EdgeInsets.all(16.0),
@@ -81,9 +86,77 @@ class SettingsPage extends ConsumerWidget {
                 ],
               ));
             },
+            ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text('About', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          ),
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) {
+               final version = snapshot.data?.version ?? '...';
+               final buildNumber = snapshot.data?.buildNumber ?? '...';
+               return ListTile(
+                 leading: const Icon(Icons.info_outline),
+                 title: const Text('App Version'),
+                 subtitle: Text('v$version ($buildNumber)'),
+               );
+            },
+          ),
+           ListTile(
+            leading: const Icon(Icons.code),
+            title: const Text('Source Code'),
+            subtitle: const Text('View on GitHub'),
+            onTap: () async {
+               final url = Uri.parse('https://github.com/nikul/money_tracker'); 
+               if (await canLaunchUrl(url)) {
+                 await launchUrl(url);
+               }
+            },
+          ),
+           ListTile(
+            leading: const Icon(Icons.person),
+            title: const Text('Developer'),
+            subtitle: const Text('Nikul'), 
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ThemeSelector extends ConsumerWidget {
+  const _ThemeSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text('Appearance', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SegmentedButton<ThemeMode>(
+            segments: const [
+              ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto), label: Text('System')),
+              ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode), label: Text('Light')),
+              ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode), label: Text('Dark')),
+            ],
+            selected: {themeMode},
+            onSelectionChanged: (Set<ThemeMode> newSelection) {
+              ref.read(themeModeProvider.notifier).setTheme(newSelection.first);
+            },
+            showSelectedIcon: false,
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 }

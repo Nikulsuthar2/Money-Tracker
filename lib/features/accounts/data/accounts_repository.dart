@@ -7,6 +7,10 @@ final accountsRepositoryProvider = Provider<AccountsRepository>((ref) {
   return AccountsRepository(IsarService.isar);
 });
 
+final accountsStreamProvider = StreamProvider((ref) {
+  return ref.watch(accountsRepositoryProvider).watchAllAccounts();
+});
+
 class AccountsRepository {
   final Isar _isar;
 

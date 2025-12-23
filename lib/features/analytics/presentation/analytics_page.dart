@@ -48,19 +48,22 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'Month', label: Text('This Month')),
-                ButtonSegment(value: 'Year', label: Text('This Year')),
-                ButtonSegment(value: 'All', label: Text('All Time')),
-              ],
-              selected: {_filter},
-              onSelectionChanged: (Set<String> newSelection) {
-                setState(() {
-                  _filter = newSelection.first;
-                });
-              },
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'Month', label: Text('Month')),
+                  ButtonSegment(value: 'Year', label: Text('Year')),
+                  ButtonSegment(value: 'All', label: Text('All')),
+                ],
+                selected: {_filter},
+                onSelectionChanged: (Set<String> newSelection) {
+                  setState(() {
+                    _filter = newSelection.first;
+                  });
+                },
+              ),
             ),
           ),
         ),

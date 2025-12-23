@@ -12,6 +12,7 @@ import 'package:money_manager/features/categories/data/categories_repository.dar
 import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
+import 'package:intl/intl.dart';
 
 // Repository for Subscriptions (inline for now or separate file)
 // Repository for Subscriptions (inline for now or separate file)
@@ -62,7 +63,7 @@ class SubscriptionsPage extends ConsumerWidget {
         data: (subs) {
           if (subs.isEmpty) return const Center(child: Text('No subscriptions'));
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
             itemCount: subs.length,
             separatorBuilder: (_,__) => const Gap(8),
             itemBuilder: (context, index) {
@@ -145,12 +146,13 @@ class SubscriptionsPage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e,s) => Center(child: Text('Error: $e')),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           // Add Subscription Dialog or Page
           showDialog(context: context, builder: (c) => const AddSubscriptionDialog());
         },
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.playlist_add),
+        label: const Text('New Subscription'),
       ),
     );
   }
@@ -189,7 +191,7 @@ class _AddSubscriptionDialogState extends ConsumerState<AddSubscriptionDialog> {
    @override
    Widget build(BuildContext context) {
       final accountsAsync = ref.watch(accountsRepositoryProvider).watchActiveAccounts();
-      final categoriesAsync = ref.watch(expenseCategoriesProvider);
+      final categoriesAsync = ref.watch(categoriesStreamProvider);
 
       return AlertDialog(
         title: Text(widget.subscriptionToEdit == null ? 'Add Subscription' : 'Edit Subscription'),

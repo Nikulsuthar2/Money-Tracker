@@ -7,6 +7,14 @@ final transactionsRepositoryProvider = Provider<TransactionsRepository>((ref) {
   return TransactionsRepository(IsarService.isar);
 });
 
+final transactionsStreamProvider = StreamProvider((ref) {
+  return ref.watch(transactionsRepositoryProvider).watchAllTransactions();
+});
+
+final recentTransactionsProvider = StreamProvider((ref) {
+  return ref.watch(transactionsRepositoryProvider).watchRecentTransactions();
+});
+
 class TransactionsRepository {
   final Isar _isar;
 

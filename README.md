@@ -1,16 +1,75 @@
-# money_manager
+# Money Tracker 🚀
 
-A new Flutter project.
+A modern, fast, and beautiful cross-platform finance manager built with Flutter. Manage your accounts, transactions, and subscriptions with a premium Material 3 experience.
 
-## Getting Started
+![Dashboard Preview](https://github.com/nikul/money_tracker/raw/main/assets/readme/dashboard.png) *(Placeholder)*
 
-This project is a starting point for a Flutter application.
+## ✨ Features
 
-A few resources to get you started if this is your first Flutter project:
+-   **Unified Dashboard**: View total balance, wallet cards, and spending trends at a glance.
+-   **Multi-Account Management**: Track bank accounts, cash, and wallets separately.
+-   **Smart Transactions**: Categorize spending, add notes, and view history in list or table formats.
+-   **Subscription Tracking**: Never miss a recurring payment with the built-in subscription manager and auto-pay notifications.
+-   **Modern Analytics**: Beautiful charts and breakdowns (Month/Year/All-time) to visualize your financial health.
+-   **Material You Support**: Dynamic color themes that adapt to your device (Android).
+-   **Local & Secure**: All data is stored locally using **Isar Database** for maximum speed and privacy.
+-   **Data Portability**: Export/Import your data as JSON for backups.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🛠 Tech Stack
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+-   **Framework**: [Flutter](https://flutter.dev) (Dart)
+-   **State Management**: [Riverpod](https://riverpod.dev)
+-   **Database**: [Isar](https://isar.dev) (NoSQL)
+-   **Navigation**: [GoRouter](https://pub.dev/packages/go_router)
+-   **Charts**: [FL Chart](https://pub.dev/packages/fl_chart)
+-   **Theming**: Material 3 / Google Fonts (Outfit)
+
+## 📦 Installation
+
+### Mobile (Android)
+1. Download the latest `app-release.apk` from the [Releases](https://github.com/nikul/money_tracker/releases) page.
+2. Install the APK on your Android device.
+
+### Desktop (Linux)
+1. Download the Linux release binary.
+2. Extract and run the executable.
+
+### Web
+Visit the live demo at: [Link to Web App] *(Placeholder)*
+
+## 🚀 Building from Source
+
+1.  **Clone the Repo**:
+    ```bash
+    git clone https://github.com/nikul/money_tracker.git
+    cd money_tracker
+    ```
+
+2.  **Install Dependencies**:
+    ```bash
+    flutter pub get
+    ```
+
+3.  **Run Build Runner**:
+    ```bash
+    flutter pub run build_runner build --delete-conflicting-outputs
+    ```
+
+4.  **Run the App**:
+    ```bash
+    flutter run
+    ```
+
+### Release Commands:
+- **Android APK**: `flutter build apk --release`
+- **Linux**: `flutter build linux --release`
+- **Web**: `flutter build web --release`
+
+## 📄 License
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+Built with ❤️ by Antigravity (Gemini 3 Pro) & [Nikul Suthar](https://github.com/Nikulsuthar2)

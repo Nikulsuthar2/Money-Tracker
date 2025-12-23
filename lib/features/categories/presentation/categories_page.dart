@@ -22,23 +22,27 @@ class CategoriesPage extends ConsumerWidget {
           }
           // Group by Type? Or just list with icon.
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80), // Added bottom padding
             itemCount: categories.length,
-            separatorBuilder: (_,__) => const Gap(8),
+            separatorBuilder: (_,__) => const Divider(height: 1, indent: 64),
             itemBuilder: (context, index) {
               final cat = categories[index];
               return ListTile(
+                visualDensity: VisualDensity.compact,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 onTap: () {
                   context.push('/add-category', extra: cat);
                 },
                 leading: CircleAvatar(
+                  radius: 18,
                   backgroundColor: Color(cat.color == 0 ? 0xFF9E9E9E : cat.color).withOpacity(0.2),
-                  child: Icon(IconData(cat.icon, fontFamily: 'MaterialIcons')),
+                  child: Icon(IconData(cat.icon, fontFamily: 'MaterialIcons'), size: 20, color: Color(cat.color == 0 ? 0xFF9E9E9E : cat.color)),
                 ),
-                title: Text(cat.name),
-                subtitle: Text(cat.type.name.toUpperCase()),
+                title: Text(cat.name, style: Theme.of(context).textTheme.bodyLarge),
+                subtitle: Text(cat.type.name.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
                 trailing: PopupMenuButton(
-                  icon: const Icon(Icons.more_vert),
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  padding: EdgeInsets.zero,
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -69,11 +73,12 @@ class CategoriesPage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error: $e')),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           context.push('/add-category');
         },
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('New Category'),
       ),
     );
   }
