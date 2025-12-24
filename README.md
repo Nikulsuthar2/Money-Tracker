@@ -1,5 +1,6 @@
 # Money Tracker 🚀
 
+v2.0.2+4
 A modern, fast, and beautiful cross-platform finance manager built with Flutter. Manage your accounts, transactions, and subscriptions with a premium Material 3 experience.
 
 ![Dashboard Preview](https://github.com/nikul/money_tracker/raw/main/assets/readme/dashboard.png) *(Placeholder)*
