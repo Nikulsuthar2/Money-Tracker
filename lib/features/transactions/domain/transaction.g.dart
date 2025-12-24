@@ -15,7 +15,7 @@ extension GetTransactionCollection on Isar {
 
 const TransactionSchema = CollectionSchema(
   name: r'Transaction',
-  id: 301,
+  id: 5320225499417954855,
   properties: {
     r'amount': PropertySchema(
       id: 0,
@@ -77,7 +77,7 @@ const TransactionSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'fromAccountId': IndexSchema(
-      id: 3011,
+      id: -5148250362193213106,
       name: r'fromAccountId',
       unique: false,
       replace: false,
@@ -90,7 +90,7 @@ const TransactionSchema = CollectionSchema(
       ],
     ),
     r'toAccountId': IndexSchema(
-      id: 3012,
+      id: 1956423193434608400,
       name: r'toAccountId',
       unique: false,
       replace: false,
@@ -103,7 +103,7 @@ const TransactionSchema = CollectionSchema(
       ],
     ),
     r'categoryId': IndexSchema(
-      id: 3013,
+      id: -8798048739239305339,
       name: r'categoryId',
       unique: false,
       replace: false,
@@ -116,7 +116,7 @@ const TransactionSchema = CollectionSchema(
       ],
     ),
     r'date': IndexSchema(
-      id: 3014,
+      id: -7552997827385218417,
       name: r'date',
       unique: false,
       replace: false,
@@ -2073,7 +2073,7 @@ extension TransactionQueryProperty
 
 const SubTransactionSchema = Schema(
   name: r'SubTransaction',
-  id: 302,
+  id: -3042571976288542584,
   properties: {
     r'amount': PropertySchema(
       id: 0,
@@ -2085,8 +2085,13 @@ const SubTransactionSchema = Schema(
       name: r'categoryId',
       type: IsarType.long,
     ),
-    r'note': PropertySchema(
+    r'isMine': PropertySchema(
       id: 2,
+      name: r'isMine',
+      type: IsarType.bool,
+    ),
+    r'note': PropertySchema(
+      id: 3,
       name: r'note',
       type: IsarType.string,
     )
@@ -2120,7 +2125,8 @@ void _subTransactionSerialize(
 ) {
   writer.writeDouble(offsets[0], object.amount);
   writer.writeLong(offsets[1], object.categoryId);
-  writer.writeString(offsets[2], object.note);
+  writer.writeBool(offsets[2], object.isMine);
+  writer.writeString(offsets[3], object.note);
 }
 
 SubTransaction _subTransactionDeserialize(
@@ -2132,7 +2138,8 @@ SubTransaction _subTransactionDeserialize(
   final object = SubTransaction();
   object.amount = reader.readDouble(offsets[0]);
   object.categoryId = reader.readLongOrNull(offsets[1]);
-  object.note = reader.readStringOrNull(offsets[2]);
+  object.isMine = reader.readBool(offsets[2]);
+  object.note = reader.readStringOrNull(offsets[3]);
   return object;
 }
 
@@ -2148,6 +2155,8 @@ P _subTransactionDeserializeProp<P>(
     case 1:
       return (reader.readLongOrNull(offset)) as P;
     case 2:
+      return (reader.readBool(offset)) as P;
+    case 3:
       return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -2292,6 +2301,16 @@ extension SubTransactionQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<SubTransaction, SubTransaction, QAfterFilterCondition>
+      isMineEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isMine',
+        value: value,
       ));
     });
   }

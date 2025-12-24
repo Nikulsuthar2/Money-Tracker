@@ -26,11 +26,6 @@ class TransactionsPage extends ConsumerWidget {
         title: const Text('Transactions'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.subscriptions),
-            tooltip: 'Subscriptions',
-            onPressed: () => context.push('/subscriptions'),
-          ),
-          IconButton(
             icon: const Icon(Icons.table_chart),
             tooltip: 'Table View',
             onPressed: () => context.push('/transactions-table'),
@@ -79,7 +74,9 @@ class TransactionsPage extends ConsumerWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                                color: Theme.of(context).brightness == Brightness.dark 
+                                    ? Theme.of(context).colorScheme.surfaceVariant 
+                                    : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(

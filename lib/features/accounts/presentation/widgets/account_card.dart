@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/accounts/application/accounts_providers.dart';
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
+import 'package:money_manager/features/transactions/domain/transaction.dart';
 
 class AccountCard extends ConsumerWidget {
   const AccountCard({super.key, required this.item});
@@ -64,17 +65,18 @@ class AccountCard extends ConsumerWidget {
                        IconButton(
                         icon: const Icon(Icons.swap_horiz_outlined),
                         color: theme.colorScheme.primary,
-                        tooltip: 'Transfer',
-                        onPressed: () => context.push('/add-transaction', extra: null),
+                         tooltip: 'Transfer',
+                        onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.transfer}),
                       ),
                        IconButton(
                         icon: const Icon(Icons.add_circle),
                         color: theme.colorScheme.primary,
                         tooltip: 'Add Transaction',
-                        onPressed: () => context.push('/add-transaction'),
+                        onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.expense}),
                       ),
                       PopupMenuButton(
                         icon: Icon(Icons.more_vert, color: theme.colorScheme.onSurfaceVariant),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         itemBuilder: (context) => [
                           PopupMenuItem(
                             child: const Row(children: [Icon(Icons.edit, size: 18), Gap(12), Text('Edit')]),

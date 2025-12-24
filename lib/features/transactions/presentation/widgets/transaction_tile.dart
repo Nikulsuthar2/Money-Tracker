@@ -103,7 +103,7 @@ class TransactionTile extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              DateFormat.yMMMd().add_jm().format(t.date), // Added time
+                              DateFormat('MMM d, y • h:mm a').format(t.date),
                               style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
                             ),
                           ],

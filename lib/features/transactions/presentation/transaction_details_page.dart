@@ -151,6 +151,8 @@ class TransactionDetailsPage extends ConsumerWidget {
                   final split = t.subTransactions![index];
                   return ListTile(
                     title: Text(split.note?.isNotEmpty == true ? split.note! : 'Item ${index + 1}'),
+                    subtitle: split.isMine ? const Text('My Expense', style: TextStyle(fontSize: 12, color: Colors.green)) 
+                                           : const Text('Not My Expense', style: TextStyle(fontSize: 12, color: Colors.grey)),
                     trailing: Text('\$${split.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                   );
                 },

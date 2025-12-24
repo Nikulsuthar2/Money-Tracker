@@ -88,9 +88,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/add-transaction',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final transaction = state.extra as Transaction?;
-          return AddTransactionPage(transactionToEdit: transaction);
-        },
+        return AddTransactionPage(extra: state.extra);
+      },
       ),
       GoRoute(
         path: '/add-category',

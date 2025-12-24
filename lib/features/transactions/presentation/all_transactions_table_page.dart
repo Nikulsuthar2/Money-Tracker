@@ -57,16 +57,20 @@ class AllTransactionsTablePage extends ConsumerWidget {
                           final acc = accounts.where((a) => a.id == accountId).firstOrNull;
                           
                           return DataRow(cells: [
-                            DataCell(Text(DateFormat('MM/dd').format(t.date))),
+                            DataCell(Text(DateFormat('MM/dd HH:mm').format(t.date))),
                             DataCell(Text(t.type.name.toUpperCase().substring(0, 3))),
                             DataCell(Text('\$${t.amount.toStringAsFixed(0)}', style: TextStyle(
                               color: t.type == TransactionType.expense ? Colors.red : (t.type == TransactionType.income ? Colors.green : Colors.blue),
                               fontWeight: FontWeight.bold
                             ))),
                             DataCell(Row(children: [
-                               if(cat!=null) Icon(IconData(cat.icon, fontFamily: 'MaterialIcons'), size: 16, color: Color(cat.color)),
-                               const SizedBox(width: 4),
-                               Text(cat?.name ?? '-', overflow: TextOverflow.ellipsis)
+                               if (t.subTransactions != null && t.subTransactions!.isNotEmpty)
+                                  const Text('Split Transaction', style: TextStyle(fontStyle: FontStyle.italic))
+                               else ...[
+                                 if(cat!=null) Icon(IconData(cat.icon, fontFamily: 'MaterialIcons'), size: 16, color: Color(cat.color)),
+                                 const SizedBox(width: 4),
+                                 Text(cat?.name ?? '-', overflow: TextOverflow.ellipsis)
+                               ]
                             ])),
                             DataCell(Text(acc?.name ?? '-', overflow: TextOverflow.ellipsis)), 
                             DataCell(Text(t.note ?? '-', overflow: TextOverflow.ellipsis)),

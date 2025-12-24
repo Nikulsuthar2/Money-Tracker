@@ -12,9 +12,9 @@ import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 
 class AddTransactionPage extends ConsumerStatefulWidget {
-  const AddTransactionPage({super.key, this.transactionToEdit});
+  const AddTransactionPage({super.key, this.extra});
 
-  final Transaction? transactionToEdit;
+  final Object? extra; // Can be Transaction (edit) or Map (new with defaults)
 
   @override
   ConsumerState<AddTransactionPage> createState() => _AddTransactionPageState();
@@ -26,7 +26,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
   final _noteController = TextEditingController();
   
   TransactionType _type = TransactionType.expense;
-  DateTime _date = DateTime.now();
+  DateTime _date = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   int? _selectedAccountId; // From Account
   int? _selectedToAccountId; // To Account (for transfer)
   int? _selectedCategoryId; // For Income/Expense
@@ -42,8 +42,17 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     
-    if (widget.transactionToEdit != null) {
-      final t = widget.transactionToEdit!;
+    Transaction? transactionToEdit;
+    Map<String, dynamic>? defaults;
+
+    if (widget.extra is Transaction) {
+      transactionToEdit = widget.extra as Transaction;
+    } else if (widget.extra is Map) {
+      defaults = widget.extra as Map<String, dynamic>;
+    }
+
+    if (transactionToEdit != null) {
+      final t = transactionToEdit;
       _amountController.text = t.amount.toString();
       _noteController.text = t.note ?? '';
       _date = t.date;
@@ -57,6 +66,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
           amountController: TextEditingController(text: s.amount.toString()),
           noteController: TextEditingController(text: s.note ?? ''),
           categoryId: s.categoryId,
+          isMine: s.isMine,
         )).toList();
       }
 
@@ -73,8 +83,26 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         _tabController.index = 2;
       }
     } else {
-       // Set default expense
-       _tabController.animateTo(1);
+       // Defaults from Dashboard
+       if (defaults != null) {
+         if (defaults['type'] == TransactionType.income) {
+           _type = TransactionType.income;
+           _tabController.index = 0;
+           _selectedAccountId = defaults['accountId'];
+         } else if (defaults['type'] == TransactionType.transfer) {
+           _type = TransactionType.transfer;
+           _tabController.index = 2;
+           _selectedAccountId = defaults['accountId']; // From Account
+         } else {
+           // Expense
+           _type = TransactionType.expense;
+           _tabController.index = 1;
+           _selectedAccountId = defaults['accountId'];
+         }
+       } else {
+         // Default generic
+         _tabController.animateTo(1);
+       }
     }
 
     _tabController.addListener(() {
@@ -159,7 +187,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         }
       }
 
-      final transaction = widget.transactionToEdit ?? Transaction();
+      final transaction = (widget.extra is Transaction) ? (widget.extra as Transaction) : Transaction();
       transaction
         ..amount = amount
         ..type = _type
@@ -173,6 +201,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
           ..amount = double.parse(s.amountController.text)
           ..note = s.noteController.text
           ..categoryId = s.categoryId
+          ..isMine = s.isMine
         ).toList();
       } else {
         transaction.subTransactions = [];
@@ -190,7 +219,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         transaction.toAccountId = _selectedToAccountId;
       }
 
-      if (widget.transactionToEdit != null) {
+      if (widget.extra is Transaction) {
          await ref.read(transactionsRepositoryProvider).updateTransaction(transaction);
       } else {
          await ref.read(transactionsRepositoryProvider).addTransaction(transaction);
@@ -212,9 +241,16 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         categoriesAsync = ref.watch(expenseCategoriesProvider);
     }
 
+    // Common Input Decoration for consistency
+    final inputDecoration = InputDecoration(
+      isDense: true,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.transactionToEdit == null ? 'Add Transaction' : 'Edit Transaction'),
+        title: Text(widget.extra is Transaction ? 'Edit Transaction' : 'Add Transaction'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -229,30 +265,12 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Date Picker
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text('Date: ${DateFormat.yMMMd().format(_date)}'),
-              trailing: const Icon(Icons.calendar_today),
-              onTap: () async {
-                final d = await showDatePicker(
-                  context: context, 
-                  initialDate: _date, 
-                  firstDate: DateTime(2000), 
-                  lastDate: DateTime(2100),
-                );
-                if (d != null) setState(() => _date = d);
-              },
-            ),
-            const Divider(),
-            
-            // Amount
+             // Amount
             TextFormField(
               controller: _amountController,
-              decoration: const InputDecoration(
-                labelText: 'Total Amount',
+              decoration: inputDecoration.copyWith(
+                labelText: 'Amount',
                 prefixText: '\$ ',
-                border: OutlineInputBorder(),
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -261,6 +279,66 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                 if (double.tryParse(v) == null) return 'Invalid';
                 return null;
               },
+            ),
+            const Gap(16),
+
+            // Date & Time Picker
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: context, 
+                        initialDate: _date, 
+                        firstDate: DateTime(2000), 
+                        lastDate: DateTime(2100),
+                      );
+                      if (d != null) {
+                        setState(() {
+                          _date = DateTime(d.year, d.month, d.day, _date.hour, _date.minute);
+                        });
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: inputDecoration.copyWith(
+                        labelText: 'Date',
+                        suffixIcon: const Icon(Icons.calendar_today, size: 20),
+                      ),
+                      child: Text(
+                        DateFormat.yMMMd().format(_date),
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ),
+                const Gap(12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final t = await showTimePicker(
+                        context: context, 
+                        initialTime: TimeOfDay.fromDateTime(_date),
+                      );
+                      if (t != null) {
+                        setState(() {
+                          _date = DateTime(_date.year, _date.month, _date.day, t.hour, t.minute);
+                        });
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: inputDecoration.copyWith(
+                        labelText: 'Time',
+                        suffixIcon: const Icon(Icons.access_time, size: 20),
+                      ),
+                      child: Text(
+                        DateFormat.jm().format(_date),
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const Gap(16),
             
@@ -272,9 +350,8 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                  final accounts = snapshot.data!;
                  return DropdownButtonFormField<int>(
                    value: _selectedAccountId,
-                   decoration: InputDecoration(
+                   decoration: inputDecoration.copyWith(
                      labelText: _type == TransactionType.income ? 'Deposit To' : 'Pay From',
-                     border: const OutlineInputBorder(),
                    ),
                    items: accounts.map((a) => DropdownMenuItem(
                      value: a.id,
@@ -295,9 +372,8 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                    final accounts = snapshot.data!;
                    return DropdownButtonFormField<int>(
                      value: _selectedToAccountId,
-                     decoration: const InputDecoration(
+                     decoration: inputDecoration.copyWith(
                        labelText: 'Transfer To',
-                       border: OutlineInputBorder(),
                      ),
                      items: accounts.where((a) => a.id != _selectedAccountId).map((a) => DropdownMenuItem(
                        value: a.id,
@@ -308,43 +384,16 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                 },
               ),
             
-            // Note
-             const Gap(16),
-             TextFormField(
-               controller: _noteController,
-               decoration: const InputDecoration(
-                 labelText: 'Note',
-                 border: OutlineInputBorder(),
-               ),
-               maxLines: 1,
-             ),
-
             const Gap(16),
 
-             // SPLIT TOGGLE
-             if (_type != TransactionType.transfer) ...[
-                SwitchListTile(
-                  title: const Text('Split Transaction?'),
-                  value: _isSplit, 
-                  onChanged: (v) => setState(() {
-                    _isSplit = v;
-                    if (_isSplit && _splits.isEmpty) {
-                      _addSplit();
-                    }
-                  })
-                ),
-                const Gap(8),
-             ],
-            
-            // Category Selection (Normal Mode)
+            // Category Selection (Normal Mode) - MOVED UP
             if (_type != TransactionType.transfer && !_isSplit) 
               categoriesAsync.when(
                 data: (categories) {
                    return DropdownButtonFormField<int>(
                      value: _selectedCategoryId,
-                      decoration: const InputDecoration(
+                      decoration: inputDecoration.copyWith(
                        labelText: 'Category',
-                       border: OutlineInputBorder(),
                      ),
                      items: categories.map((c) => DropdownMenuItem(
                        value: c.id,
@@ -363,7 +412,27 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                 error: (_,__) => const Text('Error loading categories'),
               ),
             
-            // SPLIT LIST
+            // SPLIT TOGGLE - MOVED DOWN
+             if (_type != TransactionType.transfer) ...[
+                const Gap(8),
+                Row(
+                  children: [
+                     const Text('Split Transaction?'),
+                     const Spacer(),
+                     Switch(
+                        value: _isSplit,
+                        onChanged: (v) => setState(() {
+                          _isSplit = v;
+                          if (_isSplit && _splits.isEmpty) {
+                            _addSplit();
+                          }
+                        })
+                     ),
+                  ],
+                ),
+             ],
+
+             // SPLIT LIST
             if (_isSplit) ...[
                const Text('Split Details', style: TextStyle(fontWeight: FontWeight.bold)),
                const Gap(8),
@@ -379,10 +448,10 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                              children: [
                                Row(
                                  children: [
-                                   Expanded(
+                                    Expanded(
                                       child: DropdownButtonFormField<int>(
                                         value: _splits[i].categoryId,
-                                        decoration: const InputDecoration(labelText: 'Category', isDense: true),
+                                        decoration: const InputDecoration(labelText: 'Category', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                                         items: categories.map((c) => DropdownMenuItem(
                                            value: c.id,
                                            child: Text(c.name),
@@ -393,22 +462,33 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                                    IconButton(icon: const Icon(Icons.remove_circle, color: Colors.red), onPressed: () => _removeSplit(i))
                                  ],
                                ),
+                               const Gap(8),
                                Row(
                                  children: [
                                     Expanded(
                                       child: TextFormField(
                                         controller: _splits[i].amountController,
-                                        decoration: const InputDecoration(labelText: 'Amount', prefixText: '\$'),
+                                        decoration: const InputDecoration(labelText: 'Amount', prefixText: '\$', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                       ),
                                     ),
                                     const Gap(8),
-                                    Expanded(
+                                   Expanded(
                                       child: TextFormField(
                                         controller: _splits[i].noteController,
-                                        decoration: const InputDecoration(labelText: 'Note'),
+                                        decoration: const InputDecoration(labelText: 'Note', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                                       ),
                                     ),
+                                 ],
+                               ),
+                               const Gap(8),
+                               Row(
+                                 children: [
+                                   Checkbox(
+                                     value: _splits[i].isMine, 
+                                     onChanged: (v) => setState(() => _splits[i].isMine = v ?? true),
+                                   ),
+                                   Text(_type == TransactionType.income ? 'My Income' : 'My Expense'),
                                  ],
                                )
                              ],
@@ -423,6 +503,15 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                TextButton.icon(onPressed: _addSplit, icon: const Icon(Icons.add), label: const Text('Add Split Line')),
             ],
 
+             const Gap(16),
+             TextFormField(
+               controller: _noteController,
+               decoration: inputDecoration.copyWith(
+                 labelText: 'Note',
+               ),
+               maxLines: 2,
+             ),
+
              const Gap(24),
              ElevatedButton(
                onPressed: _save,
@@ -431,10 +520,11 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                  textStyle: const TextStyle(fontSize: 18),
                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                  foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                ),
                child: const Text('Save Transaction'),
              ),
-             const Gap(40), // Bottom padding
+             const Gap(40),
           ],
         ),
       ),
@@ -446,11 +536,13 @@ class SubTransactionInput {
   final TextEditingController amountController;
   final TextEditingController noteController;
   int? categoryId;
+  bool isMine;
 
   SubTransactionInput({
     TextEditingController? amountController,
     TextEditingController? noteController,
     this.categoryId,
+    this.isMine = true,
   }) : 
     this.amountController = amountController ?? TextEditingController(),
     this.noteController = noteController ?? TextEditingController();

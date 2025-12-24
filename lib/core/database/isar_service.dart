@@ -8,6 +8,8 @@ import 'package:money_manager/features/subscriptions/domain/subscription.dart';
 class IsarService {
   static late Isar isar;
 
+  // Opens the Isar database with all the schemas.
+  // This must be called before accessing any data.
   static Future<void> openSchemas() async {
     final dir = await getApplicationDocumentsDirectory();
     isar = await Isar.open(

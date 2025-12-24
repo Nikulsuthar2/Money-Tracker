@@ -15,7 +15,7 @@ extension GetSubscriptionCollection on Isar {
 
 const SubscriptionSchema = CollectionSchema(
   name: r'Subscription',
-  id: 33,
+  id: -3426239935225026138,
   properties: {
     r'accountId': PropertySchema(
       id: 0,
@@ -66,7 +66,7 @@ const SubscriptionSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'accountId': IndexSchema(
-      id: 331,
+      id: -1591555361937770434,
       name: r'accountId',
       unique: false,
       replace: false,
@@ -79,7 +79,7 @@ const SubscriptionSchema = CollectionSchema(
       ],
     ),
     r'categoryId': IndexSchema(
-      id: 332,
+      id: -8798048739239305339,
       name: r'categoryId',
       unique: false,
       replace: false,

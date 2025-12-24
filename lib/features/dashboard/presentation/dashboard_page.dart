@@ -256,25 +256,78 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 final spots = daySpots.entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList()
                   ..sort((a,b) => a.x.compareTo(b.x));
 
-                return LineChart(
-                  LineChartData(
-                    gridData: const FlGridData(show: false),
-                    titlesData: const FlTitlesData(show: false),
-                    borderData: FlBorderData(show: false),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: spots,
-                        isCurved: true,
-                        color: Theme.of(context).colorScheme.primary,
-                        barWidth: 3,
-                        isStrokeCapRound: true,
-                        dotData: const FlDotData(show: false),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                        ),
+                return Padding(
+                  padding: const EdgeInsets.only(right: 16, top: 16), // Padding for tooltip overflow
+                  child: LineChart(
+                    LineChartData(
+                      gridData: const FlGridData(show: false),
+                      titlesData: FlTitlesData(
+                         show: true,
+                         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                         rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                         leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                         bottomTitles: AxisTitles(
+                           sideTitles: SideTitles(
+                             showTitles: true,
+                             getTitlesWidget: (value, meta) {
+                               final index = value.toInt();
+                               if (index >= 0 && index < 30) {
+                                  // Show one label every 5 days
+                                  if (index % 5 == 0 || index == 29) {
+                                     final date = DateTime.now().subtract(Duration(days: 29 - index));
+                                     return Padding(
+                                       padding: const EdgeInsets.only(top: 8.0),
+                                       child: Text(DateFormat('d/M').format(date), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                     );
+                                  }
+                               }
+                               return const SizedBox.shrink();
+                             },
+                             reservedSize: 30,
+                           )
+                         ),
                       ),
-                    ],
+                      borderData: FlBorderData(show: false),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: spots,
+                          isCurved: true,
+                          color: Theme.of(context).colorScheme.primary,
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          dotData: const FlDotData(show: false),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          ),
+                        ),
+                      ],
+                       lineTouchData: LineTouchData(
+                          touchTooltipData: LineTouchTooltipData(
+                            getTooltipColor: (_) => Theme.of(context).colorScheme.surface,
+                            tooltipRoundedRadius: 8,
+                            tooltipPadding: const EdgeInsets.all(8),
+                            fitInsideHorizontally: true, // Prevent horizontal overflow
+                            fitInsideVertically: true, // Prevent vertical overflow
+                            getTooltipItems: (touchedSpots) {
+                               return touchedSpots.map((spot) {
+                                  final index = spot.x.toInt();
+                                  final date = DateTime.now().subtract(Duration(days: 29 - index));
+                                  return LineTooltipItem(
+                                    '${DateFormat('MMM d').format(date)}\n',
+                                    TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 12),
+                                    children: [
+                                      TextSpan(
+                                        text: '\$${spot.y.toStringAsFixed(0)}', 
+                                        style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 14)
+                                      ),
+                                    ]
+                                  );
+                               }).toList();
+                            }
+                          ),
+                       ),
+                    ),
                   ),
                 );
               },

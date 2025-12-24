@@ -69,6 +69,12 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
 
   @override
   Widget build(BuildContext context) {
+    final inputDecoration = InputDecoration(
+      isDense: true,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+
     return Scaffold(
       appBar: AppBar(title: const Text('Add Account')),
       body: Form(
@@ -78,13 +84,14 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
           children: [
             TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Account Name'),
+              decoration: inputDecoration.copyWith(labelText: 'Account Name'),
               validator: (v) => v == null || v.isEmpty ? 'Required' : null,
             ),
             const Gap(16),
             DropdownButtonFormField<AccountType>(
               value: _type,
-              decoration: const InputDecoration(labelText: 'Type'),
+              decoration: inputDecoration.copyWith(labelText: 'Type'),
+              borderRadius: BorderRadius.circular(12),
               items: AccountType.values.map((t) {
                 return DropdownMenuItem(value: t, child: Text(t.name.toUpperCase()));
               }).toList(),
@@ -93,14 +100,18 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
             const Gap(16),
             TextFormField(
               controller: _balanceController,
-              decoration: const InputDecoration(labelText: 'Opening Balance'),
+              decoration: inputDecoration.copyWith(labelText: 'Opening Balance'),
               keyboardType: TextInputType.number,
               validator: (v) => double.tryParse(v ?? '') == null ? 'Invalid number' : null,
             ),
             const Gap(24),
             ElevatedButton(
               onPressed: _save,
-              child: const Text('Save Account'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Save Account', style: TextStyle(fontSize: 16)),
             ),
           ],
         ),

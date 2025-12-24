@@ -15,7 +15,7 @@ extension GetAccountCollection on Isar {
 
 const AccountSchema = CollectionSchema(
   name: r'Account',
-  id: 101,
+  id: -6646797162501847804,
   properties: {
     r'color': PropertySchema(
       id: 0,

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
+import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/transactions/presentation/transactions_page.dart';
 import 'package:gap/gap.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -62,7 +64,8 @@ class AccountDetailsPage extends ConsumerWidget {
 
               ...accountTransactions.map((t) => TransactionTile(
                   transaction: t, 
-                  accountName: account.name, // Using current account name. 
+                  accountName: account.name, 
+                  onTap: () => context.push('/transaction-details', extra: t),
               )).toList(),
             ],
           );
@@ -89,11 +92,11 @@ class AccountDetailsPage extends ConsumerWidget {
        // If Expense -> -Amount
        // If Transfer -> -Amount (if From) / +Amount (if To)
        
-       if (t.type.name == 'income' && t.toAccountId == account.id) {
+       if (t.type == TransactionType.income && t.toAccountId == account.id) {
          balance += t.amount;
-       } else if (t.type.name == 'expense' && t.fromAccountId == account.id) {
+       } else if (t.type == TransactionType.expense && t.fromAccountId == account.id) {
          balance -= t.amount;
-       } else if (t.type.name == 'transfer') {
+       } else if (t.type == TransactionType.transfer) {
          if (t.fromAccountId == account.id) balance -= t.amount;
          if (t.toAccountId == account.id) balance += t.amount;
        }

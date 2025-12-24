@@ -41,6 +41,9 @@ class SubTransaction {
   
   // Each split can have its own category
   int? categoryId;
+
+  // Is this split my personal expense?
+  bool isMine = true;
 }
 
 enum TransactionType {
