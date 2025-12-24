@@ -45,7 +45,13 @@ class SettingsPage extends ConsumerWidget {
                      ref.read(currencyProvider.notifier).setCurrency(cur);
                      Navigator.pop(c);
                    },
-                   child: Text(cur, style: const TextStyle(fontSize: 18)),
+                   child: Row(
+                     children: [
+                       Text(cur, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                       const Gap(16),
+                       Text(currencyNames[cur] ?? '', style: const TextStyle(fontSize: 16)),
+                     ],
+                   ),
                  )).toList(),
                ));
             },

@@ -25,3 +25,12 @@ class CurrencyNotifier extends StateNotifier<String> {
 }
 
 final supportedCurrencies = ['\$', '€', '£', '₹', '¥', '₽', '₩'];
+final currencyNames = {
+  '\$': 'US Dollar',
+  '€': 'Euro',
+  '£': 'British Pound',
+  '₹': 'Indian Rupee',
+  '¥': 'Japanese Yen',
+  '₽': 'Russian Ruble',
+  '₩': 'Korean Won',
+};

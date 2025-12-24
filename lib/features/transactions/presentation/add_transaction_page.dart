@@ -420,23 +420,35 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
             if (_type != TransactionType.transfer && !_isSplit) 
               categoriesAsync.when(
                 data: (categories) {
-                   return DropdownButtonFormField<int>(
-                     value: _selectedCategoryId,
-                      decoration: inputDecoration.copyWith(
-                       labelText: 'Category',
-                     ),
-                     items: categories.map((c) => DropdownMenuItem(
-                       value: c.id,
-                       child: Row(
-                         children: [
-                           Icon(IconData(c.icon, fontFamily: 'MaterialIcons')), 
-                           const Gap(8),
-                           Text(c.name),
-                         ],
+                     // specific validation to prevent crash if pre-filled category (e.g. from Refund) doesn't exist in this type list
+                     if (_selectedCategoryId != null && !categories.any((c) => c.id == _selectedCategoryId)) {
+                        // We can't setState during build, but we can coerce the value for the dropdown
+                        // Ideally we should use a post-frame callback or just pass null to value
+                        // But local variable modification doesn't affect state. 
+                        // Let's just pass null if not found.
+                     }
+
+                     final effectiveCategoryId = (_selectedCategoryId != null && categories.any((c) => c.id == _selectedCategoryId)) 
+                        ? _selectedCategoryId 
+                        : null;
+
+                     return DropdownButtonFormField<int>(
+                       value: effectiveCategoryId,
+                        decoration: inputDecoration.copyWith(
+                         labelText: 'Category',
                        ),
-                     )).toList(),
-                     onChanged: (v) => setState(() => _selectedCategoryId = v),
-                   );
+                       items: categories.map((c) => DropdownMenuItem(
+                         value: c.id,
+                         child: Row(
+                           children: [
+                             Icon(IconData(c.icon, fontFamily: 'MaterialIcons')), 
+                             const Gap(8),
+                             Text(c.name),
+                           ],
+                         ),
+                       )).toList(),
+                       onChanged: (v) => setState(() => _selectedCategoryId = v),
+                     );
                 },
                 loading: () => const LinearProgressIndicator(), 
                 error: (_,__) => const Text('Error loading categories'),
