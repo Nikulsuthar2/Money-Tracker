@@ -305,7 +305,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                        lineTouchData: LineTouchData(
                           touchTooltipData: LineTouchTooltipData(
                             getTooltipColor: (_) => Theme.of(context).colorScheme.surface,
-                            tooltipRoundedRadius: 8,
                             tooltipPadding: const EdgeInsets.all(8),
                             fitInsideHorizontally: true, // Prevent horizontal overflow
                             fitInsideVertically: true, // Prevent vertical overflow
@@ -354,7 +353,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                    final accountMap = {for (var s in accountsStats) s.account.id: s.account.name};
                    
                    return Column(
-                    children: txs.map((t) {
+                    children: (txs..sort((a,b) => b.date.compareTo(a.date))).map((t) { // Sort Descending
                        final accountId = t.type == TransactionType.income ? t.toAccountId : t.fromAccountId;
                        final accountName = accountId != null ? accountMap[accountId] ?? 'Unknown' : 'Unknown';
                        

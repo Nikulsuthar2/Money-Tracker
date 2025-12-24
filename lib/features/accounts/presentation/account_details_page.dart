@@ -10,6 +10,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import 'package:money_manager/features/transactions/presentation/widgets/transaction_tile.dart';
+import 'package:money_manager/features/accounts/presentation/widgets/account_chart.dart';
 
 class AccountDetailsPage extends ConsumerWidget {
   const AccountDetailsPage({super.key, required this.account});

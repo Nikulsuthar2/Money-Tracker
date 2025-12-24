@@ -64,6 +64,7 @@ class TransactionsPage extends ConsumerWidget {
                     itemBuilder: (context, index) {
                       final date = sortedDates[index];
                       final dayTransactions = grouped[date]!;
+                      dayTransactions.sort((a, b) => b.date.compareTo(a.date)); // Ensure newest on top
                       
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

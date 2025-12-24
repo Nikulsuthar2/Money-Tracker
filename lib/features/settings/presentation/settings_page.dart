@@ -109,7 +109,7 @@ class SettingsPage extends ConsumerWidget {
             title: const Text('Source Code'),
             subtitle: const Text('View on GitHub'),
             onTap: () async {
-               final url = Uri.parse('https://github.com/nikul/money_tracker'); 
+               final url = Uri.parse('https://github.com/Nikulsuthar2/Money-Tracker'); 
                if (await canLaunchUrl(url)) {
                  await launchUrl(url);
                }
@@ -118,7 +118,7 @@ class SettingsPage extends ConsumerWidget {
            ListTile(
             leading: const Icon(Icons.person),
             title: const Text('Developer'),
-            subtitle: const Text('Nikul'), 
+            subtitle: const Text('Google Anigravity & Nikul Suthar'), 
           ),
         ],
       ),
