@@ -1,0 +1,27 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+final currencyProvider = StateNotifierProvider<CurrencyNotifier, String>((ref) {
+  return CurrencyNotifier();
+});
+
+class CurrencyNotifier extends StateNotifier<String> {
+  CurrencyNotifier() : super('\$') {
+    _loadCurrency();
+  }
+
+  static const _key = 'selected_currency';
+
+  Future<void> _loadCurrency() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString(_key) ?? '\$';
+  }
+
+  Future<void> setCurrency(String symbol) async {
+    state = symbol;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, symbol);
+  }
+}
+
+final supportedCurrencies = ['\$', '€', '£', '₹', '¥', '₽', '₩'];

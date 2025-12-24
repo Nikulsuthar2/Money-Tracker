@@ -158,7 +158,38 @@ class TransactionDetailsPage extends ConsumerWidget {
                 },
               ),
             )
-          ]
+          ],
+          
+          const Gap(32),
+          OutlinedButton.icon(
+            onPressed: () {
+              TransactionType newType;
+              if (t.type == TransactionType.expense) newType = TransactionType.income;
+              else if (t.type == TransactionType.income) newType = TransactionType.expense;
+              else newType = TransactionType.transfer; // Transfer support: Reverse?
+
+              int? accountId;
+              if (t.type == TransactionType.expense) accountId = t.fromAccountId;
+              if (t.type == TransactionType.income) accountId = t.toAccountId;
+              // Transfer reverse handled manually by user for now or switch tabs? 
+              // AddTransactionPage defaults logic sets 'accountId' as FROM account for Expense/Transfer and TO for Income.
+              
+              context.push('/add-transaction', extra: {
+                'type': newType,
+                'amount': t.amount,
+                'note': 'Refund: ${t.note ?? ''}',
+                'categoryId': t.categoryId,
+                'accountId': accountId, // Will be mapped to correct field in AddPage based on Type
+              });
+            },
+            icon: const Icon(Icons.undo),
+            label: Text(t.type == TransactionType.expense ? 'Got Back (Refund)' : (t.type == TransactionType.income ? 'Repay (Refund)' : 'Reverse Transaction')),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              foregroundColor: theme.colorScheme.primary,
+            ),
+          ),
+          const Gap(40),
         ],
       ),
     );

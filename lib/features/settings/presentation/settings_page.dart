@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/settings/data/backup_service.dart';
 import 'package:money_manager/core/database/isar_service.dart';
 import 'package:money_manager/core/theme/theme_provider.dart';
+import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:money_manager/features/settings/application/security_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:gap/gap.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -16,18 +19,45 @@ class SettingsPage extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          // General Section
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('General', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          ),
           ListTile(
             leading: const Icon(Icons.category),
             title: const Text('Categories'),
             subtitle: const Text('Manage your categories'),
-            onTap: () {
-              context.push('/categories');
-            },
             trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/categories'),
           ),
+          
+          ListTile(
+            leading: const Icon(Icons.monetization_on),
+            title: const Text('Currency'),
+            subtitle: Text('Selected: ${ref.watch(currencyProvider)}'),
+            onTap: () {
+               showDialog(context: context, builder: (c) => SimpleDialog(
+                 title: const Text('Select Currency'),
+                 children: supportedCurrencies.map((cur) => SimpleDialogOption(
+                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                   onPressed: () {
+                     ref.read(currencyProvider.notifier).setCurrency(cur);
+                     Navigator.pop(c);
+                   },
+                   child: Text(cur, style: const TextStyle(fontSize: 18)),
+                 )).toList(),
+               ));
+            },
+          ),
+
           const Divider(),
-          const _ThemeSelector(),
+          const _AppearanceSelector(),
           const Divider(),
+          const _SecuritySection(),
+          const Divider(),
+
+          // Data
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text('Data Management', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -35,13 +65,12 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.download),
             title: const Text('Export Data'),
-            subtitle: const Text('Backup to a JSON file'),
+            subtitle: const Text('Save backup to file'),
             onTap: () async {
               try {
                 await BackupService().exportData();
                 if (context.mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export functionality invoked (check console/platform specific)')));
-                   // Note: BackupService logs path.
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export initiated. Check Downloads/Documents.')));
                 }
               } catch (e) {
                 if (context.mounted) {
@@ -53,12 +82,12 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.upload),
             title: const Text('Import Data'),
-            subtitle: const Text('Restore from a JSON file'),
+            subtitle: const Text('Restore from backup file'),
             onTap: () async {
                try {
                 await BackupService().importData();
                  if (context.mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Import Successful. Please restart app if state looks stale.')));
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Import Successful. Please restart app.')));
                 }
               } catch (e) {
                 if (context.mounted) {
@@ -87,7 +116,9 @@ class SettingsPage extends ConsumerWidget {
               ));
             },
             ),
+          
           const Divider(),
+          // About
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text('About', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -110,15 +141,19 @@ class SettingsPage extends ConsumerWidget {
             subtitle: const Text('View on GitHub'),
             onTap: () async {
                final url = Uri.parse('https://github.com/Nikulsuthar2/Money-Tracker'); 
-               if (await canLaunchUrl(url)) {
-                 await launchUrl(url);
+               try {
+                 if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not launch URL')));
+                 }
+               } catch (e) {
+                 if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                }
             },
           ),
-           ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Developer'),
-            subtitle: const Text('Google Anigravity & Nikul Suthar'), 
+           const ListTile(
+            leading: Icon(Icons.person),
+            title: Text('Developer'),
+            subtitle: Text('Google Anigravity & Nikul Suthar'), 
           ),
         ],
       ),
@@ -126,12 +161,13 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
-class _ThemeSelector extends ConsumerWidget {
-  const _ThemeSelector();
+class _AppearanceSelector extends ConsumerWidget {
+  const _AppearanceSelector();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final dynamicColor = ref.watch(dynamicColorProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,7 +191,47 @@ class _ThemeSelector extends ConsumerWidget {
             showSelectedIcon: false,
           ),
         ),
-        const SizedBox(height: 16),
+        const Gap(8),
+        SwitchListTile(
+          title: const Text('Dynamic Color'),
+          subtitle: const Text('Use wallpaper colors'),
+          value: dynamicColor,
+          onChanged: (v) => ref.read(dynamicColorProvider.notifier).toggle(v),
+        ),
+      ],
+    );
+  }
+}
+
+class _SecuritySection extends ConsumerWidget {
+  const _SecuritySection();
+  
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final securityState = ref.watch(securityProvider);
+    final notifier = ref.read(securityProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text('Security', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+        ),
+        SwitchListTile(
+          title: const Text('Biometric Lock'),
+          subtitle: const Text('Require optional fingerprint/face to open'),
+          value: securityState.isBiometricEnabled,
+          onChanged: (v) async {
+             try {
+               await notifier.toggleBiometric(v);
+             } catch (e) {
+               if (context.mounted) {
+                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+               }
+             }
+          },
+        ),
       ],
     );
   }

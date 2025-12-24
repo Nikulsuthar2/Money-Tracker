@@ -32,6 +32,9 @@ class Transaction {
   int? subscriptionId;
 
   List<SubTransaction>? subTransactions;
+
+  bool skipFromStats = false;
+  bool hasTime = true;
 }
 
 @embedded

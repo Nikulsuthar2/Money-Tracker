@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/core/database/isar_service.dart';
@@ -53,6 +55,12 @@ class BackupService {
         'date': e.date.toIso8601String(),
         'isRecurring': e.isRecurring,
         'subscriptionId': e.subscriptionId,
+        'subTransactions': e.subTransactions?.map((s) => { // Added split support export
+           'amount': s.amount,
+           'note': s.note,
+           'categoryId': s.categoryId,
+           'isMine': s.isMine,
+        }).toList(),
       }).toList(),
       'subscriptions': subscriptions.map((e) => {
         'id': e.id,
@@ -68,19 +76,22 @@ class BackupService {
     };
 
     final jsonString = jsonEncode(data);
-    final filename = 'money_manager_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.json';
+    // Remove extension from name because FileSaver adds it?? No, usually explicitly needed or handled by ext param.
+    // FileSaver adds extension if not present.
+    final filename = 'money_manager_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}';
     
     if (Platform.isAndroid || Platform.isIOS) {
-       // Mobile: Save to temp and Share
-       final dir = await getTemporaryDirectory();
-       final file = File('${dir.path}/$filename');
-       await file.writeAsString(jsonString);
-       await Share.shareXFiles([XFile(file.path)], text: 'Money Manager Backup');
+       // MOBILE: Use FileSaver to save to Downloads/Documents
+       await FileSaver.instance.saveFile(
+         name: filename,
+         bytes: Uint8List.fromList(utf8.encode(jsonString)),
+         mimeType: MimeType.json,
+       );
     } else {
        // Desktop: Save File Dialog
        final outputFile = await FilePicker.platform.saveFile(
          dialogTitle: 'Save Backup',
-         fileName: filename,
+         fileName: '$filename.json',
          allowedExtensions: ['json'],
          type: FileType.custom,
        );
@@ -118,20 +129,6 @@ class BackupService {
                ..color = item['color']
                ..icon = item['icon']
                ..isArchived = item['isArchived'];
-             // We allow AutoIncrement, but if we want to preserve relationships, we might need to handle IDs.
-             // If we blindly clear logic and insert, new IDs are generated. 
-             // Relationships (transactions -> accountId) will BREAK if IDs change.
-             // We MUST preserve IDs or map old->new. 
-             // Isar allows setting ID if it's not AutoIncrement?
-             // Actually, I defined `Id id = Isar.autoIncrement`. 
-             // We cannot manually set AutoIncrement IDs easily in Isar?
-             // Actually we can, if schema allows. But here it's auto.
-             
-             // Strategy: Since offline-first single user, ID preservation is key.
-             // If valid ID provided in JSON, we can try to put it?
-             // Isar allows manual ID if we don't use `Isar.autoIncrement`? 
-             // Or if we use `isar.accounts.put` with object having that ID.
-             // Isar AutoIncrement IDs are just integers. We can set `id = 123` and put.
              account.id = item['id']; 
              await isar.accounts.put(account);
           }
@@ -162,6 +159,17 @@ class BackupService {
                ..date = DateTime.parse(item['date'])
                ..isRecurring = item['isRecurring']
                ..subscriptionId = item['subscriptionId'];
+            
+            // Import Splits
+            if (item['subTransactions'] != null) {
+               transaction.subTransactions = (item['subTransactions'] as List).map((s) => SubTransaction()
+                 ..amount = (s['amount'] as num).toDouble()
+                 ..note = s['note']
+                 ..categoryId = s['categoryId']
+                 ..isMine = s['isMine'] ?? true
+               ).toList();
+            }
+
             await isar.transactions.put(transaction);
           }
           

@@ -5,6 +5,8 @@ import 'package:money_manager/core/theme/app_theme.dart';
 import 'package:money_manager/core/database/isar_service.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:money_manager/core/theme/theme_provider.dart';
+import 'package:money_manager/features/settings/application/security_provider.dart';
+import 'package:gap/gap.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,25 +20,106 @@ void main() async {
   }
 }
 
-class MoneyManagerApp extends ConsumerWidget {
+class MoneyManagerApp extends ConsumerStatefulWidget {
   const MoneyManagerApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MoneyManagerApp> createState() => _MoneyManagerAppState();
+}
+
+class _MoneyManagerAppState extends ConsumerState<MoneyManagerApp> with WidgetsBindingObserver {
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Trigger auth on start if enabled
+    Future.microtask(() {
+      final security = ref.read(securityProvider);
+      if (security.isBiometricEnabled && !security.isAuthenticated) {
+        ref.read(securityProvider.notifier).authenticate();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+       // Lock app when going background if enabled
+       ref.read(securityProvider.notifier).lock();
+    }
+    if (state == AppLifecycleState.resumed) {
+       final security = ref.read(securityProvider);
+       if (security.isBiometricEnabled && !security.isAuthenticated) {
+          ref.read(securityProvider.notifier).authenticate();
+       }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final dynamicEnabled = ref.watch(dynamicColorProvider);
+    final security = ref.watch(securityProvider);
 
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
+        // Only use dynamic if enabled
+        final lightScheme = dynamicEnabled ? lightDynamic : null;
+        final darkScheme = dynamicEnabled ? darkDynamic : null;
+
         return MaterialApp.router(
-          title: 'Money Manager',
-          theme: AppTheme.lightTheme(lightDynamic),
-          darkTheme: AppTheme.darkTheme(darkDynamic),
+          title: 'Money Tracker',
+          theme: AppTheme.lightTheme(lightScheme),
+          darkTheme: AppTheme.darkTheme(darkScheme),
           themeMode: themeMode,
           routerConfig: router,
           debugShowCheckedModeBanner: false,
+          builder: (context, child) {
+             // Overlay Lock Screen
+             if (security.isBiometricEnabled && !security.isAuthenticated) {
+               return _LockScreen(onUnlock: () {
+                 ref.read(securityProvider.notifier).authenticate();
+               });
+             }
+             return child!;
+          },
         );
       },
+    );
+  }
+}
+
+class _LockScreen extends StatelessWidget {
+  final VoidCallback onUnlock;
+  const _LockScreen({required this.onUnlock});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.lock_outline, size: 64, color: Colors.teal),
+            const Gap(24),
+            const Text('App Locked', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Gap(16),
+            FilledButton.icon(
+              onPressed: onUnlock,
+              icon: const Icon(Icons.fingerprint),
+              label: const Text('Unlock'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

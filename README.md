@@ -65,6 +65,14 @@ Visit the live demo at: [Link to Web App] *(Placeholder)*
 - **Linux**: `flutter build linux --release`
 - **Web**: `flutter build web --release`
 
+## Isues    
+- App Icon not working
+- Refund or got back not working properly
+- Some UI bugs
+- Export not working 
+- Currency names not showing
+- Currency icon not changing everywhere
+
 ## 📄 License
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 

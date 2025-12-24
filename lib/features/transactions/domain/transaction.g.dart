@@ -37,34 +37,44 @@ const TransactionSchema = CollectionSchema(
       name: r'fromAccountId',
       type: IsarType.long,
     ),
-    r'isRecurring': PropertySchema(
+    r'hasTime': PropertySchema(
       id: 4,
+      name: r'hasTime',
+      type: IsarType.bool,
+    ),
+    r'isRecurring': PropertySchema(
+      id: 5,
       name: r'isRecurring',
       type: IsarType.bool,
     ),
     r'note': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'note',
       type: IsarType.string,
     ),
+    r'skipFromStats': PropertySchema(
+      id: 7,
+      name: r'skipFromStats',
+      type: IsarType.bool,
+    ),
     r'subTransactions': PropertySchema(
-      id: 6,
+      id: 8,
       name: r'subTransactions',
       type: IsarType.objectList,
       target: r'SubTransaction',
     ),
     r'subscriptionId': PropertySchema(
-      id: 7,
+      id: 9,
       name: r'subscriptionId',
       type: IsarType.long,
     ),
     r'toAccountId': PropertySchema(
-      id: 8,
+      id: 10,
       name: r'toAccountId',
       type: IsarType.long,
     ),
     r'type': PropertySchema(
-      id: 9,
+      id: 11,
       name: r'type',
       type: IsarType.string,
       enumMap: _TransactiontypeEnumValueMap,
@@ -177,17 +187,19 @@ void _transactionSerialize(
   writer.writeLong(offsets[1], object.categoryId);
   writer.writeDateTime(offsets[2], object.date);
   writer.writeLong(offsets[3], object.fromAccountId);
-  writer.writeBool(offsets[4], object.isRecurring);
-  writer.writeString(offsets[5], object.note);
+  writer.writeBool(offsets[4], object.hasTime);
+  writer.writeBool(offsets[5], object.isRecurring);
+  writer.writeString(offsets[6], object.note);
+  writer.writeBool(offsets[7], object.skipFromStats);
   writer.writeObjectList<SubTransaction>(
-    offsets[6],
+    offsets[8],
     allOffsets,
     SubTransactionSchema.serialize,
     object.subTransactions,
   );
-  writer.writeLong(offsets[7], object.subscriptionId);
-  writer.writeLong(offsets[8], object.toAccountId);
-  writer.writeString(offsets[9], object.type.name);
+  writer.writeLong(offsets[9], object.subscriptionId);
+  writer.writeLong(offsets[10], object.toAccountId);
+  writer.writeString(offsets[11], object.type.name);
 }
 
 Transaction _transactionDeserialize(
@@ -201,19 +213,21 @@ Transaction _transactionDeserialize(
   object.categoryId = reader.readLongOrNull(offsets[1]);
   object.date = reader.readDateTime(offsets[2]);
   object.fromAccountId = reader.readLongOrNull(offsets[3]);
+  object.hasTime = reader.readBool(offsets[4]);
   object.id = id;
-  object.isRecurring = reader.readBool(offsets[4]);
-  object.note = reader.readStringOrNull(offsets[5]);
+  object.isRecurring = reader.readBool(offsets[5]);
+  object.note = reader.readStringOrNull(offsets[6]);
+  object.skipFromStats = reader.readBool(offsets[7]);
   object.subTransactions = reader.readObjectList<SubTransaction>(
-    offsets[6],
+    offsets[8],
     SubTransactionSchema.deserialize,
     allOffsets,
     SubTransaction(),
   );
-  object.subscriptionId = reader.readLongOrNull(offsets[7]);
-  object.toAccountId = reader.readLongOrNull(offsets[8]);
+  object.subscriptionId = reader.readLongOrNull(offsets[9]);
+  object.toAccountId = reader.readLongOrNull(offsets[10]);
   object.type =
-      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[9])] ??
+      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[11])] ??
           TransactionType.income;
   return object;
 }
@@ -236,19 +250,23 @@ P _transactionDeserializeProp<P>(
     case 4:
       return (reader.readBool(offset)) as P;
     case 5:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 6:
+      return (reader.readStringOrNull(offset)) as P;
+    case 7:
+      return (reader.readBool(offset)) as P;
+    case 8:
       return (reader.readObjectList<SubTransaction>(
         offset,
         SubTransactionSchema.deserialize,
         allOffsets,
         SubTransaction(),
       )) as P;
-    case 7:
-      return (reader.readLongOrNull(offset)) as P;
-    case 8:
-      return (reader.readLongOrNull(offset)) as P;
     case 9:
+      return (reader.readLongOrNull(offset)) as P;
+    case 10:
+      return (reader.readLongOrNull(offset)) as P;
+    case 11:
       return (_TransactiontypeValueEnumMap[reader.readStringOrNull(offset)] ??
           TransactionType.income) as P;
     default:
@@ -1086,6 +1104,16 @@ extension TransactionQueryFilter
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> hasTimeEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'hasTime',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterFilterCondition> idEqualTo(
       Id value) {
     return QueryBuilder.apply(this, (query) {
@@ -1293,6 +1321,16 @@ extension TransactionQueryFilter
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'note',
         value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      skipFromStatsEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'skipFromStats',
+        value: value,
       ));
     });
   }
@@ -1748,6 +1786,18 @@ extension TransactionQuerySortBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByHasTime() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasTime', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByHasTimeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasTime', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByIsRecurring() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isRecurring', Sort.asc);
@@ -1769,6 +1819,19 @@ extension TransactionQuerySortBy
   QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByNoteDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'note', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> sortBySkipFromStats() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'skipFromStats', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      sortBySkipFromStatsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'skipFromStats', Sort.desc);
     });
   }
 
@@ -1861,6 +1924,18 @@ extension TransactionQuerySortThenBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByHasTime() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasTime', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByHasTimeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasTime', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -1894,6 +1969,19 @@ extension TransactionQuerySortThenBy
   QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByNoteDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'note', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> thenBySkipFromStats() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'skipFromStats', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      thenBySkipFromStatsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'skipFromStats', Sort.desc);
     });
   }
 
@@ -1961,6 +2049,12 @@ extension TransactionQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QDistinct> distinctByHasTime() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'hasTime');
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QDistinct> distinctByIsRecurring() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isRecurring');
@@ -1971,6 +2065,12 @@ extension TransactionQueryWhereDistinct
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'note', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QDistinct> distinctBySkipFromStats() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'skipFromStats');
     });
   }
 
@@ -2026,6 +2126,12 @@ extension TransactionQueryProperty
     });
   }
 
+  QueryBuilder<Transaction, bool, QQueryOperations> hasTimeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'hasTime');
+    });
+  }
+
   QueryBuilder<Transaction, bool, QQueryOperations> isRecurringProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isRecurring');
@@ -2035,6 +2141,12 @@ extension TransactionQueryProperty
   QueryBuilder<Transaction, String?, QQueryOperations> noteProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'note');
+    });
+  }
+
+  QueryBuilder<Transaction, bool, QQueryOperations> skipFromStatsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'skipFromStats');
     });
   }
 

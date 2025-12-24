@@ -13,6 +13,7 @@ import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:intl/intl.dart';
+import 'package:money_manager/core/providers/currency_provider.dart';
 
 // Repository for Subscriptions (inline for now or separate file)
 // Repository for Subscriptions (inline for now or separate file)
@@ -56,6 +57,7 @@ class SubscriptionsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final subsAsync = ref.watch(subscriptionsStreamProvider);
+    final currency = ref.watch(currencyProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Subscriptions')),
@@ -78,7 +80,7 @@ class SubscriptionsPage extends ConsumerWidget {
                    trailing: Row(
                      mainAxisSize: MainAxisSize.min,
                      children: [
-                       Text('\$${s.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                       Text('$currency${s.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                        PopupMenuButton(
                         icon: const Icon(Icons.more_vert),
                         itemBuilder: (context) => [

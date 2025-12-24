@@ -10,6 +10,7 @@ import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/categories/data/categories_repository.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
+import 'package:money_manager/core/providers/currency_provider.dart';
 
 class AddTransactionPage extends ConsumerStatefulWidget {
   const AddTransactionPage({super.key, this.extra});
@@ -30,6 +31,10 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
   int? _selectedAccountId; // From Account
   int? _selectedToAccountId; // To Account (for transfer)
   int? _selectedCategoryId; // For Income/Expense
+
+  // New Fields
+  bool _skipFromStats = false;
+  bool _hasTime = true;
 
   // Split Transaction State
   bool _isSplit = false;
@@ -58,7 +63,9 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
       _date = t.date;
       _type = t.type;
       _selectedCategoryId = t.categoryId; 
-      
+      _skipFromStats = t.skipFromStats;
+      _hasTime = t.hasTime;
+
       // Load splits
       if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
         _isSplit = true;
@@ -83,8 +90,12 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         _tabController.index = 2;
       }
     } else {
-       // Defaults from Dashboard
+       // Defaults from Dashboard or Other
        if (defaults != null) {
+         if (defaults['amount'] != null) _amountController.text = defaults['amount'].toString();
+         if (defaults['note'] != null) _noteController.text = defaults['note'];
+         if (defaults['categoryId'] != null) _selectedCategoryId = defaults['categoryId'] as int?;
+
          if (defaults['type'] == TransactionType.income) {
            _type = TransactionType.income;
            _tabController.index = 0;
@@ -103,6 +114,8 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
          // Default generic
          _tabController.animateTo(1);
        }
+       // Default time: set current time but ensure _hasTime is true by default
+       _date = DateTime.now();
     }
 
     _tabController.addListener(() {
@@ -112,7 +125,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
            if (_tabController.index == 0) _type = TransactionType.income;
            if (_tabController.index == 1) _type = TransactionType.expense;
            if (_tabController.index == 2) _type = TransactionType.transfer;
-           // Reset split if switching to transfer (usually splits are for expense/income)
+           // Reset split if switching to transfer
            if (_type == TransactionType.transfer) {
               _isSplit = false;
               _splits.clear();
@@ -191,9 +204,11 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
       transaction
         ..amount = amount
         ..type = _type
-        ..date = _date
+        ..date = _hasTime ? _date : DateTime(_date.year, _date.month, _date.day) // Strip time if no time
         ..note = _noteController.text
-        ..categoryId = _isSplit ? null : _selectedCategoryId; // Main category is null if split? Or maybe use first split? Let's keep null.
+        ..categoryId = _isSplit ? null : _selectedCategoryId
+        ..skipFromStats = _skipFromStats
+        ..hasTime = _hasTime;
      
       // Assign Splits
       if (_isSplit) {
@@ -241,7 +256,6 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         categoriesAsync = ref.watch(expenseCategoriesProvider);
     }
 
-    // Common Input Decoration for consistency
     final inputDecoration = InputDecoration(
       isDense: true,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -270,7 +284,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
               controller: _amountController,
               decoration: inputDecoration.copyWith(
                 labelText: 'Amount',
-                prefixText: '\$ ',
+                prefixText: '${ref.watch(currencyProvider)} ',
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -314,7 +328,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                 ),
                 const Gap(12),
                 Expanded(
-                  child: InkWell(
+                  child: _hasTime ? InkWell(
                     onTap: () async {
                       final t = await showTimePicker(
                         context: context, 
@@ -329,11 +343,27 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                     child: InputDecorator(
                       decoration: inputDecoration.copyWith(
                         labelText: 'Time',
-                        suffixIcon: const Icon(Icons.access_time, size: 20),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+                          onPressed: () => setState(() => _hasTime = false),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
                       ),
                       child: Text(
                         DateFormat.jm().format(_date),
                         style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ) : SizedBox(
+                    height: 56,
+                    child: OutlinedButton.icon(
+                      onPressed: () => setState(() => _hasTime = true),
+                      icon: const Icon(Icons.access_time),
+                      label: const Text('Add Time'),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(color: Theme.of(context).colorScheme.outline),
                       ),
                     ),
                   ),
@@ -386,7 +416,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
             
             const Gap(16),
 
-            // Category Selection (Normal Mode) - MOVED UP
+            // Category Selection (Normal Mode)
             if (_type != TransactionType.transfer && !_isSplit) 
               categoriesAsync.when(
                 data: (categories) {
@@ -412,7 +442,6 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                 error: (_,__) => const Text('Error loading categories'),
               ),
             
-            // SPLIT TOGGLE - MOVED DOWN
              if (_type != TransactionType.transfer) ...[
                 const Gap(8),
                 Row(
@@ -468,7 +497,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                                     Expanded(
                                       child: TextFormField(
                                         controller: _splits[i].amountController,
-                                        decoration: const InputDecoration(labelText: 'Amount', prefixText: '\$', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
+                                        decoration: InputDecoration(labelText: 'Amount', prefixText: '${ref.watch(currencyProvider)}', isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                       ),
                                     ),
@@ -510,6 +539,15 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                  labelText: 'Note',
                ),
                maxLines: 2,
+             ),
+             
+             const Gap(16),
+             SwitchListTile(
+                value: _skipFromStats, 
+                onChanged: (v) => setState(() => _skipFromStats = v),
+                title: const Text('Ignore in Calculation'),
+                subtitle: const Text('Don\'t include in Analytics or Totals'),
+                activeColor: Colors.orange,
              ),
 
              const Gap(24),

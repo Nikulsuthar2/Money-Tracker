@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
-import 'package:money_manager/features/accounts/data/accounts_repository.dart';
 import 'package:money_manager/features/accounts/application/accounts_providers.dart';
-import 'package:money_manager/features/transactions/presentation/widgets/transaction_tile.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
-import 'package:money_manager/features/categories/data/categories_repository.dart';
-import 'package:money_manager/features/categories/domain/category.dart';
-import 'package:intl/intl.dart';
-import 'package:gap/gap.dart';
-class TransactionsPage extends ConsumerWidget {
+import 'package:money_manager/features/transactions/presentation/widgets/transaction_tile.dart';
+
+class TransactionsPage extends ConsumerStatefulWidget {
   const TransactionsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Recent transactions provider
-    final transactionsAsync = ref.watch(recentTransactionsProvider);
+  ConsumerState<TransactionsPage> createState() => _TransactionsPageState();
+}
+
+class _TransactionsPageState extends ConsumerState<TransactionsPage> {
+  bool _isCompact = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch all transactions
+    final transactionsAsync = ref.watch(transactionsStreamProvider);
     final accountsAsync = ref.watch(accountsWithBalanceProvider);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
 
@@ -25,6 +29,11 @@ class TransactionsPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Transactions'),
         actions: [
+          IconButton(
+            icon: Icon(_isCompact ? Icons.view_agenda : Icons.view_headline),
+            tooltip: _isCompact ? 'Comfortable View' : 'Concise View',
+            onPressed: () => setState(() => _isCompact = !_isCompact),
+          ),
           IconButton(
             icon: const Icon(Icons.table_chart),
             tooltip: 'Table View',
@@ -76,8 +85,8 @@ class TransactionsPage extends ConsumerWidget {
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Theme.of(context).brightness == Brightness.dark 
-                                    ? Theme.of(context).colorScheme.surfaceVariant 
-                                    : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                                    ? Theme.of(context).colorScheme.surfaceContainerHighest 
+                                    : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
@@ -99,6 +108,7 @@ class TransactionsPage extends ConsumerWidget {
                               transaction: t,
                               accountName: accountName,
                               category: category,
+                              compact: _isCompact,
                               onTap: () {
                                  context.push('/transaction-details', extra: t);
                               },
@@ -119,13 +129,6 @@ class TransactionsPage extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error: $e')),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          context.push('/add-transaction');
-        },
-        icon: const Icon(Icons.post_add),
-        label: const Text('New Transaction'),
       ),
     );
   }

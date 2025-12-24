@@ -27,3 +27,26 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     await prefs.setString(_key, mode.name);
   }
 }
+
+final dynamicColorProvider = StateNotifierProvider<DynamicColorNotifier, bool>((ref) {
+  return DynamicColorNotifier();
+});
+
+class DynamicColorNotifier extends StateNotifier<bool> {
+  DynamicColorNotifier() : super(true) {
+    _load();
+  }
+
+  static const _key = 'dynamic_color_enabled';
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool(_key) ?? true;
+  }
+
+  Future<void> toggle(bool value) async {
+    state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_key, value);
+  }
+}

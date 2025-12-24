@@ -10,10 +10,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:money_manager/features/transactions/presentation/widgets/transaction_tile.dart';
 import 'package:money_manager/features/subscriptions/presentation/subscriptions_page.dart';
 import 'package:money_manager/features/subscriptions/domain/subscription.dart';
-import 'package:money_manager/features/categories/data/categories_repository.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/accounts/presentation/widgets/account_card.dart';
+import 'package:money_manager/core/providers/currency_provider.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -23,6 +23,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
+  String _trendView = 'Week';
 
   @override
   void initState() {
@@ -50,7 +51,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             mainAxisSize: MainAxisSize.min,
             children: due.map((s) => ListTile(
               title: Text(s.name),
-              trailing: Text('\$${s.amount.toStringAsFixed(2)}'),
+              trailing: Text('${ref.read(currencyProvider)}${s.amount.toStringAsFixed(2)}'),
               dense: true,
             )).toList(),
           ),
@@ -189,7 +190,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                          data: (list) {
                            final total = list.fold(0.0, (sum, item) => sum + item.balance);
                            return Text(
-                             '\$${total.toStringAsFixed(2)}',
+                             '${ref.read(currencyProvider)}${total.toStringAsFixed(2)}',
                              style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
                            );
                          },
@@ -220,46 +221,120 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           const Gap(24),
           
           // Chart Section
-          Text('Spending Trend (Last 30 Days)', style: Theme.of(context).textTheme.titleLarge),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+               Text('Financial Trend', style: Theme.of(context).textTheme.titleLarge),
+               SegmentedButton<String>(
+                 segments: const [
+                   ButtonSegment(value: 'Week', label: Text('W', style: TextStyle(fontSize: 12)), icon: null),
+                   ButtonSegment(value: 'Month', label: Text('M', style: TextStyle(fontSize: 12)), icon: null),
+                   ButtonSegment(value: 'Year', label: Text('Y', style: TextStyle(fontSize: 12)), icon: null),
+                 ], 
+                 selected: {_trendView},
+                 onSelectionChanged: (s) => setState(() => _trendView = s.first),
+                 style: ButtonStyle(
+                   visualDensity: VisualDensity.compact,
+                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                   padding: MaterialStateProperty.all(EdgeInsets.zero),
+                 ),
+                 showSelectedIcon: false, 
+               ),
+            ],
+          ),
           const Gap(16),
           SizedBox(
-            height: 200,
+            height: 220,
             child: allTransactionsAsync.when(
               data: (transactions) {
                 if (transactions.isEmpty) return const Center(child: Text('Not enough data'));
                 
-                // 1. Filter expenses last 30 days
                 final now = DateTime.now();
-                final thirtyDaysAgo = now.subtract(const Duration(days: 30));
-                final expenses = transactions.where((t) => 
-                  t.type == TransactionType.expense && 
-                  t.date.isAfter(thirtyDaysAgo)
-                ).toList();
+                List<FlSpot> incomeSpots = [];
+                List<FlSpot> expenseSpots = [];
+                double maxY = 0;
+                String Function(int) bottomLabel = (i) => '';
 
-                if (expenses.isEmpty) return const Center(child: Text('No expenses in last 30 days'));
-
-                // 2. Group by day
-                final Map<int, double> daySpots = {};
-                // Initialize last 30 days with 0
-                for (int i = 0; i < 30; i++) {
-                   daySpots[i] = 0.0;
+                if (_trendView == 'Week') {
+                    // Last 7 Days
+                    for (int i = 6; i >= 0; i--) {
+                       final date = now.subtract(Duration(days: i));
+                       double income = 0;
+                       double expense = 0;
+                       for (var t in transactions) {
+                          if (t.skipFromStats) continue;
+                          if (t.date.year == date.year && t.date.month == date.month && t.date.day == date.day) {
+                             if (t.type == TransactionType.income) income += t.amount;
+                             if (t.type == TransactionType.expense) expense += t.amount;
+                          }
+                       }
+                       incomeSpots.add(FlSpot((6-i).toDouble(), income));
+                       expenseSpots.add(FlSpot((6-i).toDouble(), expense));
+                       
+                       if(income > maxY) maxY = income;
+                       if(expense > maxY) maxY = expense;
+                    }
+                    bottomLabel = (val) {
+                       final date = now.subtract(Duration(days: 6 - val));
+                       return DateFormat('E').format(date);
+                    };
+                } else if (_trendView == 'Month') {
+                    // Last 30 Days
+                    for (int i = 29; i >= 0; i--) {
+                       final date = now.subtract(Duration(days: i));
+                       double income = 0;
+                       double expense = 0;
+                       for (var t in transactions) {
+                          if (t.skipFromStats) continue;
+                          if (t.date.year == date.year && t.date.month == date.month && t.date.day == date.day) {
+                             if (t.type == TransactionType.income) income += t.amount;
+                             if (t.type == TransactionType.expense) expense += t.amount;
+                          }
+                       }
+                       incomeSpots.add(FlSpot((29-i).toDouble(), income));
+                       expenseSpots.add(FlSpot((29-i).toDouble(), expense));
+                       
+                       if(income > maxY) maxY = income;
+                       if(expense > maxY) maxY = expense;
+                    }
+                     bottomLabel = (val) {
+                       if (val % 5 == 0 || val == 29) {
+                           final date = now.subtract(Duration(days: 29 - val));
+                           return DateFormat('d/M').format(date);
+                       }
+                       return '';
+                    };
+                } else if (_trendView == 'Year') {
+                    // Last 12 Months
+                   for (int i = 11; i >= 0; i--) {
+                       final date = DateTime(now.year, now.month - i, 1);
+                       double income = 0;
+                       double expense = 0;
+                       for (var t in transactions) {
+                          if (t.skipFromStats) continue;
+                          if (t.date.year == date.year && t.date.month == date.month) {
+                             if (t.type == TransactionType.income) income += t.amount;
+                             if (t.type == TransactionType.expense) expense += t.amount;
+                          }
+                       }
+                       incomeSpots.add(FlSpot((11-i).toDouble(), income));
+                       expenseSpots.add(FlSpot((11-i).toDouble(), expense));
+                       
+                       if(income > maxY) maxY = income;
+                       if(expense > maxY) maxY = expense;
+                   }
+                   bottomLabel = (val) {
+                       final date = DateTime(now.year, now.month - (11 - val), 1);
+                       return DateFormat('MMM').format(date);
+                   };
                 }
 
-                for (var t in expenses) {
-                  final daysAgo = now.difference(t.date).inDays;
-                  if (daysAgo >= 0 && daysAgo < 30) {
-                     final x = 29 - daysAgo;
-                     daySpots[x] = (daySpots[x] ?? 0) + t.amount;
-                  }
-                }
-
-                final spots = daySpots.entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList()
-                  ..sort((a,b) => a.x.compareTo(b.x));
+                if (maxY == 0) maxY = 100;
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: 16, top: 16), // Padding for tooltip overflow
+                  padding: const EdgeInsets.only(right: 16, top: 16),
                   child: LineChart(
-                    LineChartData(
+                     LineChartData(
                       gridData: const FlGridData(show: false),
                       titlesData: FlTitlesData(
                          show: true,
@@ -270,18 +345,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                            sideTitles: SideTitles(
                              showTitles: true,
                              getTitlesWidget: (value, meta) {
-                               final index = value.toInt();
-                               if (index >= 0 && index < 30) {
-                                  // Show one label every 5 days
-                                  if (index % 5 == 0 || index == 29) {
-                                     final date = DateTime.now().subtract(Duration(days: 29 - index));
-                                     return Padding(
-                                       padding: const EdgeInsets.only(top: 8.0),
-                                       child: Text(DateFormat('d/M').format(date), style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                                     );
-                                  }
-                               }
-                               return const SizedBox.shrink();
+                               final txt = bottomLabel(value.toInt());
+                               if (txt.isEmpty) return const SizedBox.shrink();
+                               return Padding(
+                                 padding: const EdgeInsets.only(top: 8.0),
+                                 child: Text(txt, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                               );
                              },
                              reservedSize: 30,
                            )
@@ -289,36 +358,43 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       ),
                       borderData: FlBorderData(show: false),
                       lineBarsData: [
+                        // Income
                         LineChartBarData(
-                          spots: spots,
+                          spots: incomeSpots,
                           isCurved: true,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: Colors.teal,
                           barWidth: 3,
                           isStrokeCapRound: true,
                           dotData: const FlDotData(show: false),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                          ),
+                          belowBarData: BarAreaData(show: true, color: Colors.teal.withOpacity(0.1)),
+                        ),
+                        // Expense
+                        LineChartBarData(
+                          spots: expenseSpots,
+                          isCurved: true,
+                          color: Colors.red,
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          dotData: const FlDotData(show: false),
+                          belowBarData: BarAreaData(show: true, color: Colors.red.withOpacity(0.1)),
                         ),
                       ],
                        lineTouchData: LineTouchData(
                           touchTooltipData: LineTouchTooltipData(
                             getTooltipColor: (_) => Theme.of(context).colorScheme.surface,
                             tooltipPadding: const EdgeInsets.all(8),
-                            fitInsideHorizontally: true, // Prevent horizontal overflow
-                            fitInsideVertically: true, // Prevent vertical overflow
+                            fitInsideHorizontally: true,
+                            fitInsideVertically: true,
                             getTooltipItems: (touchedSpots) {
                                return touchedSpots.map((spot) {
-                                  final index = spot.x.toInt();
-                                  final date = DateTime.now().subtract(Duration(days: 29 - index));
+                                  final isIncome = spot.barIndex == 0;
                                   return LineTooltipItem(
-                                    '${DateFormat('MMM d').format(date)}\n',
-                                    TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 12),
+                                    '${isIncome ? "Income" : "Expense"}\n',
+                                    TextStyle(color: isIncome ? Colors.teal : Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
                                     children: [
                                       TextSpan(
-                                        text: '\$${spot.y.toStringAsFixed(0)}', 
-                                        style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 14)
+                                        text: '${ref.watch(currencyProvider)}${spot.y.toStringAsFixed(0)}', 
+                                        style: TextStyle(color: isIncome ? Colors.teal : Colors.red, fontWeight: FontWeight.bold, fontSize: 14)
                                       ),
                                     ]
                                   );

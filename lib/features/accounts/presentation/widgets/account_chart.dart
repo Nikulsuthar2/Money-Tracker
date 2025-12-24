@@ -5,10 +5,11 @@ import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:gap/gap.dart';
 
 class AccountChart extends StatefulWidget {
-  const AccountChart({super.key, required this.transactions, required this.accountId});
+  const AccountChart({super.key, required this.transactions, required this.accountId, required this.currency});
 
   final List<Transaction> transactions;
   final int accountId;
+  final String currency;
 
   @override
   State<AccountChart> createState() => _AccountChartState();
@@ -235,7 +236,7 @@ class _AccountChartState extends State<AccountChart> {
                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       final type = rod.color == Colors.teal ? 'Income' : 'Expense';
                       return BarTooltipItem(
-                        '$type\n${rod.toY.toStringAsFixed(0)}',
+                        '$type\n${widget.currency}${rod.toY.toStringAsFixed(0)}',
                         TextStyle(color: rod.color, fontWeight: FontWeight.bold)
                       );
                    }

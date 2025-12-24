@@ -54,6 +54,7 @@ class TransactionsRepository {
   Future<double> getAccountBalance(Id accountId, double openingBalance) async {
     final income = await _isar.transactions
         .filter()
+        .skipFromStatsEqualTo(false)
         .typeEqualTo(TransactionType.income)
         .and()
         .toAccountIdEqualTo(accountId)
@@ -62,6 +63,7 @@ class TransactionsRepository {
         
     final expense = await _isar.transactions
         .filter()
+        .skipFromStatsEqualTo(false)
         .typeEqualTo(TransactionType.expense)
         .and()
         .fromAccountIdEqualTo(accountId)
@@ -70,6 +72,7 @@ class TransactionsRepository {
     
     final transferOut = await _isar.transactions
         .filter()
+        .skipFromStatsEqualTo(false)
         .typeEqualTo(TransactionType.transfer)
         .and()
         .fromAccountIdEqualTo(accountId)
@@ -78,6 +81,7 @@ class TransactionsRepository {
         
     final transferIn = await _isar.transactions
         .filter()
+        .skipFromStatsEqualTo(false)
         .typeEqualTo(TransactionType.transfer)
         .and()
         .toAccountIdEqualTo(accountId)
@@ -90,6 +94,7 @@ class TransactionsRepository {
   Future<Map<String, double>> getAccountStats(Id accountId, double openingBalance) async {
     final income = await _isar.transactions
         .filter()
+        .skipFromStatsEqualTo(false)
         .typeEqualTo(TransactionType.income)
         .and()
         .toAccountIdEqualTo(accountId)
@@ -98,6 +103,7 @@ class TransactionsRepository {
         
     final expense = await _isar.transactions
         .filter()
+        .skipFromStatsEqualTo(false)
         .typeEqualTo(TransactionType.expense)
         .and()
         .fromAccountIdEqualTo(accountId)
@@ -106,6 +112,7 @@ class TransactionsRepository {
     
     final transferOut = await _isar.transactions
         .filter()
+        .skipFromStatsEqualTo(false)
         .typeEqualTo(TransactionType.transfer)
         .and()
         .fromAccountIdEqualTo(accountId)
@@ -114,6 +121,7 @@ class TransactionsRepository {
         
     final transferIn = await _isar.transactions
         .filter()
+        .skipFromStatsEqualTo(false)
         .typeEqualTo(TransactionType.transfer)
         .and()
         .toAccountIdEqualTo(accountId)
