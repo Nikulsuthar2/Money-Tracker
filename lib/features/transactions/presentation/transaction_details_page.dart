@@ -161,26 +161,67 @@ class TransactionDetailsPage extends ConsumerWidget {
           ],
           
           const Gap(32),
+          if (!t.isRefunded)
           OutlinedButton.icon(
-            onPressed: () {
+            onPressed: () async {
+              
+              double amount = t.amount;
+              String notePref = 'Refund: ';
+              
+              // Split Handling
+              if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
+                 final choice = await showDialog<String>(context: context, builder: (c) => SimpleDialog(
+                    title: const Text('Refund Type'),
+                    children: [
+                       SimpleDialogOption(
+                         onPressed: () => Navigator.pop(c, 'full'),
+                         child: const Padding(padding: EdgeInsets.all(16), child: Text('Full Refund (Merchant)', style: TextStyle(fontSize: 16))),
+                       ),
+                       SimpleDialogOption(
+                         onPressed: () => Navigator.pop(c, 'split'),
+                         child: const Padding(padding: EdgeInsets.all(16), child: Text('Split Repayment (Friend)', style: TextStyle(fontSize: 16))),
+                       ),
+                    ],
+                 ));
+                 
+                 if (choice == null) return;
+                 
+                 if (choice == 'split') {
+                    // Calculate amount that is NOT mine (i.e. what friends owe me)
+                    // If I paid 100 (60 mine, 40 friend). Friend pays 40. I get 40 back.
+                    amount = t.subTransactions!.where((s) => !s.isMine).fold(0.0, (sum, s) => sum + s.amount);
+                    notePref = 'Repayment: ';
+                 }
+              }
+
               TransactionType newType;
               if (t.type == TransactionType.expense) newType = TransactionType.income;
               else if (t.type == TransactionType.income) newType = TransactionType.expense;
-              else newType = TransactionType.transfer; // Transfer support: Reverse?
+              else newType = TransactionType.transfer; 
 
               int? accountId;
               if (t.type == TransactionType.expense) accountId = t.fromAccountId;
               if (t.type == TransactionType.income) accountId = t.toAccountId;
-              // Transfer reverse handled manually by user for now or switch tabs? 
-              // AddTransactionPage defaults logic sets 'accountId' as FROM account for Expense/Transfer and TO for Income.
               
-              context.push('/add-transaction', extra: {
-                'type': newType,
-                'amount': t.amount,
-                'note': 'Refund: ${t.note ?? ''}',
-                'categoryId': t.categoryId,
-                'accountId': accountId, // Will be mapped to correct field in AddPage based on Type
-              });
+              if (context.mounted) {
+                final result = await context.push('/add-transaction', extra: {
+                  'type': newType,
+                  'amount': amount,
+                  'note': '$notePref${t.note ?? ''}',
+                  'categoryId': t.categoryId,
+                  'accountId': accountId, 
+                });
+                
+                if (result == true) {
+                   // Mark as refunded
+                   t.isRefunded = true;
+                   await ref.read(transactionsRepositoryProvider).updateTransaction(t);
+                   if (context.mounted) {
+                     context.pop(); // Close Details Page
+                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction Refunded')));
+                   }
+                }
+              }
             },
             icon: const Icon(Icons.undo),
             label: Text(t.type == TransactionType.expense ? 'Got Back (Refund)' : (t.type == TransactionType.income ? 'Repay (Refund)' : 'Reverse Transaction')),
@@ -188,7 +229,12 @@ class TransactionDetailsPage extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 16),
               foregroundColor: theme.colorScheme.primary,
             ),
-          ),
+          ) else
+            const Chip(
+              label: Text('Refunded'),
+              avatar: Icon(Icons.check_circle, color: Colors.green),
+              backgroundColor: Colors.greenAccent, // Light green background logic usually handled by theme, but explicit here for visibility
+            ),
           const Gap(40),
         ],
       ),

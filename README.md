@@ -42,7 +42,7 @@ Visit the live demo at: [Link to Web App] *(Placeholder)*
 
 1.  **Clone the Repo**:
     ```bash
-    git clone https://github.com/nikul/money_tracker.git
+    git clone https://github.com/Nikulsuthar2/Money-Tracker.git
     cd money_tracker
     ```
 

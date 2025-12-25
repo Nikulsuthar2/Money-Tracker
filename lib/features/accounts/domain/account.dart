@@ -24,6 +24,9 @@ class Account {
   int icon = 57522; // Default icon codepoint (e.g. wallet)
 
   bool isArchived = false;
+  
+  // Amount set aside as Savings (not to be spent freely)
+  double savedBalance = 0.0;
 }
 
 enum AccountType {

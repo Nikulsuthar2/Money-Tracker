@@ -51,7 +51,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             mainAxisSize: MainAxisSize.min,
             children: due.map((s) => ListTile(
               title: Text(s.name),
-              trailing: Text('${ref.read(currencyProvider)}${s.amount.toStringAsFixed(2)}'),
+              trailing: Text('${ref.watch(currencyProvider)}${s.amount.toStringAsFixed(2)}'),
               dense: true,
             )).toList(),
           ),
@@ -190,7 +190,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                          data: (list) {
                            final total = list.fold(0.0, (sum, item) => sum + item.balance);
                            return Text(
-                             '${ref.read(currencyProvider)}${total.toStringAsFixed(2)}',
+                             '${ref.watch(currencyProvider)}${total.toStringAsFixed(2)}',
                              style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
                            );
                          },
@@ -206,7 +206,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           const Gap(24),
 
           // Accounts Section
-          Text('My Wallets', style: Theme.of(context).textTheme.titleLarge),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('My Wallets', style: Theme.of(context).textTheme.titleLarge),
+              IconButton(
+                onPressed: () => context.push('/add-account'),
+                icon: const Icon(Icons.add_card),
+                tooltip: 'Add New Wallet',
+              ),
+            ],
+          ),
           const Gap(16),
           accountsWithBalance.when(
             data: (accounts) {
@@ -429,7 +439,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                    final accountMap = {for (var s in accountsStats) s.account.id: s.account.name};
                    
                    return Column(
-                    children: (txs..sort((a,b) => b.date.compareTo(a.date))).map((t) { // Sort Descending
+                    children: (txs..sort((a, b) {
+                      final dateComp = b.date.compareTo(a.date);
+                      if (dateComp != 0) return dateComp;
+                      // Secondary sort: ID Descending (Newest first)
+                      return b.id.compareTo(a.id);
+                    })).map((t) {
                        final accountId = t.type == TransactionType.income ? t.toAccountId : t.fromAccountId;
                        final accountName = accountId != null ? accountMap[accountId] ?? 'Unknown' : 'Unknown';
                        
@@ -451,9 +466,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/add-account'),
-        icon: const Icon(Icons.add_card),
-        label: const Text('New Wallet'),
+        onPressed: () => context.push('/add-transaction'),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Transaction'),
       ),
     );
   }

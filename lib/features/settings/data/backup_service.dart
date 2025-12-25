@@ -81,12 +81,20 @@ class BackupService {
     final filename = 'money_manager_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}';
     
     if (Platform.isAndroid || Platform.isIOS) {
-       // MOBILE: Use SharePlus
-       final tempDir = await getTemporaryDirectory();
-       final file = File('${tempDir.path}/$filename.json');
-       await file.writeAsString(jsonString);
-       
-       await Share.shareXFiles([XFile(file.path)], text: 'Money Tracker Backup');
+       try {
+         await FileSaver.instance.saveFile(
+           name: filename,
+           bytes: Uint8List.fromList(utf8.encode(jsonString)),
+           ext: 'json',
+           mimeType: MimeType.json,
+         );
+       } catch (e) {
+         // Fallback to Share if FileSaver fails (e.g. permissions)
+         final tempDir = await getTemporaryDirectory();
+         final file = File('${tempDir.path}/$filename.json');
+         await file.writeAsString(jsonString);
+         await Share.shareXFiles([XFile(file.path)], text: 'Money Tracker Backup');
+       }
     } else {
        // Desktop: Save File Dialog
        final outputFile = await FilePicker.platform.saveFile(

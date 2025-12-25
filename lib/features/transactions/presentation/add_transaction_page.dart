@@ -200,6 +200,38 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         }
       }
 
+      // Check Balance vs Savings (Warning Logic)
+      if ((_type == TransactionType.expense || _type == TransactionType.transfer) && _selectedAccountId != null) {
+          final repo = ref.read(transactionsRepositoryProvider);
+          final accountRepo = ref.read(accountsRepositoryProvider);
+          
+          final accounts = await accountRepo.getAllAccounts(); 
+          final account = accounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+          
+          if (account != null && account.savedBalance > 0) {
+              final currentBalance = await repo.getAccountBalance(account.id, account.openingBalance);
+              final spendable = currentBalance - account.savedBalance;
+              
+              if (amount > spendable) {
+                  bool proceed = false;
+                  if (mounted) {
+                      await showDialog(
+                        context: context, 
+                        builder: (c) => AlertDialog(
+                          title: const Text('Warning: Usage of Savings'),
+                          content: Text('This transaction amount (${ref.read(currencyProvider)}$amount) exceeds your spendable balance (${ref.read(currencyProvider)}${spendable.toStringAsFixed(2)}) and will dip into your reserved savings (${ref.read(currencyProvider)}${account.savedBalance}).\n\nDo you want to proceed?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
+                            FilledButton(onPressed: () { proceed = true; Navigator.pop(c); }, child: const Text('Proceed', style: TextStyle(color: Colors.white))), // FilledButton usually has white text but being explicit
+                          ],
+                        )
+                      );
+                  }
+                  if (!proceed) return;
+              }
+          }
+      }
+
       final transaction = (widget.extra is Transaction) ? (widget.extra as Transaction) : Transaction();
       transaction
         ..amount = amount
@@ -241,7 +273,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
       }
 
       if (mounted) {
-        context.pop();
+        context.pop(true);
       }
     }
   }

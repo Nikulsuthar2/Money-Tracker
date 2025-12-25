@@ -47,34 +47,39 @@ const TransactionSchema = CollectionSchema(
       name: r'isRecurring',
       type: IsarType.bool,
     ),
-    r'note': PropertySchema(
+    r'isRefunded': PropertySchema(
       id: 6,
+      name: r'isRefunded',
+      type: IsarType.bool,
+    ),
+    r'note': PropertySchema(
+      id: 7,
       name: r'note',
       type: IsarType.string,
     ),
     r'skipFromStats': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'skipFromStats',
       type: IsarType.bool,
     ),
     r'subTransactions': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'subTransactions',
       type: IsarType.objectList,
       target: r'SubTransaction',
     ),
     r'subscriptionId': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'subscriptionId',
       type: IsarType.long,
     ),
     r'toAccountId': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'toAccountId',
       type: IsarType.long,
     ),
     r'type': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'type',
       type: IsarType.string,
       enumMap: _TransactiontypeEnumValueMap,
@@ -189,17 +194,18 @@ void _transactionSerialize(
   writer.writeLong(offsets[3], object.fromAccountId);
   writer.writeBool(offsets[4], object.hasTime);
   writer.writeBool(offsets[5], object.isRecurring);
-  writer.writeString(offsets[6], object.note);
-  writer.writeBool(offsets[7], object.skipFromStats);
+  writer.writeBool(offsets[6], object.isRefunded);
+  writer.writeString(offsets[7], object.note);
+  writer.writeBool(offsets[8], object.skipFromStats);
   writer.writeObjectList<SubTransaction>(
-    offsets[8],
+    offsets[9],
     allOffsets,
     SubTransactionSchema.serialize,
     object.subTransactions,
   );
-  writer.writeLong(offsets[9], object.subscriptionId);
-  writer.writeLong(offsets[10], object.toAccountId);
-  writer.writeString(offsets[11], object.type.name);
+  writer.writeLong(offsets[10], object.subscriptionId);
+  writer.writeLong(offsets[11], object.toAccountId);
+  writer.writeString(offsets[12], object.type.name);
 }
 
 Transaction _transactionDeserialize(
@@ -216,18 +222,19 @@ Transaction _transactionDeserialize(
   object.hasTime = reader.readBool(offsets[4]);
   object.id = id;
   object.isRecurring = reader.readBool(offsets[5]);
-  object.note = reader.readStringOrNull(offsets[6]);
-  object.skipFromStats = reader.readBool(offsets[7]);
+  object.isRefunded = reader.readBool(offsets[6]);
+  object.note = reader.readStringOrNull(offsets[7]);
+  object.skipFromStats = reader.readBool(offsets[8]);
   object.subTransactions = reader.readObjectList<SubTransaction>(
-    offsets[8],
+    offsets[9],
     SubTransactionSchema.deserialize,
     allOffsets,
     SubTransaction(),
   );
-  object.subscriptionId = reader.readLongOrNull(offsets[9]);
-  object.toAccountId = reader.readLongOrNull(offsets[10]);
+  object.subscriptionId = reader.readLongOrNull(offsets[10]);
+  object.toAccountId = reader.readLongOrNull(offsets[11]);
   object.type =
-      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[11])] ??
+      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[12])] ??
           TransactionType.income;
   return object;
 }
@@ -252,21 +259,23 @@ P _transactionDeserializeProp<P>(
     case 5:
       return (reader.readBool(offset)) as P;
     case 6:
-      return (reader.readStringOrNull(offset)) as P;
-    case 7:
       return (reader.readBool(offset)) as P;
+    case 7:
+      return (reader.readStringOrNull(offset)) as P;
     case 8:
+      return (reader.readBool(offset)) as P;
+    case 9:
       return (reader.readObjectList<SubTransaction>(
         offset,
         SubTransactionSchema.deserialize,
         allOffsets,
         SubTransaction(),
       )) as P;
-    case 9:
-      return (reader.readLongOrNull(offset)) as P;
     case 10:
       return (reader.readLongOrNull(offset)) as P;
     case 11:
+      return (reader.readLongOrNull(offset)) as P;
+    case 12:
       return (_TransactiontypeValueEnumMap[reader.readStringOrNull(offset)] ??
           TransactionType.income) as P;
     default:
@@ -1177,6 +1186,16 @@ extension TransactionQueryFilter
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      isRefundedEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isRefunded',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterFilterCondition> noteIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -1810,6 +1829,18 @@ extension TransactionQuerySortBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByIsRefunded() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRefunded', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByIsRefundedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRefunded', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByNote() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'note', Sort.asc);
@@ -1960,6 +1991,18 @@ extension TransactionQuerySortThenBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByIsRefunded() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRefunded', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByIsRefundedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isRefunded', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByNote() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'note', Sort.asc);
@@ -2061,6 +2104,12 @@ extension TransactionQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QDistinct> distinctByIsRefunded() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isRefunded');
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QDistinct> distinctByNote(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2135,6 +2184,12 @@ extension TransactionQueryProperty
   QueryBuilder<Transaction, bool, QQueryOperations> isRecurringProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isRecurring');
+    });
+  }
+
+  QueryBuilder<Transaction, bool, QQueryOperations> isRefundedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isRefunded');
     });
   }
 

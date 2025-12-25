@@ -35,7 +35,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.monetization_on),
             title: const Text('Currency'),
-            subtitle: Text('Selected: ${ref.watch(currencyProvider)}'),
+            subtitle: Text('Selected: ${ref.watch(currencyProvider)} ${currencyNames[ref.watch(currencyProvider)] ?? ''}'),
             onTap: () {
                showDialog(context: context, builder: (c) => SimpleDialog(
                  title: const Text('Select Currency'),

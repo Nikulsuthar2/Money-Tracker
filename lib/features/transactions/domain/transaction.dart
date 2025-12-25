@@ -35,6 +35,8 @@ class Transaction {
 
   bool skipFromStats = false;
   bool hasTime = true;
+  
+  bool isRefunded = false;
 }
 
 @embedded

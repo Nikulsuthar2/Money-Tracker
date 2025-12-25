@@ -42,8 +42,13 @@ const AccountSchema = CollectionSchema(
       name: r'openingBalance',
       type: IsarType.double,
     ),
-    r'type': PropertySchema(
+    r'savedBalance': PropertySchema(
       id: 5,
+      name: r'savedBalance',
+      type: IsarType.double,
+    ),
+    r'type': PropertySchema(
+      id: 6,
       name: r'type',
       type: IsarType.string,
       enumMap: _AccounttypeEnumValueMap,
@@ -85,7 +90,8 @@ void _accountSerialize(
   writer.writeBool(offsets[2], object.isArchived);
   writer.writeString(offsets[3], object.name);
   writer.writeDouble(offsets[4], object.openingBalance);
-  writer.writeString(offsets[5], object.type.name);
+  writer.writeDouble(offsets[5], object.savedBalance);
+  writer.writeString(offsets[6], object.type.name);
 }
 
 Account _accountDeserialize(
@@ -101,7 +107,8 @@ Account _accountDeserialize(
   object.isArchived = reader.readBool(offsets[2]);
   object.name = reader.readString(offsets[3]);
   object.openingBalance = reader.readDouble(offsets[4]);
-  object.type = _AccounttypeValueEnumMap[reader.readStringOrNull(offsets[5])] ??
+  object.savedBalance = reader.readDouble(offsets[5]);
+  object.type = _AccounttypeValueEnumMap[reader.readStringOrNull(offsets[6])] ??
       AccountType.wallet;
   return object;
 }
@@ -124,6 +131,8 @@ P _accountDeserializeProp<P>(
     case 4:
       return (reader.readDouble(offset)) as P;
     case 5:
+      return (reader.readDouble(offset)) as P;
+    case 6:
       return (_AccounttypeValueEnumMap[reader.readStringOrNull(offset)] ??
           AccountType.wallet) as P;
     default:
@@ -597,6 +606,68 @@ extension AccountQueryFilter
     });
   }
 
+  QueryBuilder<Account, Account, QAfterFilterCondition> savedBalanceEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'savedBalance',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Account, Account, QAfterFilterCondition> savedBalanceGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'savedBalance',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Account, Account, QAfterFilterCondition> savedBalanceLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'savedBalance',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Account, Account, QAfterFilterCondition> savedBalanceBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'savedBalance',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
   QueryBuilder<Account, Account, QAfterFilterCondition> typeEqualTo(
     AccountType value, {
     bool caseSensitive = true,
@@ -795,6 +866,18 @@ extension AccountQuerySortBy on QueryBuilder<Account, Account, QSortBy> {
     });
   }
 
+  QueryBuilder<Account, Account, QAfterSortBy> sortBySavedBalance() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'savedBalance', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Account, Account, QAfterSortBy> sortBySavedBalanceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'savedBalance', Sort.desc);
+    });
+  }
+
   QueryBuilder<Account, Account, QAfterSortBy> sortByType() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'type', Sort.asc);
@@ -882,6 +965,18 @@ extension AccountQuerySortThenBy
     });
   }
 
+  QueryBuilder<Account, Account, QAfterSortBy> thenBySavedBalance() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'savedBalance', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Account, Account, QAfterSortBy> thenBySavedBalanceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'savedBalance', Sort.desc);
+    });
+  }
+
   QueryBuilder<Account, Account, QAfterSortBy> thenByType() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'type', Sort.asc);
@@ -928,6 +1023,12 @@ extension AccountQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Account, Account, QDistinct> distinctBySavedBalance() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'savedBalance');
+    });
+  }
+
   QueryBuilder<Account, Account, QDistinct> distinctByType(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -971,6 +1072,12 @@ extension AccountQueryProperty
   QueryBuilder<Account, double, QQueryOperations> openingBalanceProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'openingBalance');
+    });
+  }
+
+  QueryBuilder<Account, double, QQueryOperations> savedBalanceProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'savedBalance');
     });
   }
 
