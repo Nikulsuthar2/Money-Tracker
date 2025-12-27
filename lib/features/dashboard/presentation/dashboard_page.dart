@@ -23,7 +23,8 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
-  String _trendView = 'Week';
+  String _trendView = 'Daily';
+  bool _isTotalView = true; // true = Total (Cash Flow), false = Net (Accounting)
 
   @override
   void initState() {
@@ -80,39 +81,52 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final categories = await ref.read(categoriesStreamProvider.future);
     final catMap = {for (var c in categories) c.id: c};
     
+    int processedCount = 0;
+    final today = DateTime.now();
+    final tomorrow = DateTime(today.year, today.month, today.day).add(const Duration(days: 1));
+
     for (final sub in dueSubs) {
       final category = sub.categoryId != null ? catMap[sub.categoryId] : null;
       final type = category?.type == CategoryType.income ? TransactionType.income : TransactionType.expense;
 
-      // 1. Create Transaction
-      final t = Transaction()
-        ..amount = sub.amount
-        ..date = DateTime.now()
-        ..type = type
-        ..categoryId = sub.categoryId
-        ..note = 'Auto-Subscription: ${sub.name}';
+      DateTime processDate = sub.startDate;
       
-      // Assign Account Correctly
-      if (type == TransactionType.income) {
-          t.toAccountId = sub.accountId;
-      } else {
-          t.fromAccountId = sub.accountId;
+      // Allow max loop to prevent infinite loop in case of error (e.g. daily repeat from 1970)
+      int safety = 0;
+      while (processDate.isBefore(tomorrow) && safety < 1000) {
+          // 1. Create Transaction
+          final t = Transaction()
+            ..amount = sub.amount
+            ..date = processDate
+            ..type = type
+            ..categoryId = sub.categoryId
+            ..note = 'Auto-Subscription: ${sub.name}';
+          
+          if (type == TransactionType.income) {
+              t.toAccountId = sub.accountId;
+          } else {
+              t.fromAccountId = sub.accountId;
+          }
+            
+          t.subscriptionId = sub.id;
+
+          await transactionRepo.addTransaction(t);
+          processedCount++;
+
+          // 2. Calculate Next Date
+          processDate = _calculateNextDate(processDate, sub.repeat);
+          safety++;
       }
-        
-      t.subscriptionId = sub.id;
 
-      await transactionRepo.addTransaction(t);
-
-      // 2. Update Subscription Date
-      final nextDate = _calculateNextDate(sub.startDate, sub.repeat);
-      sub.startDate = nextDate;
+      // Update Subscription
+      sub.startDate = processDate;
       sub.lastPaymentDate = DateTime.now();
       
       await subRepo.updateSubscription(sub);
     }
 
     if (mounted) {
-       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Processed ${dueSubs.length} subscriptions')));
+       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Processed $processedCount transactions')));
     }
   }
 
@@ -144,64 +158,76 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80), 
         children: [
           // Total Balance Card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark 
-                  ? [
-                      Theme.of(context).colorScheme.primaryContainer,
-                      Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                    ]
-                  : [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.tertiary,
-                    ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 32),
-                ),
-                const Gap(20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                       const Text('Total Balance', style: TextStyle(color: Colors.white70, fontSize: 16)),
-                       accountsWithBalance.when(
-                         data: (list) {
-                           final total = list.fold(0.0, (sum, item) => sum + item.balance);
-                           return Text(
-                             '${ref.watch(currencyProvider)}${total.toStringAsFixed(2)}',
-                             style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                           );
-                         },
-                         loading: () => const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
-                         error: (e,s) => const Text('Error', style: TextStyle(color: Colors.white)),
+          // Stats Section
+          accountsWithBalance.when(
+            data: (stats) {
+               double totalBalance = 0;
+               for (var s in stats) {
+                  totalBalance += s.balance; 
+               }
+
+               return Container(
+                 width: double.infinity,
+                 padding: const EdgeInsets.all(24),
+                 decoration: BoxDecoration(
+                   gradient: LinearGradient(
+                     colors: [
+                       Theme.of(context).colorScheme.primary,
+                       Theme.of(context).colorScheme.tertiary,
+                     ],
+                     begin: Alignment.topLeft,
+                     end: Alignment.bottomRight,
+                   ),
+                   borderRadius: BorderRadius.circular(24),
+                   boxShadow: [
+                     BoxShadow(
+                       color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                       blurRadius: 12,
+                       offset: const Offset(0, 6),
+                     )
+                   ],
+                 ),
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       Container(
+                         padding: const EdgeInsets.all(12),
+                         decoration: BoxDecoration(
+                           color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
+                           shape: BoxShape.circle,
+                         ),
+                         child: Icon(Icons.account_balance_wallet, color: Theme.of(context).colorScheme.onPrimary, size: 32),
+                       ),
+                       const Gap(16),
+                       Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                           Text(
+                             'Total Balance', 
+                             style: TextStyle(
+                               color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
+                               fontSize: 16,
+                             )
+                           ),
+                           const Gap(4),
+                           Consumer(builder: (c, ref, _) =>
+                             Text(
+                               '${ref.watch(currencyProvider)}${totalBalance.toStringAsFixed(2)}',
+                               style: TextStyle(
+                                 color: Theme.of(context).colorScheme.onPrimary,
+                                 fontSize: 32,
+                                 fontWeight: FontWeight.bold,
+                               )
+                             )
+                           ),
+                         ],
                        ),
                     ],
-                  ),
-                ),
-              ],
-            ),
+                   ),
+               );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_,__) => const SizedBox(),
           ),
           const Gap(24),
 
@@ -231,27 +257,48 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           const Gap(24),
           
           // Chart Section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-               Text('Financial Trend', style: Theme.of(context).textTheme.titleLarge),
-               SegmentedButton<String>(
-                 segments: const [
-                   ButtonSegment(value: 'Week', label: Text('W', style: TextStyle(fontSize: 12)), icon: null),
-                   ButtonSegment(value: 'Month', label: Text('M', style: TextStyle(fontSize: 12)), icon: null),
-                   ButtonSegment(value: 'Year', label: Text('Y', style: TextStyle(fontSize: 12)), icon: null),
-                 ], 
-                 selected: {_trendView},
-                 onSelectionChanged: (s) => setState(() => _trendView = s.first),
-                 style: ButtonStyle(
-                   visualDensity: VisualDensity.compact,
-                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                   padding: WidgetStateProperty.all(EdgeInsets.zero),
-                 ),
-                 showSelectedIcon: false, 
+          // Header: Financial Trend | Switch
+           Row(
+             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+             children: [
+                Text('Financial Trend', style: Theme.of(context).textTheme.titleLarge),
+                // Switch Total vs Net
+                Container(
+                   height: 32,
+                   padding: const EdgeInsets.all(2),
+                   decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                   ),
+                   child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                         _buildToggleOption('Total I&E', _isTotalView, () => setState(() => _isTotalView = true)),
+                         _buildToggleOption('Net I&E', !_isTotalView, () => setState(() => _isTotalView = false)),
+                      ],
+                   ),
+                )
+             ],
+           ),
+           const Gap(12),
+           // Time Segments (Full Width)
+           SizedBox(
+             width: double.infinity,
+             child: SegmentedButton<String>(
+               segments: const [
+                 ButtonSegment(value: 'Daily', label: Text('Daily'), icon: null),
+                 ButtonSegment(value: 'Monthly', label: Text('Monthly'), icon: null),
+                 ButtonSegment(value: 'Yearly', label: Text('Yearly'), icon: null),
+               ], 
+               selected: {_trendView},
+               onSelectionChanged: (s) => setState(() => _trendView = s.first),
+               showSelectedIcon: false, 
+               style: ButtonStyle(
+                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                 visualDensity: VisualDensity.compact,
                ),
-            ],
-          ),
+             ),
+           ),
           const Gap(16),
           SizedBox(
             height: 220,
@@ -265,31 +312,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 double maxY = 0;
                 String Function(int) bottomLabel = (i) => '';
 
-                if (_trendView == 'Week') {
-                    // Last 7 Days
-                    for (int i = 6; i >= 0; i--) {
-                       final date = now.subtract(Duration(days: i));
-                       double income = 0;
-                       double expense = 0;
-                       for (var t in transactions) {
-                          if (t.skipFromStats) continue;
-                          if (t.date.year == date.year && t.date.month == date.month && t.date.day == date.day) {
-                             if (t.type == TransactionType.income) income += t.amount;
-                             if (t.type == TransactionType.expense) expense += t.amount;
-                          }
-                       }
-                       incomeSpots.add(FlSpot((6-i).toDouble(), income));
-                       expenseSpots.add(FlSpot((6-i).toDouble(), expense));
-                       
-                       if(income > maxY) maxY = income;
-                       if(expense > maxY) maxY = expense;
-                    }
-                    bottomLabel = (val) {
-                       final date = now.subtract(Duration(days: 6 - val));
-                       return DateFormat('E').format(date);
-                    };
-                } else if (_trendView == 'Month') {
-                    // Last 30 Days
+                if (_trendView == 'Daily') {
+                    // Last 30 Days (Daily Resolution)
                     for (int i = 29; i >= 0; i--) {
                        final date = now.subtract(Duration(days: i));
                        double income = 0;
@@ -297,8 +321,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                        for (var t in transactions) {
                           if (t.skipFromStats) continue;
                           if (t.date.year == date.year && t.date.month == date.month && t.date.day == date.day) {
-                             if (t.type == TransactionType.income) income += t.amount;
-                             if (t.type == TransactionType.expense) expense += t.amount;
+                             if (_isTotalView) {
+                                if (t.type == TransactionType.income) income += t.amount;
+                                if (t.type == TransactionType.expense) expense += t.amount;
+                                if (t.type == TransactionType.transfer) { income += t.amount; expense += t.amount; }
+                             } else {
+                                if (t.type == TransactionType.income) income += t.amount;
+                                if (t.type == TransactionType.expense) expense += t.amount;
+                             }
                           }
                        }
                        incomeSpots.add(FlSpot((29-i).toDouble(), income));
@@ -314,8 +344,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                        }
                        return '';
                     };
-                } else if (_trendView == 'Year') {
-                    // Last 12 Months
+                } else if (_trendView == 'Monthly') {
+                    // Last 12 Months (Monthly Resolution)
                    for (int i = 11; i >= 0; i--) {
                        final date = DateTime(now.year, now.month - i, 1);
                        double income = 0;
@@ -323,8 +353,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                        for (var t in transactions) {
                           if (t.skipFromStats) continue;
                           if (t.date.year == date.year && t.date.month == date.month) {
-                             if (t.type == TransactionType.income) income += t.amount;
-                             if (t.type == TransactionType.expense) expense += t.amount;
+                             if (_isTotalView) {
+                                if (t.type == TransactionType.income) income += t.amount;
+                                if (t.type == TransactionType.expense) expense += t.amount;
+                                if (t.type == TransactionType.transfer) { income += t.amount; expense += t.amount; }
+                             } else {
+                                if (t.type == TransactionType.income) income += t.amount;
+                                if (t.type == TransactionType.expense) expense += t.amount;
+                             }
                           }
                        }
                        incomeSpots.add(FlSpot((11-i).toDouble(), income));
@@ -337,6 +373,34 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                        final date = DateTime(now.year, now.month - (11 - val), 1);
                        return DateFormat('MMM').format(date);
                    };
+                } else if (_trendView == 'Yearly') {
+                    // Last 5 Years (Yearly Resolution)
+                    for (int i = 4; i >= 0; i--) {
+                       final year = now.year - i;
+                       double income = 0;
+                       double expense = 0;
+                       for (var t in transactions) {
+                          if (t.skipFromStats) continue;
+                          if (t.date.year == year) {
+                             if (_isTotalView) {
+                                if (t.type == TransactionType.income) income += t.amount;
+                                if (t.type == TransactionType.expense) expense += t.amount;
+                                if (t.type == TransactionType.transfer) { income += t.amount; expense += t.amount; }
+                             } else {
+                                if (t.type == TransactionType.income) income += t.amount;
+                                if (t.type == TransactionType.expense) expense += t.amount;
+                             }
+                          }
+                       }
+                       incomeSpots.add(FlSpot((4-i).toDouble(), income));
+                       expenseSpots.add(FlSpot((4-i).toDouble(), expense));
+                       
+                       if(income > maxY) maxY = income;
+                       if(expense > maxY) maxY = expense;
+                    }
+                    bottomLabel = (val) {
+                       return (now.year - (4 - val)).toString();
+                    };
                 }
 
                 if (maxY == 0) maxY = 100;
@@ -372,6 +436,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         LineChartBarData(
                           spots: incomeSpots,
                           isCurved: true,
+                          preventCurveOverShooting: true,
                           color: Colors.teal,
                           barWidth: 3,
                           isStrokeCapRound: true,
@@ -382,6 +447,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         LineChartBarData(
                           spots: expenseSpots,
                           isCurved: true,
+                          preventCurveOverShooting: true,
                           color: Colors.red,
                           barWidth: 3,
                           isStrokeCapRound: true,
@@ -465,10 +531,89 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/add-transaction'),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Transaction'),
+
+    );
+  }
+  Widget _buildToggleOption(String text, bool isSelected, VoidCallback onTap) {
+      return GestureDetector(
+         onTap: onTap,
+         child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+               color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : Colors.transparent,
+               borderRadius: BorderRadius.circular(8),
+               border: isSelected ? Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)) : null,
+            ),
+            child: Text(
+               text, 
+               style: TextStyle(
+                  fontSize: 12, 
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant
+               )
+            ),
+         ),
+      );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.title, 
+    required this.total, 
+    required this.net, 
+    required this.color, 
+    required this.icon,
+    this.max
+  });
+  
+  final String title;
+  final double total;
+  final double net; // Real
+  final Color color;
+  final IconData icon;
+  final double? max;
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+           Row(
+             children: [
+               Container(
+                 padding: const EdgeInsets.all(8),
+                 decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+                 child: Icon(icon, size: 16, color: color),
+               ),
+               const Gap(8),
+               Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.bold)),
+             ],
+           ),
+           const Gap(16),
+           Text('Total', style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.outline)),
+           Consumer(builder: (c, ref, _) =>
+             Text(
+               '${ref.watch(currencyProvider)}${total.toStringAsFixed(0)}',
+               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color.withOpacity(0.7)),
+             )
+           ),
+           const Gap(4),
+           Text('Net (Real)', style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.outline)),
+            Consumer(builder: (c, ref, _) =>
+             Text(
+               '${ref.watch(currencyProvider)}${net.toStringAsFixed(0)}',
+               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
+             )
+           ),
+        ],
       ),
     );
   }

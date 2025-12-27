@@ -25,6 +25,7 @@ class AddTransactionPage extends ConsumerStatefulWidget {
 class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
+  final _titleController = TextEditingController(); // New
   final _noteController = TextEditingController();
   
   TransactionType _type = TransactionType.expense;
@@ -37,10 +38,27 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
   bool _skipFromStats = false;
   bool _hasTime = true;
   int? _relatedTransactionId;
+  int? _subscriptionId;
 
   // Split Transaction State
   bool _isSplit = false;
   List<SubTransactionInput> _splits = [];
+
+  // Income Bucket State
+  String _incomeDestinationBucket = 'spendable'; // spendable, savings, investment
+  bool _autoFillReserved = true; // For Income
+  final _saveAmountController = TextEditingController(); // Reuse for bucket amount? No, bucket logic is simpler now.
+  // Actually user requirement: "when income came first we fill reserved if its below setted limit, then if we have selected adding in custom category while adding income it will goes to custom and rest in spendable"
+  // So for Income:
+  // 1. Auto-fil Reserved (calculated in background or shown to user?) -> User said "first fill reserved".
+  // 2. Select Custom (Savings/Investment) -> Optional.
+  // 3. Rest -> Spendable.
+  
+  // UI for Income: 
+  // - "Target Custom Bucket" (None, Savings, Investment)
+  // - "Custom Amount" (if selected)
+  String? _targetCustomBucket; // null, 'savings', 'investment'
+  final _customBucketAmountController = TextEditingController();
 
   late TabController _tabController;
 
@@ -61,12 +79,15 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
     if (transactionToEdit != null) {
       final t = transactionToEdit;
       _amountController.text = t.amount.toString();
+      _titleController.text = t.title ?? '';
       _noteController.text = t.note ?? '';
       _date = t.date;
       _type = t.type;
       _selectedCategoryId = t.categoryId; 
       _skipFromStats = t.skipFromStats;
+      _skipFromStats = t.skipFromStats;
       _hasTime = t.hasTime;
+      _subscriptionId = t.subscriptionId;
 
       // Load splits
       if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
@@ -114,7 +135,6 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
          }
        } else {
          // Default generic
-         _tabController.animateTo(1);
        }
        // Default time: set current time but ensure _hasTime is true by default
        _date = DateTime.now();
@@ -123,6 +143,9 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
        if (defaults != null && defaults.containsKey('relatedTransactionId')) {
           _relatedTransactionId = defaults['relatedTransactionId'];
        }
+        if (defaults != null && defaults.containsKey('subscriptionId')) {
+           _subscriptionId = defaults['subscriptionId'];
+        }
     }
 
     _tabController.addListener(() {
@@ -147,7 +170,9 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
   @override
   void dispose() {
     _amountController.dispose();
+    _titleController.dispose();
     _noteController.dispose();
+    _customBucketAmountController.dispose();
     _tabController.dispose();
     for (var s in _splits) {
       s.dispose();
@@ -207,7 +232,10 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         }
       }
 
-      // Check Balance vs Savings (Warning Logic)
+      double expenseDeductedFromSavings = 0.0;
+      double expenseDeductedFromReserved = 0.0;
+
+      // Check Balance vs Savings (Warning Logic & Deduction)
       if ((_type == TransactionType.expense || _type == TransactionType.transfer) && _selectedAccountId != null) {
           final repo = ref.read(transactionsRepositoryProvider);
           final accountRepo = ref.read(accountsRepositoryProvider);
@@ -215,27 +243,59 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
           final accounts = await accountRepo.getAllAccounts(); 
           final account = accounts.where((a) => a.id == _selectedAccountId).firstOrNull;
           
-          if (account != null && account.savedBalance > 0) {
+          if (account != null) {
               final currentBalance = await repo.getAccountBalance(account.id, account.openingBalance);
-              final spendable = currentBalance - account.savedBalance;
+              // Expense Priority Logic: Spendable -> Custom (Savings/Investment) -> Reserved
+              // We need to know the breakdown.
+              // Spendable = Current - Reserved - Savings - Investment
               
-              if (amount > spendable) {
+              final totalCustom = account.buckets.fold(0.0, (sum, b) => sum + b.balance);
+              final spendable = currentBalance - account.reservedBalance - totalCustom;
+              final reserved = account.reservedBalance;
+
+              String warningMsg = '';
+              double remainingAmount = amount;
+
+              // 1. Deduct from Spendable
+              if (remainingAmount <= spendable) {
+                 // All good
+                 return; 
+              }
+              remainingAmount -= spendable; // Spendable depleted
+              
+              // 2. Deduct from Custom Buckets
+              if (remainingAmount <= totalCustom) {
+                 warningMsg = 'This transaction exceeds Spendable balance.\nIt will deduct ${ref.read(currencyProvider)}${remainingAmount.toStringAsFixed(2)} from your Custom Buckets.';
+              }
+              // 3. Deduct from Reserved
+              else {
+                 remainingAmount -= totalCustom; // Custom depleted
+                 if (remainingAmount <= reserved) {
+                    warningMsg = 'This transaction depletes Spendable AND Custom buckets.\nIt will deduct ${ref.read(currencyProvider)}${remainingAmount.toStringAsFixed(2)} from your RESERVED funds.';
+                 } else {
+                    warningMsg = 'This transaction exceeds ALL funds (Spendable + Custom + Reserved). Balance will go negative.';
+                 }
+              }
+
+              if (warningMsg.isNotEmpty) {
                   bool proceed = false;
                   if (mounted) {
                       await showDialog(
                         context: context, 
                         builder: (c) => AlertDialog(
-                          title: const Text('Warning: Usage of Savings'),
-                          content: Text('This transaction amount (${ref.read(currencyProvider)}$amount) exceeds your spendable balance (${ref.read(currencyProvider)}${spendable.toStringAsFixed(2)}) and will dip into your reserved savings (${ref.read(currencyProvider)}${account.savedBalance}).\n\nDo you want to proceed?'),
+                          title: const Text('Fund Usage Warning'),
+                          content: Text('$warningMsg\n\nProceed?'),
                           actions: [
                             TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-                            FilledButton(onPressed: () { proceed = true; Navigator.pop(c); }, child: const Text('Proceed', style: TextStyle(color: Colors.white))), // FilledButton usually has white text but being explicit
+                            FilledButton(onPressed: () { proceed = true; Navigator.pop(c); }, child: const Text('Proceed')),
                           ],
                         )
                       );
                   }
                   if (!proceed) return;
               }
+              
+              // Logic to actually deduct from state is handled in the _save block below by updating account
           }
       }
 
@@ -244,11 +304,17 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         ..amount = amount
         ..type = _type
         ..date = _hasTime ? _date : DateTime(_date.year, _date.month, _date.day) // Strip time if no time
+        ..amount = amount
+        ..type = _type
+        ..date = _hasTime ? _date : DateTime(_date.year, _date.month, _date.day) // Strip time if no time
+        ..title = _titleController.text // Title
         ..note = _noteController.text
         ..categoryId = _isSplit ? null : _selectedCategoryId
         ..skipFromStats = _skipFromStats
         ..hasTime = _hasTime
-        ..relatedTransactionId = _relatedTransactionId;
+        ..hasTime = _hasTime
+        ..relatedTransactionId = _relatedTransactionId
+        ..subscriptionId = _subscriptionId;
      
       // Assign Splits
       if (_isSplit) {
@@ -279,28 +345,90 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
       } else {
          await ref.read(transactionsRepositoryProvider).addTransaction(transaction);
          
-         // Auto-Savings Logic
-         if (_type == TransactionType.income && _selectedAccountId != null) {
-            final savingsConfig = ref.read(savingsProvider);
-            if (savingsConfig.isEnabled && savingsConfig.accountId != null && savingsConfig.accountId != _selectedAccountId) {
-                // Determine amount
-                final saveAmount = amount * (savingsConfig.percentage / 100);
-                if (saveAmount > 0) {
-                   final savingsTxn = Transaction()
-                     ..amount = saveAmount
-                     ..type = TransactionType.transfer
-                     ..date = transaction.date
-                     ..note = 'Auto-Save (${savingsConfig.percentage.toStringAsFixed(0)}%) from Income'
-                     ..fromAccountId = _selectedAccountId
-                     ..toAccountId = savingsConfig.accountId
-                     ..hasTime = _hasTime;
-                   
-                   await ref.read(transactionsRepositoryProvider).addTransaction(savingsTxn);
-                   if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Auto-saved ${ref.read(currencyProvider)}${saveAmount.toStringAsFixed(2)} to savings')));
-                   }
+         // Logic to update Account Balance (Savings/Reserved)
+         final accountRepo = ref.read(accountsRepositoryProvider);
+         if (_selectedAccountId != null) {
+             final accounts = await accountRepo.getAllAccounts();
+             final account = accounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+                         if (account != null) {
+                bool updated = false;
+                
+                // Income Logic (Bucket Fill)
+                if (_type == TransactionType.income) {
+                    double remainingIncome = amount;
+                    
+                    // 1. Fill Reserved (up to limit)
+                    if (account.reservedBalance < account.reservedLimit) {
+                       final needed = account.reservedLimit - account.reservedBalance;
+                       final toAdd = needed < remainingIncome ? needed : remainingIncome;
+                       account.reservedBalance += toAdd;
+                       remainingIncome -= toAdd;
+                       updated = true;
+                    }
+
+                    // 2. Custom Bucket (if selected)
+                    if (remainingIncome > 0 && _targetCustomBucket != null) {
+                       final customAmount = double.tryParse(_customBucketAmountController.text) ?? 0.0;
+                       final toAdd = customAmount < remainingIncome ? customAmount : remainingIncome;
+                       
+                       // Find bucket by name
+                       final bucketIndex = account.buckets.indexWhere((b) => b.name == _targetCustomBucket);
+                       if (bucketIndex != -1) {
+                           // Modifying Isar embedded object... 
+                           // We need to essentially replace the bucket or update it. 
+                           // Isar embedded objects are mutable if we update the parent.
+                           account.buckets[bucketIndex].balance += toAdd;
+                           updated = true;
+                           // remainingIncome -= toAdd; 
+                       }
+                    }
                 }
-            }
+                
+                // Expense Logic (Bucket Deduction)
+                else if (_type == TransactionType.expense || _type == TransactionType.transfer) {
+                    final currentBal = await ref.read(transactionsRepositoryProvider).getAccountBalance(account.id, account.openingBalance); 
+                    
+                    final preTxnBalance = currentBal + amount;
+                    final totalCustom = account.buckets.fold(0.0, (sum, b) => sum + b.balance);
+                    final preTxnSpendable = preTxnBalance - account.reservedBalance - totalCustom;
+                    
+                    double amountRemaining = amount;
+                    
+                    // 1. Deduct from Spendable
+                    if (amountRemaining <= preTxnSpendable) {
+                       amountRemaining = 0;
+                    } else {
+                       amountRemaining -= preTxnSpendable; // Spendable exhausted
+                    }
+                    
+                    // 2. Deduct from Custom Buckets
+                    if (amountRemaining > 0) {
+                        for (var i = 0; i < account.buckets.length; i++) {
+                            if (amountRemaining <= 0) break;
+                            if (account.buckets[i].balance > 0) {
+                                final deduct = amountRemaining < account.buckets[i].balance ? amountRemaining : account.buckets[i].balance;
+                                account.buckets[i].balance -= deduct;
+                                amountRemaining -= deduct;
+                                updated = true;
+                            }
+                        }
+                    }
+                    
+                    // 3. Deduct from Reserved
+                    if (amountRemaining > 0) {
+                        if (account.reservedBalance > 0) {
+                           final deduct = amountRemaining < account.reservedBalance ? amountRemaining : account.reservedBalance;
+                           account.reservedBalance -= deduct;
+                           amountRemaining -= deduct;
+                           updated = true;
+                        }
+                    }
+                }
+                
+                if (updated) {
+                   await accountRepo.updateAccount(account);
+                }
+             }
          }
       }
 
@@ -357,6 +485,17 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                 if (double.tryParse(v) == null) return 'Invalid';
                 return null;
               },
+            ),
+            const Gap(16),
+
+           // Title Field
+            TextFormField(
+              controller: _titleController,
+              decoration: inputDecoration.copyWith(
+                labelText: 'Title',
+                hintText: 'e.g. Salary, Groceries',
+              ),
+              textCapitalization: TextCapitalization.sentences,
             ),
             const Gap(16),
 
@@ -518,6 +657,52 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                 error: (_,__) => const Text('Error loading categories'),
               ),
             
+             if (_type == TransactionType.income) ...[
+                 const Gap(8),
+                 Container(
+                   padding: const EdgeInsets.all(12),
+                   decoration: BoxDecoration(
+                     border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                     borderRadius: BorderRadius.circular(12),
+                   ),
+                   child: StreamBuilder<List<Account>>(
+                      stream: ref.read(accountsRepositoryProvider).watchActiveAccounts(),
+                      builder: (context, snapshot) {
+                         final account = snapshot.data?.where((a) => a.id == _selectedAccountId).firstOrNull;
+                         final buckets = account?.buckets ?? [];
+
+                         return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Bucket Allocation', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const Gap(8),
+                              const Text('Auto-fills Reserved (to limit) first.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const Gap(8),
+                              DropdownButtonFormField<String>(
+                                value: _targetCustomBucket,
+                                decoration: inputDecoration.copyWith(labelText: 'Fill Custom Bucket (Optional)'),
+                                items: [
+                                   const DropdownMenuItem(value: null, child: Text('None (Rest to Spendable)')),
+                                   ...buckets.map((b) => DropdownMenuItem(value: b.name, child: Text(b.name ?? 'Unnamed'))),
+                                ],
+                                onChanged: (v) => setState(() => _targetCustomBucket = v),
+                              ),
+                              if (_targetCustomBucket != null) ...[
+                                 const Gap(8),
+                                 TextFormField(
+                                   controller: _customBucketAmountController,
+                                   decoration: inputDecoration.copyWith(labelText: 'Amount to Custom', prefixText: ref.watch(currencyProvider)),
+                                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                 ),
+                              ]
+                            ],
+                         );
+                      }
+                   ),
+                 ),
+                 const Gap(16),
+             ],
+
              if (_type != TransactionType.transfer) ...[
                 const Gap(8),
                 Row(

@@ -9,8 +9,11 @@ class AccountStats {
   final double balance;
   final double totalIncome;
   final double totalExpense;
+  final double netIncome;
+  final double netExpense;
+  final double reimbursed;
 
-  AccountStats(this.account, this.balance, this.totalIncome, this.totalExpense);
+  AccountStats(this.account, this.balance, this.totalIncome, this.totalExpense, this.netIncome, this.netExpense, this.reimbursed);
 }
 
 final accountsWithBalanceProvider = StreamProvider.autoDispose<List<AccountStats>>((ref) async* {
@@ -26,14 +29,27 @@ final accountsWithBalanceProvider = StreamProvider.autoDispose<List<AccountStats
      final accounts = await accountsRepo.getAllAccounts();
      final List<AccountStats> list = [];
      for (final account in accounts) {
-       // We need a method that returns structured stats
-       // For now, let's assume we update the repository to simply return a Map or similar, 
-       // but since I can't see repo file here, I will rely on existing or add new ones?
-       // Let's modify Repo to return Stats object later. For now, I'll call getAccountBalance, 
-       // but I really need income/expense separately.
-       // I'll call a new method `getAccountStats` which I will implement in Repo next.
        final stats = await transactionsRepo.getAccountStats(account.id, account.openingBalance);
-       list.add(AccountStats(account, stats['balance']!, stats['income']!, stats['expense']!));
+       final balance = stats['balance'] ?? 0;
+       final income = stats['income'] ?? 0;
+       final expense = stats['expense'] ?? 0;
+       final reimbursed = stats['reimbursed'] ?? 0;
+
+       // Logic: Net Spend = Expense - Reimbursed
+       // Logic: Net Income = Income - Reimbursed (assuming Reimbursed is part of Income)
+       // Wait, 'income' from 'getAccountStats' includes ALL income (including repayments).
+       // So Net Income = Total Income - Reimbursed.
+       // Net Expense = Total Expense - Reimbursed.
+       
+       list.add(AccountStats(
+         account, 
+         balance, 
+         income, 
+         expense, 
+         income - reimbursed, 
+         expense - reimbursed, 
+         reimbursed
+       ));
      }
      yield list;
   }

@@ -50,3 +50,26 @@ class DynamicColorNotifier extends StateNotifier<bool> {
     await prefs.setBool(_key, value);
   }
 }
+
+final manualThemeColorProvider = StateNotifierProvider<ManualThemeColorNotifier, int>((ref) {
+  return ManualThemeColorNotifier();
+});
+
+class ManualThemeColorNotifier extends StateNotifier<int> {
+  ManualThemeColorNotifier() : super(0xFF6750A4) { // Default Purple
+    _load();
+  }
+
+  static const _key = 'manual_theme_color';
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getInt(_key) ?? 0xFF6750A4;
+  }
+
+  Future<void> setColor(int colorValue) async {
+    state = colorValue;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_key, colorValue);
+  }
+}

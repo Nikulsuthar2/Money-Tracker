@@ -81,21 +81,24 @@ class TransactionDetailsPage extends ConsumerWidget {
                 ),
                 const Gap(16),
                 Text(
-                  '\$${t.amount.toStringAsFixed(2)}',
-                  style: theme.textTheme.displayMedium?.copyWith(
-                    color: color, 
-                    fontWeight: FontWeight.bold
+                  (t.title?.isNotEmpty == true) ? t.title! : t.type.name.toUpperCase(),
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const Gap(8),
                 Text(
-                  t.type.name.toUpperCase(),
-                  style: TextStyle(
-                    color: theme.colorScheme.secondary,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.bold
+                  '\$${t.amount.toStringAsFixed(2)}',
+                  style: theme.textTheme.displayMedium?.copyWith(
+                    color: color, 
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1,
                   ),
                 ),
+                if (t.title?.isNotEmpty == true) ...[
+                  const Gap(4),
+                  Text(t.type.name.toUpperCase(), style: TextStyle(color: theme.colorScheme.secondary, letterSpacing: 1.2, fontSize: 12, fontWeight: FontWeight.bold)),
+                ],
               ],
             ),
           ),
@@ -109,10 +112,6 @@ class TransactionDetailsPage extends ConsumerWidget {
                 children: [
                   _DetailRow(icon: Icons.calendar_today, label: 'Date', value: DateFormat.yMMMd().format(t.date)),
                   const Divider(),
-                  if (t.note?.isNotEmpty == true) ...[
-                     _DetailRow(icon: Icons.notes, label: 'Note', value: t.note!),
-                     const Divider(),
-                  ],
                   // Ideally we show account/category names here too by fetching them
                   FutureBuilder(
                     future: ref.read(accountsRepositoryProvider).getAllAccounts(),
@@ -133,6 +132,30 @@ class TransactionDetailsPage extends ConsumerWidget {
               ),
             ),
           ),
+          
+          if (t.note?.isNotEmpty == true) ...[
+            const Gap(16),
+             Card(
+               color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+               child: Padding(
+                 padding: const EdgeInsets.all(16.0),
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     Row(
+                       children: [
+                         Icon(Icons.notes, size: 20, color: theme.colorScheme.primary),
+                         const Gap(8),
+                         const Text('Note', style: TextStyle(fontWeight: FontWeight.bold)),
+                       ],
+                     ),
+                     const Gap(8),
+                     Text(t.note!, style: const TextStyle(fontSize: 16)),
+                   ],
+                 ),
+               ),
+             ),
+          ],
           
           const Gap(24),
           
@@ -159,28 +182,93 @@ class TransactionDetailsPage extends ConsumerWidget {
           if (t.subTransactions != null && t.subTransactions!.isNotEmpty) ...[
             Text('Split Details', style: theme.textTheme.titleMedium),
             const Gap(8),
-            Card(
-              child: ListView.separated(
+            ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: t.subTransactions!.length,
                 separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final split = t.subTransactions![index];
+                  // Using dynamic lookup because isRefunded might not be in the viewed class definition but is in the object
+                  // Assuming isRefunded field exists on SubTransaction
+                  final isRefunded = split.isRefunded; 
+                  
                   return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     title: Text(split.note?.isNotEmpty == true ? split.note! : 'Item ${index + 1}'),
                     subtitle: split.isMine ? const Text('My Expense', style: TextStyle(fontSize: 12, color: Colors.green)) 
                                            : const Text('Not My Expense', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    trailing: Text('\$${split.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                         Text('\$${split.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                         const Gap(12),
+                         if (isRefunded)
+                            const Icon(Icons.check_circle, color: Colors.green)
+                         else 
+                            IconButton(
+                              icon: const Icon(Icons.circle_outlined, color: Colors.grey),
+                              tooltip: 'Mark as Refunded',
+                              onPressed: () async {
+                                 // Refund this specific item workflow
+                                 final amount = split.amount;
+                                 final note = 'Refund: ${split.note ?? "Item"}';
+                                 
+                                 if (context.mounted) {
+                                  final result = await context.push('/add-transaction', extra: {
+                                    'type': TransactionType.income,
+                                    'amount': amount,
+                                    'note': note,
+                                    'categoryId': t.categoryId, // Fallback
+                                    'accountId': t.fromAccountId, // Refund to where it came from? Or Ask? 
+                                    // Usually refund goes to an account. Let's pre-fill with "To" account = "From" of expense
+                                    'accountId': t.fromAccountId,
+                                    'relatedTransactionId': t.id,
+                                  });
+                                  
+                                  if (result == true) {
+                                     // Update split status
+                                     t.subTransactions![index].isRefunded = true;
+                                     
+                                     // Check if all refunded
+                                     final allRefunded = t.subTransactions!.every((s) => s.isRefunded);
+                                     if (allRefunded) t.isRefunded = true;
+                                     
+                                     await ref.read(transactionsRepositoryProvider).updateTransaction(t);
+                                     
+                                     if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item Refunded')));
+                                        // Force rebuild? Widget ref updates should trigger if we watch... but we are in ConsumerWidget build not watching stream of this specific transaction?
+                                        // We passed `transaction` as params. We might need to pop/push or use stateful widget to refresh.
+                                        // OR, relying on GoRouter to refresh if the parent page watches.
+                                        // But here we are IN the page. `transaction` is final.
+                                        // We need to trigger a refresh.
+                                        // Ideally TransactionDetailsPage should WATCH the transaction by ID.
+                                        // Short term fix: Navigator.pushReplacement or setState if stateful.
+                                        // Since it's ConsumerWidget, we can't setState.
+                                        // We will rely on returning to previous page or we should convert to ConsumerStateful.
+                                        // Converting to ConsumerStateful is best but expensive in edits.
+                                        // Alternative: `context.role`? No.
+                                        // Let's just hope user backs out or we trigger a reload.
+                                        // BETTER: context.pushReplacement(self)
+                                        context.pushReplacement('/transaction-details', extra: t);
+                                     }
+                                  }
+                                 }
+                              },
+                            )
+                      ],
+                    ),
                   );
                 },
               ),
-            )
           ],
           
           const Gap(32),
-          if (!t.isRefunded)
+          // Only show Main Refund button if NOT all splits are refunded (and not wholly refunded)
+          if (!t.isRefunded && (t.subTransactions == null || t.subTransactions!.any((s) => !s.isRefunded)))
           OutlinedButton.icon(
+            key: const ValueKey('refund_btn'),
             onPressed: () async {
               
               double amount = t.amount;
@@ -205,10 +293,52 @@ class TransactionDetailsPage extends ConsumerWidget {
                  if (choice == null) return;
                  
                  if (choice == 'split') {
+                    final notMine = t.subTransactions!.where((s) => !s.isMine).toList();
+                    if (notMine.isEmpty) {
+                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No split items found involving others.')));
+                       return;
+                    }
+
+                    // Select splits to repay
+                    final selectedSplits = await showDialog<List<dynamic>>(
+                       context: context,
+                       builder: (context) {
+                          final List<dynamic> selected = List.from(notMine);
+                          return StatefulBuilder(builder: (context, setState) {
+                             return AlertDialog(
+                                title: const Text('Select Items to Repay'),
+                                content: SingleChildScrollView(
+                                   child: Column(
+                                      children: notMine.map((s) {
+                                         return CheckboxListTile(
+                                            title: Text(s.note?.isNotEmpty == true ? s.note! : 'Item'),
+                                            subtitle: Text('\$${s.amount.toStringAsFixed(2)}'),
+                                            value: selected.contains(s),
+                                            onChanged: (v) {
+                                               setState(() {
+                                                  if (v == true) selected.add(s);
+                                                  else selected.remove(s);
+                                               });
+                                            }
+                                         );
+                                      }).toList()
+                                   )
+                                ),
+                                actions: [
+                                   TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                                   FilledButton(onPressed: () => Navigator.pop(context, selected), child: const Text('Confirm')),
+                                ]
+                             );
+                          });
+                       }
+                    );
+                    
+                    if (selectedSplits == null || selectedSplits.isEmpty) return;
+
                     // Calculate amount that is NOT mine (i.e. what friends owe me)
-                    // If I paid 100 (60 mine, 40 friend). Friend pays 40. I get 40 back.
-                    amount = t.subTransactions!.where((s) => !s.isMine).fold(0.0, (sum, s) => sum + s.amount);
-                    notePref = 'Repayment: ';
+                    amount = selectedSplits.fold(0.0, (sum, s) => sum + (s.amount as double));
+                    final notes = selectedSplits.map((s) => s.note).where((n) => n != null && n.toString().isNotEmpty).join(', ');
+                    notePref = 'Repayment${notes.isNotEmpty ? " ($notes)" : ""}: ';
                  }
               }
 
@@ -251,11 +381,38 @@ class TransactionDetailsPage extends ConsumerWidget {
               foregroundColor: theme.colorScheme.primary,
             ),
           ) else
-            Chip(
-              label: Text('Refunded', style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.greenAccent : Colors.green.shade900)),
-              avatar: const Icon(Icons.check_circle, color: Colors.green),
-              backgroundColor: theme.brightness == Brightness.dark ? Colors.green.withOpacity(0.2) : Colors.green.shade100,
-              side: BorderSide.none,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Chip(
+                  label: Text('Refunded', style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.greenAccent : Colors.green.shade900)),
+                  avatar: const Icon(Icons.check_circle, color: Colors.green),
+                  backgroundColor: theme.brightness == Brightness.dark ? Colors.green.withOpacity(0.2) : Colors.green.shade100,
+                  side: BorderSide.none,
+                ),
+                const Gap(12),
+                TextButton.icon(
+                  onPressed: () {
+                     showDialog(context: context, builder: (d) => AlertDialog(
+                        title: const Text('Undo Refund?'),
+                        content: const Text('This will delete the repayment transaction and revert this transaction status.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+                          TextButton(onPressed: () async {
+                              await ref.read(transactionsRepositoryProvider).revertRefundForOriginal(t.id);
+                              if (context.mounted) {
+                                Navigator.pop(d);
+                                Navigator.pop(context); // Refresh page
+                              }
+                          }, child: const Text('Undo Refund', style: TextStyle(color: Colors.red))),
+                        ],
+                     ));
+                  },
+                  icon: const Icon(Icons.undo, size: 16),
+                  label: const Text('Undo'),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                )
+              ],
             ),
           const Gap(40),
         ],

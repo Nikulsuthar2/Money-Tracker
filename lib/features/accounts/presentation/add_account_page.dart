@@ -22,6 +22,11 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
   int _color = 0xFF2196F3;
   int _icon = 57522; // wallet
 
+
+
+  // Local state for buckets
+  List<AccountBucket> _buckets = [];
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +37,35 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
       _type = account.type;
       _color = account.color;
       _icon = account.icon;
+      if (account.buckets.isNotEmpty) {
+        _buckets = List.from(account.buckets);
+      }
     }
+  }
+
+  void _addBucket() {
+      final controller = TextEditingController();
+      showDialog(context: context, builder: (c) => AlertDialog(
+         title: const Text('Add Fund Category'),
+         content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'Category Name', hintText: 'e.g. Car Fund')),
+         actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
+            FilledButton(onPressed: () {
+               if (controller.text.isNotEmpty) {
+                  setState(() {
+                     _buckets.add(AccountBucket()..name = controller.text..balance = 0.0);
+                  });
+               }
+               Navigator.pop(c);
+            }, child: const Text('Add'))
+         ],
+      ));
+  }
+
+  void _removeBucket(int index) {
+     setState(() {
+        _buckets.removeAt(index);
+     });
   }
 
   @override
@@ -53,7 +86,9 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
         ..type = _type
         ..openingBalance = balance
         ..color = _color
-        ..icon = _icon;
+        ..color = _color
+        ..icon = _icon // Semicolon here
+        ..buckets = _buckets;
 
       if (widget.accountToEdit != null) {
         await ref.read(accountsRepositoryProvider).updateAccount(account);
@@ -104,6 +139,27 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
               keyboardType: TextInputType.number,
               validator: (v) => double.tryParse(v ?? '') == null ? 'Invalid number' : null,
             ),
+            const Gap(24),
+            
+
+            const Gap(8),
+            Row(
+               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+               children: [
+                  const Text('Fund Allocation Categories', style: TextStyle(fontWeight: FontWeight.bold)),
+                  IconButton(onPressed: _addBucket, icon: const Icon(Icons.add_circle, color: Colors.teal)),
+               ],
+            ),
+             if (_buckets.isEmpty)
+              const Text('No custom categories added.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            
+            ..._buckets.asMap().entries.map((e) => ListTile(
+               dense: true,
+               contentPadding: EdgeInsets.zero,
+               leading: const Icon(Icons.pie_chart, size: 20),
+               title: Text(e.value.name ?? 'Unnamed'),
+               trailing: IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => _removeBucket(e.key)),
+            )),
             const Gap(24),
             ElevatedButton(
               onPressed: _save,

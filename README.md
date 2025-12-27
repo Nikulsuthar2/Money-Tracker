@@ -1,6 +1,6 @@
 # Money Tracker 🚀
 
-v2.0.2+4
+v4.0.1+5
 A modern, fast, and beautiful cross-platform finance manager built with Flutter. Manage your accounts, transactions, and subscriptions with a premium Material 3 experience.
 
 ![Dashboard Preview](https://github.com/nikul/money_tracker/raw/main/assets/readme/dashboard.png) *(Placeholder)*
@@ -63,6 +63,7 @@ Visit the live demo at: [Link to Web App] *(Placeholder)*
 
 ### Release Commands:
 - **Android APK**: `flutter build apk --release`
+- **Windows**: `flutter build windows --release`
 - **Linux**: `flutter build linux --release`
 - **Web**: `flutter build web --release`
 
@@ -70,9 +71,6 @@ Visit the live demo at: [Link to Web App] *(Placeholder)*
 - App Icon not working
 - Refund or got back not working properly
 - Some UI bugs
-- Export not working 
-- Currency names not showing
-- Currency icon not changing everywhere
 
 ## 📄 License
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.

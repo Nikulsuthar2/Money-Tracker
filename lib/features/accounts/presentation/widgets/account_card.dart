@@ -81,7 +81,7 @@ class AccountCard extends ConsumerWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         itemBuilder: (context) => [
                           PopupMenuItem(
-                            child: const Row(children: [Icon(Icons.savings, size: 18, color: Colors.purple), Gap(12), Text('Manage Savings')]),
+                            child: const Row(children: [Icon(Icons.lock, size: 18, color: Colors.orange), Gap(12), Text('Manage Reserved')]),
                             onTap: () {
                                Future.delayed(Duration.zero, () {
                                  if (context.mounted) _showSavingsDialog(context, ref, account);
@@ -125,27 +125,15 @@ class AccountCard extends ConsumerWidget {
                 const Gap(12),
                 Row(
                   children: [
-                     Expanded(child: _CompactStat(
-                       label: 'Income', 
-                       amount: item.totalIncome, 
-                       color: Colors.teal,
-                       icon: Icons.arrow_downward
-                     )),
-                     Container(
-                       width: 1, height: 24, 
-                       color: theme.colorScheme.outlineVariant.withOpacity(0.2)
-                     ),
-                     Expanded(child: _CompactStat(
-                       label: 'Expense', 
-                       amount: item.totalExpense, 
-                       color: Colors.redAccent,
-                       icon: Icons.arrow_upward
-                     )),
+                     Expanded(child: _CompactStat(label: 'Total In', amount: item.totalIncome, color: Colors.teal.withOpacity(0.7), icon: Icons.arrow_downward)),
+                     Container(width: 1, height: 24, color: theme.colorScheme.outlineVariant.withOpacity(0.2)),
+                     Expanded(child: _CompactStat(label: 'Total Out', amount: item.totalExpense, color: Colors.redAccent.withOpacity(0.7), icon: Icons.arrow_upward)),
                   ],
                 ),
+
               ],
               
-              if (account.savedBalance > 0) ...[
+              if (account.reservedBalance > 0) ...[
                  const Gap(12),
                  Container(
                    padding: const EdgeInsets.all(8),
@@ -160,7 +148,7 @@ class AccountCard extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('Reserved Savings', style: TextStyle(fontSize: 10)),
-                            Text('${ref.watch(currencyProvider)}${account.savedBalance.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            Text('${ref.watch(currencyProvider)}${account.reservedBalance.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                           ],
                         ),
                         Container(color: theme.colorScheme.outline, width: 1, height: 20),
@@ -168,14 +156,14 @@ class AccountCard extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             const Text('Spendable', style: TextStyle(fontSize: 10)),
-                            Text(
-                              '${ref.watch(currencyProvider)}${(item.balance - account.savedBalance).toStringAsFixed(2)}', 
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold, 
-                                fontSize: 13,
-                                color: (item.balance - account.savedBalance) < 0 ? theme.colorScheme.error : theme.colorScheme.primary,
-                              )
-                            ),
+                              Text(
+                                '${ref.watch(currencyProvider)}${(item.balance - account.reservedBalance - account.buckets.fold(0.0, (sum, b) => sum + b.balance)).toStringAsFixed(2)}', 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 13,
+                                  color: (item.balance - account.reservedBalance - account.buckets.fold(0.0, (sum, b) => sum + b.balance)) < 0 ? theme.colorScheme.error : theme.colorScheme.primary,
+                                )
+                              ),
                           ],
                         ),
                      ],
@@ -224,16 +212,16 @@ class _CompactStat extends StatelessWidget {
 }
 
 Future<void> _showSavingsDialog(BuildContext context, WidgetRef ref, Account account) async {
-  final controller = TextEditingController(text: account.savedBalance > 0 ? account.savedBalance.toStringAsFixed(2) : '');
+  final controller = TextEditingController(text: account.reservedBalance > 0 ? account.reservedBalance.toStringAsFixed(2) : '');
   
   await showDialog(
     context: context, 
     builder: (context) => AlertDialog(
-       title: const Text('Manage Savings'),
+       title: const Text('Manage Reserved Funds'),
        content: Column(
          mainAxisSize: MainAxisSize.min,
          children: [
-            const Text('Set an amount to reserve from your balance. This will be tracked as "Saved" and separate from your spendable limit.'),
+             const Text('Balance set aside here is LOCKED from "Spendable" limits. Use this for emergency funds or specific goals.'),
             const Gap(16),
             Consumer(
               builder: (context, ref, _) {
@@ -252,17 +240,15 @@ Future<void> _showSavingsDialog(BuildContext context, WidgetRef ref, Account acc
        ),
        actions: [
          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-         FilledButton(onPressed: () async {
-            final val = double.tryParse(controller.text) ?? 0.0;
-            // Modifying Isar object directly is fine if we put it back
-            // But better to create copy or just modify and put.
-            // account is 'final' in the widget logic, but it's a reference to the object.
-            // Isar objects are mutable? Yes.
-            account.savedBalance = val;
-            await ref.read(accountsRepositoryProvider).updateAccount(account);
-            if (context.mounted) Navigator.pop(context);
-         }, child: const Text('Save')),
+          FilledButton(onPressed: () async {
+             final val = double.tryParse(controller.text) ?? 0.0;
+             account.reservedBalance = val;
+             account.reservedLimit = val; // Also update limit to match
+             await ref.read(accountsRepositoryProvider).updateAccount(account);
+             if (context.mounted) Navigator.pop(context);
+          }, child: const Text('Save')),
        ],
     ),
   );
 }
+

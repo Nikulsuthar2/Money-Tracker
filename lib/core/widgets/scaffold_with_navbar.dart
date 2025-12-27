@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gap/gap.dart';
 
 class ScaffoldWithNavbar extends StatelessWidget {
   const ScaffoldWithNavbar({
@@ -14,19 +15,35 @@ class ScaffoldWithNavbar extends StatelessWidget {
     final width = MediaQuery.of(context).size.width;
     final useRail = width > 800; // Threshold for desktop layout
 
+    // Map branch index (0,1,2,3) to visual index (0,1,3,4)
+    // 0 -> 0 (Home)
+    // 1 -> 1 (Transactions)
+    // 2 -> 3 (Analytics)
+    // 3 -> 4 (Settings)
+    int visualIndex = navigationShell.currentIndex;
+    if (visualIndex >= 2) {
+       visualIndex += 1; 
+    }
+
     if (useRail) {
       return Scaffold(
         body: Row(
           children: [
             NavigationRail(
-              onDestinationSelected: (index) => _onTap(index),
-              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: (index) {
+                  if (index == 2) {
+                     context.push('/add-transaction');
+                  } else {
+                     _onTap(index);
+                  }
+              },
+              selectedIndex: visualIndex,
               labelType: NavigationRailLabelType.all,
               destinations: const [
                   NavigationRailDestination(icon: Icon(Icons.dashboard), label: Text('Dashboard')),
-                  NavigationRailDestination(icon: Icon(Icons.receipt_long), label: Text('Transactions')),
+                  NavigationRailDestination(icon: Icon(Icons.receipt_long), label: Text('History')),
+                  NavigationRailDestination(icon: Icon(Icons.add_circle, size: 32), label: Text('Add')),
                   NavigationRailDestination(icon: Icon(Icons.analytics), label: Text('Analytics')),
-                  NavigationRailDestination(icon: Icon(Icons.subscriptions), label: Text('Subscriptions')),
                   NavigationRailDestination(icon: Icon(Icons.settings), label: Text('Settings')),
               ],
             ),
@@ -40,28 +57,34 @@ class ScaffoldWithNavbar extends StatelessWidget {
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: _onTap,
+        selectedIndex: visualIndex,
+        onDestinationSelected: (index) {
+          if (index == 2) {
+             context.push('/add-transaction');
+          } else {
+             _onTap(index);
+          }
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            label: 'Home',
           ),
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
-            label: 'Transactions',
+            label: 'History',
+          ),
+          NavigationDestination(
+             icon: Icon(Icons.add_circle_outline, size: 32),
+             selectedIcon: Icon(Icons.add_circle, size: 32),
+             label: 'Add',
           ),
           NavigationDestination(
             icon: Icon(Icons.analytics_outlined),
             selectedIcon: Icon(Icons.analytics),
-            label: 'Analytics',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.subscriptions_outlined),
-            selectedIcon: Icon(Icons.subscriptions),
-            label: 'Subscriptions',
+            label: 'Analysis',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
@@ -73,10 +96,14 @@ class ScaffoldWithNavbar extends StatelessWidget {
     );
   }
 
-  void _onTap(int index) {
+  void _onTap(int visualIndex) {
+     // Map visual index (0,1,3,4) back to branch index (0,1,2,3)
+     int branchIndex = visualIndex;
+     if (visualIndex > 2) branchIndex -= 1;
+
      navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
+            branchIndex,
+            initialLocation: branchIndex == navigationShell.currentIndex,
           );
   }
 }

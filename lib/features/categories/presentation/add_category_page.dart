@@ -26,25 +26,46 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
     Colors.indigo, Colors.blue, Colors.lightBlue, Colors.cyan,
     Colors.teal, Colors.green, Colors.lightGreen, Colors.lime,
     Colors.yellow, Colors.amber, Colors.orange, Colors.deepOrange,
-    Colors.brown, Colors.grey, Colors.blueGrey,
+    Colors.brown, Colors.grey, Colors.blueGrey, Colors.black,
+    // Accents
+    Colors.redAccent, Colors.pinkAccent, Colors.purpleAccent, Colors.deepPurpleAccent,
+    Colors.blueAccent, Colors.lightBlueAccent, Colors.cyanAccent, Colors.tealAccent,
+    Colors.greenAccent, Colors.limeAccent, Colors.amberAccent, Colors.orangeAccent,
+    Colors.deepOrangeAccent,
   ];
 
   final List<IconData> _icons = [
-    Icons.category, Icons.restaurant, Icons.shopping_cart, Icons.directions_car,
-    Icons.train, Icons.flight, Icons.hotel, Icons.local_hospital,
-    Icons.school, Icons.work, Icons.fitness_center, Icons.pets,
-    Icons.home, Icons.build, Icons.local_cafe, Icons.local_bar,
-    Icons.movie, Icons.music_note, Icons.sports_esports, Icons.card_giftcard,
-    Icons.savings, Icons.attach_money, Icons.account_balance, Icons.credit_card,
-    Icons.smartphone, Icons.wifi, Icons.electric_bolt, Icons.water_drop,
-    Icons.local_gas_station, Icons.local_parking, Icons.local_taxi,
-    Icons.shopping_bag, Icons.fastfood, Icons.coffee, Icons.icecream,
-    Icons.local_grocery_store, Icons.healing, Icons.medication, Icons.child_care,
-    Icons.sports_soccer, Icons.music_video, Icons.tv, Icons.computer,
-    Icons.print, Icons.camera_alt, Icons.brush, Icons.cleaning_services,
-    Icons.checkroom, Icons.stroller, Icons.family_restroom, Icons.people,
-    Icons.support_agent, Icons.language, Icons.public, Icons.map,
-    Icons.star, Icons.heart_broken, Icons.favorite, Icons.celebration,
+    // General
+    Icons.category, Icons.label, Icons.star, Icons.favorite, Icons.bookmark,
+    // Transport
+    Icons.directions_car, Icons.train, Icons.flight, Icons.directions_bus, 
+    Icons.directions_bike, Icons.directions_boat, Icons.local_taxi,
+    // Food
+    Icons.restaurant, Icons.shopping_cart, Icons.local_cafe, Icons.local_bar, 
+    Icons.fastfood, Icons.icecream, Icons.local_pizza, Icons.bakery_dining,
+    Icons.lunch_dining, Icons.kitchen, 
+    // Health & Personal
+    Icons.local_hospital, Icons.healing, Icons.medication, Icons.fitness_center,
+    Icons.spa, Icons.pool, Icons.content_cut, Icons.shower,
+    // Education & Work
+    Icons.school, Icons.work, Icons.business_center, Icons.computer, 
+    Icons.library_books, Icons.attach_file,
+    // Entertainment
+    Icons.movie, Icons.music_note, Icons.sports_esports, Icons.sports_soccer, 
+    Icons.sports_basketball, Icons.sports_tennis, Icons.theater_comedy, Icons.casino,
+    // Home & Family
+    Icons.home, Icons.child_care, Icons.pets, Icons.stroller, Icons.family_restroom,
+    Icons.chair, Icons.bed, Icons.local_laundry_service, Icons.build,
+    // Tech & Bills
+    Icons.smartphone, Icons.wifi, Icons.electric_bolt, Icons.water_drop, 
+    Icons.description, Icons.receipt, Icons.credit_card, Icons.account_balance,
+    Icons.savings, Icons.attach_money, Icons.security, Icons.shield,
+    // Shopping
+    Icons.shopping_bag, Icons.card_giftcard, Icons.diamond, Icons.watch,
+    Icons.checkroom, Icons.local_offer,
+    // Travel
+    Icons.map, Icons.public, Icons.language, Icons.camera_alt, Icons.photo_camera,
+    Icons.hotel, Icons.beach_access, Icons.park,
   ];
 
   @override
@@ -106,50 +127,85 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
               onChanged: (v) => setState(() => _type = v!),
             ),
             const Gap(16),
-            const Text('Color'),
-            const Gap(8),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: _colors.map((c) => InkWell(
-                onTap: () => setState(() => _color = c.value),
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: c,
-                    shape: BoxShape.circle,
-                    border: _color == c.value ? Border.all(color: Colors.white, width: 3) : null,
-                    boxShadow: [
-                      if (_color == c.value) BoxShadow(color: c.withOpacity(0.4), blurRadius: 8, spreadRadius: 2)
-                    ]
-                  ),
-                  child: _color == c.value ? const Icon(Icons.check, color: Colors.white, size: 24) : null,
-                ),
-              )).toList(),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Color'),
+              trailing: CircleAvatar(backgroundColor: Color(_color), radius: 16),
+              onTap: () async {
+                 await showDialog(
+                   context: context,
+                   builder: (context) => AlertDialog(
+                     title: const Text('Select Color'),
+                     content: SingleChildScrollView(
+                       child: Wrap(
+                         spacing: 12,
+                         runSpacing: 12,
+                         children: _colors.map((c) => InkWell(
+                           onTap: () {
+                              setState(() => _color = c.value);
+                              Navigator.pop(context);
+                           },
+                           child: Container(
+                             width: 42,
+                             height: 42,
+                             decoration: BoxDecoration(
+                               color: c,
+                               shape: BoxShape.circle,
+                               border: _color == c.value ? Border.all(color: Colors.white, width: 3) : null,
+                               boxShadow: [
+                                 BoxShadow(color: c.withOpacity(0.4), blurRadius: 8, spreadRadius: 2)
+                               ]
+                             ),
+                             child: _color == c.value ? const Icon(Icons.check, color: Colors.white, size: 24) : null,
+                           ),
+                         )).toList(),
+                       ),
+                     ),
+                     actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel'))],
+                   )
+                 );
+              },
             ),
-             const Gap(24),
-             const Text('Icon'),
-             const Gap(12),
-             Wrap(
-               spacing: 12,
-               runSpacing: 12,
-               children: _icons.map((icon) => InkWell(
-                 onTap: () => setState(() => _icon = icon.codePoint),
-                 borderRadius: BorderRadius.circular(12),
-                 child: Container(
-                   width: 56,
-                   height: 56,
-                   decoration: BoxDecoration(
-                     color: _icon == icon.codePoint ? Color(_color).withOpacity(0.2) : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                     borderRadius: BorderRadius.circular(16),
-                     border: _icon == icon.codePoint ? Border.all(color: Color(_color), width: 2) : null,
-                   ),
-                   child: Icon(icon, color: _icon == icon.codePoint ? Color(_color) : Theme.of(context).colorScheme.onSurfaceVariant, size: 28),
-                 ),
-               )).toList(),
-             ),
-             const Gap(24),
+            const Divider(),
+            
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Icon'),
+              trailing: Icon(IconData(_icon, fontFamily: 'MaterialIcons'), size: 28, color: Color(_color)), // Use selected color
+              onTap: () async {
+                 await showDialog(
+                   context: context,
+                   builder: (context) => AlertDialog(
+                     title: const Text('Select Icon'),
+                     content: SingleChildScrollView(
+                       child: Wrap(
+                         spacing: 12,
+                         runSpacing: 12,
+                         children: _icons.map((icon) => InkWell(
+                           onTap: () {
+                              setState(() => _icon = icon.codePoint);
+                              Navigator.pop(context);
+                           },
+                           borderRadius: BorderRadius.circular(12),
+                           child: Container(
+                             width: 56,
+                             height: 56,
+                             decoration: BoxDecoration(
+                               color: _icon == icon.codePoint ? Color(_color).withOpacity(0.2) : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                               borderRadius: BorderRadius.circular(16),
+                               border: _icon == icon.codePoint ? Border.all(color: Color(_color), width: 2) : null,
+                             ),
+                             child: Icon(icon, color: _icon == icon.codePoint ? Color(_color) : Theme.of(context).colorScheme.onSurfaceVariant, size: 28),
+                           ),
+                         )).toList(),
+                       ),
+                     ),
+                     actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel'))],
+                   )
+                 );
+              },
+            ),
+             const Gap(32),
              ElevatedButton(
                onPressed: _save,
                style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),

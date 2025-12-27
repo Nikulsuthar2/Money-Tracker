@@ -95,6 +95,40 @@ class TransactionsRepository {
     return openingBalance + income - expense - transferOut + transferIn;
   }
 
+  Future<void> revertRefund(Id refundTransactionId) async {
+    await _isar.writeTxn(() async {
+      final refundTxn = await _isar.transactions.get(refundTransactionId);
+      if (refundTxn != null && refundTxn.relatedTransactionId != null) {
+         final originalTxn = await _isar.transactions.get(refundTxn.relatedTransactionId!);
+         if (originalTxn != null) {
+            originalTxn.isRefunded = false;
+            await _isar.transactions.put(originalTxn);
+         }
+      }
+      await _isar.transactions.delete(refundTransactionId);
+    });
+  }
+
+  Future<void> revertRefundForOriginal(Id originalTransactionId) async {
+    await _isar.writeTxn(() async {
+       // Find the refund transaction (the one that points to this original)
+       final refundTxn = await _isar.transactions
+           .filter()
+           .relatedTransactionIdEqualTo(originalTransactionId)
+           .findFirst();
+           
+       if (refundTxn != null) {
+          await _isar.transactions.delete(refundTxn.id);
+       }
+       
+       final original = await _isar.transactions.get(originalTransactionId);
+       if (original != null) {
+         original.isRefunded = false;
+         await _isar.transactions.put(original); 
+       }
+    });
+  }
+
   Future<Map<String, double>> getAccountStats(Id accountId, double openingBalance) async {
     final income = await _isar.transactions
         .filter()
@@ -132,10 +166,21 @@ class TransactionsRepository {
         .amountProperty()
         .sum();
     
+    // Calculate Reimbursed (Income linked to another txn)
+    // Note: This relies on relatedTransactionId being set (New Feature).
+    // For Backward compatibility, we could also check notes, but user wants new feature.
+    final reimbursed = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.income)
+        .and()
+        .toAccountIdEqualTo(accountId)
+        .and()
+        .relatedTransactionIdIsNotNull()
+        .amountProperty()
+        .sum();
+
     final totalBalance = openingBalance + income - expense - transferOut + transferIn;
-    // Note: 'income' here strictly means Income type + Transfers In? Or just Income type?
-    // User requested "Total Income/Expense" per account. 
-    // Usually means: Money IN vs Money OUT.
     final totalIn = income + transferIn;
     final totalOut = expense + transferOut;
 
@@ -143,6 +188,7 @@ class TransactionsRepository {
       'balance': totalBalance,
       'income': totalIn,
       'expense': totalOut,
+      'reimbursed': reimbursed,
     };
   }
 }

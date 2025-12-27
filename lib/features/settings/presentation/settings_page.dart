@@ -64,8 +64,8 @@ class SettingsPage extends ConsumerWidget {
           const _AppearanceSelector(),
           const Divider(),
 
-          const _SavingsSection(), 
-          const Divider(),
+          // const _SavingsSection(), // Removed in favor of Account-specific settings
+          // const Divider(),
           const _SecuritySection(),
           const Divider(),
 
@@ -210,133 +210,54 @@ class _AppearanceSelector extends ConsumerWidget {
           value: dynamicColor,
           onChanged: (v) => ref.read(dynamicColorProvider.notifier).toggle(v),
         ),
-      ],
-    );
-  }
-}
-
-
-
-class _SavingsSection extends ConsumerWidget {
-  const _SavingsSection();
-  
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(savingsProvider);
-    final notifier = ref.read(savingsProvider.notifier);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text('Automation', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-        ),
-        SwitchListTile(
-          title: const Text('Auto-Savings'),
-          subtitle: Text(settings.isEnabled 
-            ? 'Saving ${settings.percentage.toStringAsFixed(0)}% of income' 
-            : 'Automatically save a % of income'),
-          value: settings.isEnabled,
-          onChanged: (v) {
-             if (v) {
-               _showConfigDialog(context, ref);
-             } else {
-               notifier.setEnabled(false);
-             }
-          },
-        ),
-        if (settings.isEnabled)
-          ListTile(
-            title: const Text('Configure Savings'),
-            leading: const Icon(Icons.savings),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showConfigDialog(context, ref),
+        if (!dynamicColor) ...[
+          const Gap(12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              height: 50,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                   for (final color in [
+                     Colors.purple, Colors.indigo, Colors.blue, Colors.teal, 
+                     Colors.green, Colors.lime, Colors.orange, Colors.red, Colors.pink, Colors.brown, Colors.blueGrey
+                   ])
+                   Padding(
+                     padding: const EdgeInsets.only(right: 8),
+                     child: InkWell(
+                       onTap: () => ref.read(manualThemeColorProvider.notifier).setColor(color.value),
+                       borderRadius: BorderRadius.circular(25),
+                       child: Container(
+                         width: 42,
+                         height: 42,
+                         decoration: BoxDecoration(
+                           color: color,
+                           shape: BoxShape.circle,
+                           border: Border.all(
+                             color: ref.watch(manualThemeColorProvider) == color.value ? Theme.of(context).colorScheme.onSurface : Colors.transparent, 
+                             width: 2.5
+                           ),
+                         ),
+                         child: ref.watch(manualThemeColorProvider) == color.value ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
+                       ),
+                     ),
+                   )
+                ],
+              ),
+            ),
           ),
-      ],
-    );
-  }
-
-  void _showConfigDialog(BuildContext context, WidgetRef ref) async {
-      final settings = ref.read(savingsProvider);
-      final accountsRepo = ref.read(accountsRepositoryProvider);
-      final accounts = await accountsRepo.getAllAccounts();
-      
-      if (context.mounted) {
-         showDialog(context: context, builder: (c) => _SavingsConfigDialog(initialSettings: settings, accounts: accounts));
-      }
-  }
-}
-
-class _SavingsConfigDialog extends StatefulWidget {
-  final SavingsSettings initialSettings;
-  final List<Account> accounts;
-
-  const _SavingsConfigDialog({required this.initialSettings, required this.accounts});
-
-  @override
-  State<_SavingsConfigDialog> createState() => _SavingsConfigDialogState();
-}
-
-class _SavingsConfigDialogState extends State<_SavingsConfigDialog> {
-  late double _percentage;
-  int? _accountId;
-
-  @override
-  void initState() {
-    super.initState();
-    _percentage = widget.initialSettings.percentage;
-    _accountId = widget.initialSettings.accountId;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Auto-Savings Setup'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-           const Text('Select percentage of Income to save:'),
-           const Gap(16),
-           Row(
-             children: [
-               Expanded(child: Slider(
-                 value: _percentage, 
-                 min: 1, 
-                 max: 50, 
-                 divisions: 49,
-                 label: '${_percentage.round()}%',
-                 onChanged: (v) => setState(() => _percentage = v),
-               )),
-               Text('${_percentage.round()}%', style: const TextStyle(fontWeight: FontWeight.bold)),
-             ],
-           ),
-           const Gap(24),
-           DropdownButtonFormField<int>(
-             decoration: const InputDecoration(labelText: 'Transfer to Account', border: OutlineInputBorder()),
-             value: _accountId,
-             items: widget.accounts.map((a) => DropdownMenuItem(value: a.id, child: Text(a.name))).toList(),
-             onChanged: (v) => setState(() => _accountId = v),
-           ),
+          const Gap(8),
         ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: () {
-            if (_accountId == null) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select account')));
-              return;
-            }
-            final ref = ProviderScope.containerOf(context);
-            ref.read(savingsProvider.notifier).setPercentage(_percentage);
-            ref.read(savingsProvider.notifier).setAccountId(_accountId);
-            ref.read(savingsProvider.notifier).setEnabled(true);
-            Navigator.pop(context);
-        }, child: const Text('Save')),
       ],
     );
   }
 }
+
+
+
+// _SavingsSection and _SavingsConfigDialog removed. 
+// Auto-savings is now managed per Account in Add/Edit Account.
 
 class _SecuritySection extends ConsumerWidget {
   const _SecuritySection();

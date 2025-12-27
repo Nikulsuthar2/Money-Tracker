@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/accounts/domain/account.dart';
+import 'package:money_manager/features/accounts/data/accounts_repository.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:gap/gap.dart';
@@ -22,7 +23,82 @@ class AccountDetailsPage extends ConsumerWidget {
     final currency = ref.watch(currencyProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(account.name)),
+      appBar: AppBar(
+        title: Text(account.name),
+        actions: [
+          IconButton(
+            tooltip: 'Add Transaction',
+            icon: const Icon(Icons.add),
+            onPressed: () => context.push('/add-transaction', extra: Transaction()..toAccountId=account.id..fromAccountId=account.id), // Pre-select account? logic needs refinement in AddPage
+          ),
+          IconButton(
+            tooltip: 'Transfer',
+            icon: const Icon(Icons.swap_horiz),
+            onPressed: () => context.push('/add-transaction', extra: Transaction()..type=TransactionType.transfer..fromAccountId=account.id),
+          ),
+           IconButton(
+             tooltip: 'Manage Reserved',
+             icon: const Icon(Icons.lock_outline),
+             onPressed: () {
+                 final controller = TextEditingController(text: account.reservedBalance.toString());
+                 showDialog(context: context, builder: (d) => AlertDialog(
+                    title: const Text('Manage Reserved Savings'),
+                    content: Column(
+                       mainAxisSize: MainAxisSize.min,
+                       children: [
+                          const Text('Adjust amount reserved safely from spending.'),
+                          const Gap(16),
+                          TextField(
+                             controller: controller,
+                             decoration: InputDecoration(
+                               labelText: 'Reserved Amount',
+                               prefixText: currency,
+                               border: const OutlineInputBorder(),
+                             ),
+                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          ),
+                       ],
+                    ),
+                    actions: [
+                       TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+                       FilledButton(onPressed: () async {
+                          final val = double.tryParse(controller.text) ?? 0.0;
+                          final updated = account..reservedBalance = val;
+                          await ref.read(accountsRepositoryProvider).updateAccount(updated);
+                          if (context.mounted) Navigator.pop(d);
+                       }, child: const Text('Save')),
+                    ]
+                 ));
+             },
+           ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'edit') {
+                 context.push('/add-account', extra: account);
+              } else if (value == 'delete') {
+                 showDialog(context: context, builder: (d) => AlertDialog(
+                    title: const Text('Delete Account?'),
+                    content: const Text('This will delete the account and all associated transactions permanently.'),
+                    actions: [
+                       TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+                       TextButton(onPressed: () async {
+                          await ref.read(accountsRepositoryProvider).deleteAccount(account.id);
+                          if (context.mounted) {
+                             Navigator.pop(d);
+                             context.pop();
+                          }
+                       }, child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                    ]
+                 ));
+              }
+            },
+            itemBuilder: (context) => [
+               const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 20), Gap(12), Text('Edit Account')])),
+               const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 20, color: Colors.red), Gap(12), Text('Delete Account', style: TextStyle(color: Colors.red))])),
+            ],
+          ),
+        ],
+      ),
       body: transactionsAsync.when(
         data: (allTransactions) {
           // Filter transactions for this account
@@ -35,55 +111,64 @@ class AccountDetailsPage extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Balance Card
+              // Main Stats Card
               Card(
                 color: theme.colorScheme.primaryContainer,
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      Text('Current Balance', style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimaryContainer)),
-                      const Gap(8),
+                      Text('Current Balance', style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimaryContainer.withOpacity(0.8))),
+                      const Gap(4),
                       Text('$currency${_calculateBalance(account, accountTransactions).toStringAsFixed(2)}', 
-                        style: theme.textTheme.displayMedium?.copyWith(
+                        style: theme.textTheme.displaySmall?.copyWith(
                           color: theme.colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.bold
+                          fontWeight: FontWeight.w900
                         )
                       ),
-                      const Gap(16),
+                      const Gap(24),
+                      // Line 2: Total In vs Out (Cash Flow)
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly, // Better spacing
                         children: [
-                          _SummaryItem(
-                            label: 'Net Income', 
-                            amount: '$currency${_calculateAdjustedIncome(account, accountTransactions).toStringAsFixed(0)}', 
-                            color: Colors.teal,
-                            icon: Icons.arrow_downward
-                          ),
-                          Container(width: 1, height: 40, color: theme.colorScheme.outlineVariant), // Better splitter
-                          _SummaryItem(
-                            label: 'Net Spend', 
-                            amount: '$currency${_calculateNetCost(account, accountTransactions).toStringAsFixed(0)}', 
-                            color: Colors.red,
-                            icon: Icons.arrow_upward
-                          ),
-                        ],
+                           Expanded(child: _StatColumn(label: 'Total In', amount: _calculateTotalIncome(account, accountTransactions), color: Colors.teal.shade800, currency: currency)),
+                           Container(width: 1, height: 40, color: theme.colorScheme.onPrimaryContainer.withOpacity(0.2)),
+                           Expanded(child: _StatColumn(label: 'Total Out', amount: _calculateTotalExpense(account, accountTransactions), color: Colors.red.shade800, currency: currency)),
+                        ], 
                       ),
                       const Gap(16),
-                      // Reimbursed Info
+                      // Line 3: Net Income | Net Spend (Real/Category)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
+                        ),
+                        child: Row(
+                        children: [
+                           Expanded(child: _StatColumn(label: 'Net Income', amount: _calculateAdjustedIncome(account, accountTransactions), color: Colors.teal, isBold: true, currency: currency)),
+                           Container(width: 1, height: 40, color: theme.colorScheme.onSurface.withOpacity(0.2)),
+                           Expanded(child: _StatColumn(label: 'Net Spend', amount: _calculateNetCost(account, accountTransactions), color: Colors.red, isBold: true, currency: currency)),
+                        ],
+                        ),
+                      ),
+                      const Gap(16),
+                      
+                      // Line 4: Reimbursed
+                      if (_calculateReimbursements(account, accountTransactions) > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(8)
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.undo, size: 14, color: Colors.grey),
+                            Icon(Icons.undo, size: 12, color: theme.colorScheme.onSurface),
                             const Gap(8),
                             Text('Reimbursed: $currency${_calculateReimbursements(account, accountTransactions).toStringAsFixed(2)}',
-                               style: const TextStyle(fontSize: 12, color: Colors.black87)), // Ensure visibility
+                               style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface)), 
                           ],
                         ),
                       )
@@ -91,10 +176,102 @@ class AccountDetailsPage extends ConsumerWidget {
                   ),
                 ),
               ),
+
               const Gap(16),
 
+              // Funds Status Card (Spendable vs Reserved)
+              Card(
+                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: theme.colorScheme.outlineVariant)),
+                 child: Padding(
+                    padding: const EdgeInsets.all(16),
+                     child: Column(
+                       crossAxisAlignment: CrossAxisAlignment.start,
+                       children: [
+                          Row(
+                            children: [
+                               Icon(Icons.account_balance_wallet, color: theme.colorScheme.primary),
+                               const Gap(12),
+                               const Text('Funds', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            ],
+                          ),
+                          const Gap(16),
+                          // Spendable & Reserved
+                          Row(
+                             children: [
+                                Expanded(
+                                   child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                         const Text('Spendable', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                         Text(
+                                            '$currency${(_calculateBalance(account, accountTransactions) - account.reservedBalance - account.buckets.fold(0.0, (sum, b) => sum + b.balance)).toStringAsFixed(2)}',
+                                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                                         ),
+                                      ],
+                                   ),
+                                ),
+                                Container(width: 1, height: 30, color: theme.colorScheme.outlineVariant),
+                                Expanded(
+                                   child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                         const Text('Reserved', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                         Text(
+                                            '$currency${account.reservedBalance.toStringAsFixed(2)}',
+                                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange),
+                                         ),
+                                      ],
+                                   ),
+                                ),
+                             ],
+                          ),
+                          
+                          // Custom Buckets (Conditional)
+                          if (account.buckets.isNotEmpty) ...[
+                              const Gap(16),
+                              Divider(color: theme.colorScheme.outlineVariant),
+                              const Gap(8),
+                              const Text('Custom Buckets', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              const Gap(8),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                   ...account.buckets.map((b) => _BucketItem(
+                                      label: b.name ?? 'Bucket', 
+                                      amount: b.balance, 
+                                      color: Colors.blueAccent,
+                                      icon: Icons.pie_chart
+                                   )),
+                                ],
+                              ),
+                          ],
+                       ],
+                    )
+                 )
+              ),
+               
+               if (account.autoSaveEnabled) ...[
+                 const Gap(12),
+                 Card(
+                   elevation: 0,
+                   color: Colors.amber.withOpacity(0.1),
+                   shape: RoundedRectangleBorder(
+                     borderRadius: BorderRadius.circular(16),
+                     side: BorderSide(color: Colors.amber.withOpacity(0.5)),
+                   ),
+                   child: ListTile(
+                     leading: const Icon(Icons.savings, color: Colors.amber),
+                     title: const Text('Auto-Save Active', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                     subtitle: Text('Automatically saving ${account.autoSaveIsPercentage ? "${account.autoSaveAmount.toStringAsFixed(0)}%" : "$currency${account.autoSaveAmount.toStringAsFixed(0)}"} of every income deposit.', style: const TextStyle(fontSize: 12)),
+                   ),
+                 ),
+               ],
+
+               const Gap(16),
+
               // Chart
-              Container( // Wrap in container or card
+              Container( 
                  padding: const EdgeInsets.all(16),
                  decoration: BoxDecoration(
                    color: theme.colorScheme.surface,
@@ -149,15 +326,19 @@ class AccountDetailsPage extends ConsumerWidget {
      return balance;
   }
 
+  bool _isReimbursement(dynamic t) {
+     if (t.relatedTransactionId != null) return true;
+     // Backward compatibility
+     if (t.note != null && (t.note!.toLowerCase().contains('repayment') || t.note!.toLowerCase().contains('refund'))) return true;
+     return false;
+  }
+
   double _calculateAdjustedIncome(Account account, List<dynamic> transactions) {
      double income = 0;
      for (final t in transactions) {
        if (t.skipFromStats) continue;
        if (t.type == TransactionType.income && t.toAccountId == account.id) {
-         // Exclude Repayments from "Actual Income" (it's just money coming back)
-         // Check note "Repayment:" or "Refund:"
-         final isRepayment = t.note != null && (t.note!.toLowerCase().contains('repayment') || t.note!.toLowerCase().contains('refund'));
-         if (!isRepayment) {
+         if (!_isReimbursement(t)) {
             income += t.amount;
          }
        }
@@ -178,8 +359,7 @@ class AccountDetailsPage extends ConsumerWidget {
        
        // Check for repayments to deduct from expense
        if (t.type == TransactionType.income && t.toAccountId == account.id) {
-         final isRepayment = t.note != null && (t.note!.toLowerCase().contains('repayment') || t.note!.toLowerCase().contains('refund'));
-         if (isRepayment) {
+         if (_isReimbursement(t)) {
             reimbursed += t.amount;
          }
        }
@@ -192,36 +372,112 @@ class AccountDetailsPage extends ConsumerWidget {
      for (final t in transactions) {
        if (t.skipFromStats) continue;
        if (t.type == TransactionType.income && t.toAccountId == account.id) {
-         final isRepayment = t.note != null && (t.note!.toLowerCase().contains('repayment') || t.note!.toLowerCase().contains('refund'));
-         if (isRepayment) {
+         if (_isReimbursement(t)) {
             reimbursed += t.amount;
          }
        }
      }
      return reimbursed;
   }
+   double _calculateTotalIncome(Account account, List<dynamic> transactions) {
+     double income = 0;
+     for (final t in transactions) {
+       if (t.skipFromStats) continue;
+       if (t.type == TransactionType.income && t.toAccountId == account.id) {
+         income += t.amount;
+       }
+     }
+     return income;
+   }
+
+   double _calculateTotalExpense(Account account, List<dynamic> transactions) {
+     double expense = 0;
+     for (final t in transactions) {
+       if (t.skipFromStats) continue;
+       if (t.type == TransactionType.expense && t.fromAccountId == account.id) {
+         expense += t.amount;
+       }
+     }
+     return expense;
+   }
 }
 
-class _SummaryItem extends StatelessWidget {
+class _StatColumn extends StatelessWidget {
   final String label;
-  final String amount;
+  final double amount;
   final Color color;
-  final IconData? icon;
-  const _SummaryItem({required this.label, required this.amount, required this.color, this.icon});
+  final bool isBold;
+  final String currency;
+
+  const _StatColumn({
+    required this.label, 
+    required this.amount, 
+    required this.color, 
+    required this.currency,
+    this.isBold = false
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Adjust color for dark mode if it's too dark
+    Color finalColor = color;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (isDark) {
+       // If it's a deep shade, lighten it
+       if (color == Colors.teal.shade800) finalColor = Colors.tealAccent.shade400;
+       if (color == Colors.red.shade800) finalColor = Colors.redAccent.shade100;
+       if (color == Colors.teal) finalColor = Colors.tealAccent;
+       if (color == Colors.red) finalColor = Colors.redAccent;
+    }
+
     return Column(
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[Icon(icon, size: 12, color: color), const Gap(4)],
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-          ],
+        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        const Gap(2),
+        Text(
+          '$currency${amount.toStringAsFixed(0)}',
+          style: TextStyle(
+            fontSize: isBold ? 18 : 14, 
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: finalColor
+          ),
         ),
-        Text(amount, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
       ],
+    );
+  }
+}
+
+class _BucketItem extends StatelessWidget {
+  const _BucketItem({required this.label, required this.amount, required this.color, required this.icon});
+
+  final String label;
+  final double amount;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+       decoration: BoxDecoration(
+         color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+         borderRadius: BorderRadius.circular(20),
+         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5)),
+       ),
+       child: Row(
+         mainAxisSize: MainAxisSize.min,
+         children: [
+           Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+           const Gap(8),
+           Text('$label: ', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface)),
+           Consumer(builder: (context, ref, _) {
+              return Text(
+                 '${ref.watch(currencyProvider)}${amount.toStringAsFixed(0)}',
+                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.primary)
+              );
+           }),
+         ],
+       ),
     );
   }
 }

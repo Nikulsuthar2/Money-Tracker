@@ -26,7 +26,27 @@ class Account {
   bool isArchived = false;
   
   // Amount set aside as Savings (not to be spent freely)
-  double savedBalance = 0.0;
+  // "Reserved Saving" in user terms - Manual lock
+  // "Reserved Saving" in user terms - Manual lock or filled by priority logic
+  double reservedBalance = 0.0;
+  
+  // New: Limit for Reserved bucket. If income comes, fills this up to limit.
+  double reservedLimit = 0.0;
+  
+  // Dynamic Custom Buckets
+  List<AccountBucket> buckets = [];
+
+  // Auto-Savings Configuration
+  bool autoSaveEnabled = false;
+  int? autoSaveTargetAccountId;
+  double autoSaveAmount = 0.0; 
+  bool autoSaveIsPercentage = true; 
+  
+  // Pivot Logic:
+  // "Spendable (default all balance - all categories)"
+  // Since we don't store currentBalance on the model (it's calculated), we need to pass currentBalance.
+  // BUT the UI needs to know spendable.
+  // We'll calculate spendable in the UI/Logic layer by (currentBalance - reserved - savings - investment).
 }
 
 enum AccountType {
@@ -36,4 +56,12 @@ enum AccountType {
   savings,
   salary,
   others
+}
+
+@embedded
+class AccountBucket {
+  String? name;
+  double balance = 0.0;
+  
+  // Could add more fields like target, icon, etc. later
 }

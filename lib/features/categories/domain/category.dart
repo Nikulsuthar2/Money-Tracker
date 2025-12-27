@@ -18,5 +18,6 @@ class Category {
 
 enum CategoryType {
   income,
-  expense
+  expense,
+  common
 }

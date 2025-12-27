@@ -22,6 +22,7 @@ class Transaction {
   int? categoryId;
 
   String? note;
+  String? title;
 
   @Index()
   late DateTime date;
@@ -52,6 +53,8 @@ class SubTransaction {
 
   // Is this split my personal expense?
   bool isMine = true;
+
+  bool isRefunded = false;
 }
 
 enum TransactionType {

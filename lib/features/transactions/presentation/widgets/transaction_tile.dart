@@ -80,8 +80,9 @@ class TransactionTile extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      category?.name ?? (t.subTransactions?.isNotEmpty == true ? 'Split Transaction' : (t.type.name[0].toUpperCase() + t.type.name.substring(1))),
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: compact ? 14 : 16),
+                      (t.title?.isNotEmpty == true) ? t.title! :
+                      (category?.name ?? (t.subTransactions?.isNotEmpty == true ? 'Split Transaction' : (t.type.name[0].toUpperCase() + t.type.name.substring(1)))),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: compact ? 15 : 17),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -90,8 +91,9 @@ class TransactionTile extends ConsumerWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (t.note?.isNotEmpty == true)
-                            Text(t.note!, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
+                          if (t.title?.isNotEmpty == true && category != null)
+                             Text(category!.name, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+                           // Note removed from list view as per request
                           
                           if (t.subTransactions != null && t.subTransactions!.isNotEmpty) ...[
                                const Gap(2),
@@ -126,11 +128,11 @@ class TransactionTile extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '$currency${t.amount.toStringAsFixed(2)}',
+                    '${t.type == TransactionType.income ? "+" : (t.type == TransactionType.expense ? "-" : "")}$currency${t.amount.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: color,
-                      fontWeight: FontWeight.bold,
-                      fontSize: compact ? 14 : 16,
+                      fontWeight: FontWeight.w900, // Extra Bold
+                      fontSize: compact ? 15 : 18, // Larger
                     ),
                   ),
                   if (!compact) ...[

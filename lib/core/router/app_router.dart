@@ -56,14 +56,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/subscriptions',
-                builder: (context, state) => const SubscriptionsPage(),
-              ),
-            ],
-          ),
+
           StatefulShellBranch(
             routes: [
               GoRoute(

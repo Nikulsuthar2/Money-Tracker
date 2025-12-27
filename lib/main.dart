@@ -69,11 +69,20 @@ class _MoneyManagerAppState extends ConsumerState<MoneyManagerApp> with WidgetsB
     final dynamicEnabled = ref.watch(dynamicColorProvider);
     final security = ref.watch(securityProvider);
 
+    final manualColor = ref.watch(manualThemeColorProvider);
+
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
-        // Only use dynamic if enabled
-        final lightScheme = dynamicEnabled ? lightDynamic : null;
-        final darkScheme = dynamicEnabled ? darkDynamic : null;
+        ColorScheme? lightScheme;
+        ColorScheme? darkScheme;
+
+        if (dynamicEnabled && lightDynamic != null) {
+          lightScheme = lightDynamic;
+          darkScheme = darkDynamic;
+        } else {
+          lightScheme = ColorScheme.fromSeed(seedColor: Color(manualColor));
+          darkScheme = ColorScheme.fromSeed(seedColor: Color(manualColor), brightness: Brightness.dark);
+        }
 
         return MaterialApp.router(
           title: 'Money Tracker',

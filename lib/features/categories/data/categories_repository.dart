@@ -17,11 +17,11 @@ class CategoriesRepository {
   }
   
   Stream<List<Category>> watchIncomeCategories() {
-    return _isar.categorys.filter().typeEqualTo(CategoryType.income).watch(fireImmediately: true);
+    return _isar.categorys.filter().typeEqualTo(CategoryType.income).or().typeEqualTo(CategoryType.common).watch(fireImmediately: true);
   }
   
   Stream<List<Category>> watchExpenseCategories() {
-    return _isar.categorys.filter().typeEqualTo(CategoryType.expense).watch(fireImmediately: true);
+    return _isar.categorys.filter().typeEqualTo(CategoryType.expense).or().typeEqualTo(CategoryType.common).watch(fireImmediately: true);
   }
 
   Future<void> addCategory(Category category) async {
@@ -62,6 +62,11 @@ class CategoriesRepository {
         Category()..name = 'Bills'..type = CategoryType.expense..icon = 58632, // receipt
         Category()..name = 'Education'..type = CategoryType.expense..icon = 58723, // school
         Category()..name = 'Health'..type = CategoryType.expense..icon = 58345, // local_hospital
+        
+        // Common
+        Category()..name = 'Others'..type = CategoryType.common..icon = 57685, // more_horiz
+        Category()..name = 'Transfer'..type = CategoryType.common..icon = 58814, // swap_horiz
+        Category()..name = 'Reimbursement'..type = CategoryType.common..icon = 58661, // repeat
       ];
       await _isar.writeTxn(() async {
         await _isar.categorys.putAll(defaultCategories);

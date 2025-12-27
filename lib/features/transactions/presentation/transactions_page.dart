@@ -7,6 +7,8 @@ import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/accounts/application/accounts_providers.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:money_manager/features/transactions/presentation/widgets/transaction_tile.dart';
+import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:gap/gap.dart';
 
 class TransactionsPage extends ConsumerStatefulWidget {
   const TransactionsPage({super.key});
@@ -30,6 +32,11 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
         title: const Text('Transactions'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.subscriptions),
+            tooltip: 'Subscriptions',
+            onPressed: () => context.push('/subscriptions'),
+          ),
+          IconButton(
             icon: Icon(_isCompact ? Icons.view_agenda : Icons.view_headline),
             tooltip: _isCompact ? 'Comfortable View' : 'Concise View',
             onPressed: () => setState(() => _isCompact = !_isCompact),
@@ -49,7 +56,14 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
           
           // Group transactions by date
           final grouped = <DateTime, List<Transaction>>{};
+          double totalIncome = 0;
+          double totalExpense = 0;
+
           for (var t in transactions) {
+            if (t.skipFromStats) continue; 
+            if (t.type == TransactionType.income) totalIncome += t.amount;
+            if (t.type == TransactionType.expense) totalExpense += t.amount;
+
             final date = DateTime(t.date.year, t.date.month, t.date.day);
             if (grouped.containsKey(date)) {
               grouped[date]!.add(t);
@@ -69,9 +83,57 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                    
                    return ListView.builder(
                     padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80), 
-                    itemCount: sortedDates.length,
+                    itemCount: sortedDates.length + 1, // +1 for Header
                     itemBuilder: (context, index) {
-                      final date = sortedDates[index];
+                      if (index == 0) {
+                         // Stats Header
+                         return Padding(
+                           padding: const EdgeInsets.only(bottom: 24),
+                           child: Row(
+                             children: [
+                               Expanded(
+                                 child: Container(
+                                   padding: const EdgeInsets.all(16),
+                                   decoration: BoxDecoration(
+                                     color: Colors.teal.withOpacity(0.1),
+                                     borderRadius: BorderRadius.circular(16),
+                                     border: Border.all(color: Colors.teal.withOpacity(0.3))
+                                   ),
+                                   child: Column(
+                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                     children: [
+                                       const Row(children: [Icon(Icons.arrow_downward, size: 16, color: Colors.teal), Gap(8), Text('Income', style: TextStyle(color: Colors.teal))]),
+                                       const Gap(8),
+                                       Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalIncome.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal))),
+                                     ],
+                                   ),
+                                 ),
+                               ),
+                               const Gap(16),
+                               Expanded(
+                                 child: Container(
+                                   padding: const EdgeInsets.all(16),
+                                   decoration: BoxDecoration(
+                                     color: Colors.red.withOpacity(0.1),
+                                     borderRadius: BorderRadius.circular(16),
+                                     border: Border.all(color: Colors.red.withOpacity(0.3))
+                                   ),
+                                   child: Column(
+                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                     children: [
+                                       const Row(children: [Icon(Icons.arrow_upward, size: 16, color: Colors.red), Gap(8), Text('Expense', style: TextStyle(color: Colors.red))]),
+                                       const Gap(8),
+                                       Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalExpense.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red))),
+                                     ],
+                                   ),
+                                 ),
+                               ),
+                             ],
+                           ),
+                         );
+                      }
+
+                      final date = sortedDates[index - 1];
                       final dayTransactions = grouped[date]!;
                       dayTransactions.sort((a, b) => b.date.compareTo(a.date)); // Ensure newest on top
                       
@@ -130,11 +192,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error: $e')),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/add-transaction'),
-        tooltip: 'Add Transaction',
-        child: const Icon(Icons.add),
-      ),
+
     );
   }
 }

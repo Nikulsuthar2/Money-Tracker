@@ -11,6 +11,7 @@ import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:money_manager/features/subscriptions/presentation/subscription_details_page.dart';
 
 // Repository for Subscriptions (inline for now or separate file)
 // Repository for Subscriptions (inline for now or separate file)
@@ -70,7 +71,7 @@ class SubscriptionsPage extends ConsumerWidget {
                return Card(
                  child: ListTile(
                    onTap: () {
-                      showDialog(context: context, builder: (c) => AddSubscriptionDialog(subscriptionToEdit: s));
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => SubscriptionDetailsPage(subscription: s)));
                    },
                    title: Text(s.name),
                    subtitle: Text('${s.repeat.name} • Next: ${DateFormat.yMMMd().format(s.startDate)}'), // Simple logic
@@ -85,28 +86,16 @@ class SubscriptionsPage extends ConsumerWidget {
                             child: const Row(children: [Icon(Icons.payment, color: Colors.green), Gap(8), Text('Pay Now')]),
                             onTap: () {
                               // Pay Logic
-                              if (s.accountId != null && s.categoryId != null) {
-                                 // Auto-create
-                                 // We need access to TransactionsRepository here. 
-                                 // Ideally we should use a provider method, but for now we can navigate to AddTransaction
-                                 // with pre-filled values for review. This is safer.
-                                 context.push('/add-transaction', extra: Transaction()
-                                    ..amount = s.amount
-                                    ..note = 'Subscription: ${s.name}'
-                                    ..type = TransactionType.expense
-                                    ..categoryId = s.categoryId
-                                    ..fromAccountId = s.accountId
-                                    ..date = DateTime.now()
-                                 );
-                              } else {
-                                 // Navigate to Add Transaction with available info
-                                 context.push('/add-transaction', extra: Transaction()
-                                    ..amount = s.amount
-                                    ..note = 'Subscription: ${s.name}'
-                                    ..type = TransactionType.expense
-                                    ..date = DateTime.now()
-                                 );
-                              }
+                              final defaults = {
+                                'amount': s.amount,
+                                'note': 'Subscription: ${s.name}',
+                                'type': TransactionType.expense,
+                                'categoryId': s.categoryId,
+                                'accountId': s.accountId, // Map key check in AddPage? AddPage uses 'accountId' for initial select
+                                'subscriptionId': s.id,
+                              };
+                                    
+                              context.push('/add-transaction', extra: defaults);
                             },
                           ),
                           PopupMenuItem(
