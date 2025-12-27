@@ -36,7 +36,6 @@ class AppTheme {
     const darkSurface = Color(0xFF1E1E1E);
     
     final scheme = dynamicScheme?.copyWith(
-      background: darkBackground, 
       surface: darkSurface
     ) ?? ColorScheme.fromSeed(
       seedColor: defaultSeed,
@@ -67,7 +66,7 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: darkBackground,
         indicatorColor: scheme.primary.withOpacity(0.2),
-        iconTheme: MaterialStateProperty.all(const IconThemeData(color: Colors.white70)),
+        iconTheme: WidgetStateProperty.all(const IconThemeData(color: Colors.white70)),
       ),
     );
   }

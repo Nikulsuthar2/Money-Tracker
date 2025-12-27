@@ -8,7 +8,7 @@ import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
-// Simple provider to get transactions
+
 final allTransactionsProvider = StreamProvider((ref) {
   return ref.watch(transactionsRepositoryProvider).watchAllTransactions();
 });
@@ -23,7 +23,7 @@ class AnalyticsPage extends ConsumerStatefulWidget {
 class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
   String _viewMode = 'Month'; // Month, Year
   DateTime _selectedDate = DateTime.now();
-  int _monthViewType = 0; // 0 = Chart, 1 = Calendar
+  int _chartIndex = 0; // 0 = Bar, 1 = Pie
 
   void _prevPeriod() {
     setState(() {
@@ -53,20 +53,40 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
       } else if (_viewMode == 'Year') {
         return t.date.year == _selectedDate.year;
       }
-      return true; // All Time
+      return true;
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final transactionsAsync = ref.watch(allTransactionsProvider);
-    final categoriesAsync = ref.watch(categoriesRepositoryProvider).watchAllCategories();
-
-    final dateFormat = _viewMode == 'Month' ? DateFormat('MMMM yyyy') : (_viewMode == 'Year' ? DateFormat('yyyy') : null);
+    final dateFormat = _viewMode == 'Month' ? DateFormat('MMMM yyyy') : DateFormat('yyyy');
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analytics'),
+        centerTitle: true,
+        actions: [
+          PopupMenuButton<String>(
+            initialValue: _viewMode,
+            onSelected: (v) => setState(() => _viewMode = v),
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'Month', child: Text('Monthly')),
+              const PopupMenuItem(value: 'Year', child: Text('Yearly')),
+              const PopupMenuItem(value: 'All', child: Text('All Time')),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Text(_viewMode, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                  const Icon(Icons.arrow_drop_down),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       body: transactionsAsync.when(
         data: (allTransactions) {
@@ -74,50 +94,26 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
           
           return Column(
             children: [
-               // Period Selector & Navigation
+               // Fixed Header (Date Nav)
+               if (_viewMode != 'All')
                Container(
-                 padding: const EdgeInsets.all(16),
-                 decoration: BoxDecoration(
-                   color: Theme.of(context).colorScheme.surface,
-                   borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-                   boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-                   ]
-                 ),
-                 child: Column(
-                   children: [
-                     SegmentedButton<String>(
-                       segments: const [
-                         ButtonSegment(value: 'Month', label: Text('Monthly')),
-                         ButtonSegment(value: 'Year', label: Text('Yearly')),
-                         ButtonSegment(value: 'All', label: Text('All')),
-                       ],
-                       selected: {_viewMode},
-                       onSelectionChanged: (v) => setState(() => _viewMode = v.first),
-                       showSelectedIcon: false,
-                     ),
-                     const Gap(16),
-                     if (_viewMode != 'All')
-                     Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(onPressed: _prevPeriod, icon: const Icon(Icons.chevron_left)),
-                          Text(dateFormat!.format(_selectedDate), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          IconButton(onPressed: _nextPeriod, icon: const Icon(Icons.chevron_right)),
-                        ],
-                     ),
-                   ],
+                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                 color: theme.colorScheme.surface,
+                 child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton.filledTonal(onPressed: _prevPeriod, icon: const Icon(Icons.chevron_left)),
+                      Text(dateFormat.format(_selectedDate), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      IconButton.filledTonal(onPressed: _nextPeriod, icon: const Icon(Icons.chevron_right)),
+                    ],
                  ),
                ),
+               const Divider(height: 1),
 
                Expanded(
                  child: transactions.isEmpty 
-                   ? const Center(child: Text('No data for selected period'))
-                   : Builder(builder: (context) {
-                       // Logic to calculate totals...
-                       // I need to copy the calculation logic here or extract it
-                       return _buildContent(transactions);
-                   })
+                   ? _buildEmptyState()
+                   : _buildContent(transactions),
                ),
             ],
           );
@@ -128,358 +124,307 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
     );
   }
 
-  Widget _buildContent(List<Transaction> transactions) {
-          double totalIncome = 0;
-          double totalExpense = 0;
-          double totalTransfer = 0; 
-          final categoryNetMap = <int, double>{};
-          final incomeMap = <int, double>{}; 
-
-           for (var t in transactions) {
-             List<SubTransaction> relevantSplits = [];
-             if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
-                relevantSplits = t.subTransactions!;
-                for (var s in relevantSplits) {
-                  if (!s.isMine) continue;
-                  if (t.type == TransactionType.income) {
-                     totalIncome += s.amount;
-                     if (s.categoryId != null) incomeMap[s.categoryId!] = (incomeMap[s.categoryId!] ?? 0) + s.amount;
-                  } else if (t.type == TransactionType.expense) {
-                     totalExpense += s.amount;
-                     if (s.categoryId != null) categoryNetMap[s.categoryId!] = (categoryNetMap[s.categoryId!] ?? 0) + s.amount;
-                  }
-                }
-             } else {
-               if (t.type == TransactionType.income) {
-                  totalIncome += t.amount;
-                  if (t.categoryId != null) incomeMap[t.categoryId!] = (incomeMap[t.categoryId!] ?? 0) + t.amount;
-               } else if (t.type == TransactionType.expense) {
-                  totalExpense += t.amount;
-                  if (t.categoryId != null) categoryNetMap[t.categoryId!] = (categoryNetMap[t.categoryId!] ?? 0) + t.amount;
-               } else {
-                  totalTransfer += t.amount;
-               }
-             }
-           }
-           
-           final positiveExpenses = categoryNetMap.entries.where((e) => e.value > 0).toList();
-           final positiveIncome = incomeMap.entries.where((e) => e.value > 0).toList();
-           
-           final netExpenseTotal = totalExpense - totalIncome;
-
-           // Use ref to get categories since we are in state
-           final categoriesAsync = ref.watch(categoriesRepositoryProvider).watchAllCategories();
-
-           return StreamBuilder<List<Category>>(
-              stream: categoriesAsync,
-              builder: (context, catSnapshot) {
-                final categories = catSnapshot.data ?? [];
-                final categoryMap = {for (var c in categories) c.id: c};
-                
-                final currency = ref.watch(currencyProvider);
-
-                Widget content = _AnalyticsContent(
-                   totalIncome: totalIncome,
-                   totalExpense: totalExpense,
-                   netResult: netExpenseTotal,
-                   expenseList: positiveExpenses,
-                   incomeList: positiveIncome,
-                   categoryMap: categoryMap,
-                   totalTransfer: totalTransfer,
-                   currency: currency,
-                );
-                
-                if (_viewMode == 'Month') {
-                   return Column(
-                     children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: SegmentedButton<int>(
-                            segments: const [
-                              ButtonSegment(value: 0, icon: Icon(Icons.pie_chart), label: Text('Chart')),
-                              ButtonSegment(value: 1, icon: Icon(Icons.calendar_month), label: Text('Calendar')),
-                            ],
-                            selected: {_monthViewType},
-                            onSelectionChanged: (s) => setState(() => _monthViewType = s.first),
-                            showSelectedIcon: false,
-                          ),
-                        ),
-                        const Gap(16),
-                        Expanded(child: _monthViewType == 0 ? content : _CalendarView(
-                          currentMonth: _selectedDate, 
-                          transactions: transactions,
-                          currency: currency,
-                        )),
-                     ],
-                   );
-                }
-
-                return content; 
-              }
-           );
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.bar_chart, size: 64, color: Colors.grey.withOpacity(0.3)),
+          const Gap(16),
+          const Text('No data for selected period', style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
   }
-}
 
-class _CalendarView extends StatelessWidget {
-  final DateTime currentMonth;
-  final List<Transaction> transactions;
-  final String currency;
-
-  const _CalendarView({required this.currentMonth, required this.transactions, required this.currency});
-
-  @override
-  Widget build(BuildContext context) {
-    // 1. Calculate Grid
-    final daysInMonth = DateTime(currentMonth.year, currentMonth.month + 1, 0).day;
-    final firstDayWeekday = DateTime(currentMonth.year, currentMonth.month, 1).weekday; // 1=Mon, 7=Sun
+  Widget _buildContent(List<Transaction> transactions) {
+    double totalIncome = 0;
+    double totalExpense = 0;
     
-    // We want Mon as first column? Or Sun?
-    // Let's assume Mon start for now as standard in many regions, or check locale?
-    // Material uses Localizations. 
-    // Let's stick to Mon-Sun (ISO 8601) for consistency with common repetitive logic or just generic.
-    // Sunday start is common in US. Monday in EU.
-    // Let's use Mon start day adjustment.
-    
-    // Grid Logic:
-    // Offset blank cells = firstDayWeekday - 1 (if Mon=1, Mon is index 0. So offset 0).
-    final offset = firstDayWeekday - 1; 
+    // Separate logic needed for charts (buckets)
+    // Map<Comparable, double> incomeBuckets = {}; 
+    // Map<Comparable, double> expenseBuckets = {};
 
-    // Process Transactions per day
-    final Map<int, _DailyStats> dailyStats = {};
-    for (int i = 1; i <= daysInMonth; i++) {
-      dailyStats[i] = _DailyStats();
-    }
-    
+    final categoryExpenseMap = <int, double>{};
+    final categoryIncomeMap = <int, double>{};
+
     for (var t in transactions) {
-       // Filter matches month? Already filtered by parent.
-       final day = t.date.day;
-       if (t.type == TransactionType.income) {
-          dailyStats[day]!.income += t.amount;
-       } else if (t.type == TransactionType.expense) {
-          dailyStats[day]!.expense += t.amount;
-       }
-       // Subtransactions need handling if we want precise accuracy, assuming parent logic didn't flatten them.
-       // Current _filterTransactions in parent returns Transaction objects.
-       // If flattened stats are needed, we duplicate logic?
-       // For simplicity, using main amount if not split, or splits if split.
-       if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
-           // Re-calculate based on splits
-           // Reset first? No, we added main amount erroneously if we didn't check.
-           // Actually, earlier logic separated them.
-           // Let's refine:
-           if (t.type == TransactionType.income) dailyStats[day]!.income -= t.amount; // undo
-           if (t.type == TransactionType.expense) dailyStats[day]!.expense -= t.amount; // undo
+      if (t.type == TransactionType.transfer) continue;
 
-           for (var s in t.subTransactions!) {
-               if(!s.isMine) continue;
-               // Category type determines inc/exp?
-               // The parent logic relies on Category type. 
-               // Here we need to know the type of subtransaction. 
-               // Assuming subtransaction follows main transaction type for now or we look up category.
-               // Limitation: We don't have category map easily here without passing it.
-               // Simplification: Assume split type matches transaction Type (usually true except transfer).
-               if (t.type == TransactionType.income) dailyStats[day]!.income += s.amount;
-               if (t.type == TransactionType.expense) dailyStats[day]!.expense += s.amount;
-           }
-       }
+      if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
+         for (var s in t.subTransactions!) {
+            if (!s.isMine) continue;
+            if (t.type == TransactionType.income) {
+               totalIncome += s.amount;
+               if (s.categoryId != null) categoryIncomeMap[s.categoryId!] = (categoryIncomeMap[s.categoryId!] ?? 0) + s.amount;
+            } else if (t.type == TransactionType.expense) {
+               totalExpense += s.amount;
+               if (s.categoryId != null) categoryExpenseMap[s.categoryId!] = (categoryExpenseMap[s.categoryId!] ?? 0) + s.amount;
+            }
+         }
+      } else {
+         if (t.type == TransactionType.income) {
+            totalIncome += t.amount;
+            if (t.categoryId != null) categoryIncomeMap[t.categoryId!] = (categoryIncomeMap[t.categoryId!] ?? 0) + t.amount;
+         } else if (t.type == TransactionType.expense) {
+            totalExpense += t.amount;
+            if (t.categoryId != null) categoryExpenseMap[t.categoryId!] = (categoryExpenseMap[t.categoryId!] ?? 0) + t.amount;
+         }
+      }
     }
 
-    return Column(
+    final netResult = totalIncome - totalExpense; // Net Income
+    final ref = this.ref; // Capture ref for below
+    final currency = ref.watch(currencyProvider);
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
       children: [
-        // Weekday Headers
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: ['M','T','W','T','F','S','S'].map((e) => SizedBox(width: 40, child: Center(child: Text(e, style: const TextStyle(fontWeight: FontWeight.bold))))).toList(),
+        // Net Result Card
+        Card(
+          elevation: 2,
+          color: Theme.of(context).colorScheme.surfaceContainer,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const Text('Net Result', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                const Gap(8),
+                Text(
+                  '${netResult >= 0 ? "+" : ""}$currency${netResult.abs().toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 32, 
+                    fontWeight: FontWeight.bold,
+                    color: netResult >= 0 ? Colors.teal : Colors.red,
+                  ),
+                ),
+                const Gap(24),
+                Row(
+                  children: [
+                    Expanded(child: _CompactStat(label: 'Income', amount: totalIncome, color: Colors.teal, currency: currency)),
+                    Container(width: 1, height: 40, color: Colors.grey.withOpacity(0.3)),
+                    Expanded(child: _CompactStat(label: 'Expense', amount: totalExpense, color: Colors.red, currency: currency)),
+                  ],
+                )
+              ],
+            ),
           ),
         ),
-        const Divider(),
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.all(8),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 0.7),
-            itemCount: daysInMonth + offset,
-            itemBuilder: (context, index) {
-               if (index < offset) return const SizedBox();
-               final day = index - offset + 1;
-               final stats = dailyStats[day]!;
-               final isToday = day == DateTime.now().day && currentMonth.month == DateTime.now().month && currentMonth.year == DateTime.now().year;
-               
-               return Container(
-                 margin: const EdgeInsets.all(2),
-                 decoration: BoxDecoration(
-                   border: Border.all(color: Colors.grey.withOpacity(0.2)),
-                   borderRadius: BorderRadius.circular(8),
-                   color: isToday ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3) : null,
-                 ),
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 4, top: 4),
-                        child: Text('$day', style: TextStyle(fontWeight: isToday ? FontWeight.bold : FontWeight.normal, fontSize: 12)),
-                      ),
-                      const Spacer(),
-                      if (stats.income > 0)
-                        Padding(padding: const EdgeInsets.symmetric(horizontal: 2), child: Text('+$currency${stats.income.toStringAsFixed(0)}', style: const TextStyle(fontSize: 9, color: Colors.teal))),
-                      if (stats.expense > 0)
-                        Padding(padding: const EdgeInsets.symmetric(horizontal: 2), child: Text('-$currency${stats.expense.toStringAsFixed(0)}', style: const TextStyle(fontSize: 9, color: Colors.red))),
-                      const Gap(2),
-                   ],
-                 ),
-               );
-            },
-          ),
+        const Gap(24),
+
+        // Chart Selector
+        SegmentedButton<int>(
+           segments: const [
+             ButtonSegment(value: 0, label: Text('Trends'), icon: Icon(Icons.bar_chart)),
+             ButtonSegment(value: 1, label: Text('Categories'), icon: Icon(Icons.pie_chart)),
+           ],
+           selected: {_chartIndex},
+           onSelectionChanged: (s) => setState(() => _chartIndex = s.first),
+           showSelectedIcon: false,
         ),
+        const Gap(24),
+
+        if (_chartIndex == 0)
+          SizedBox(
+            height: 250,
+            child: _TrendBarChart(transactions: transactions, viewMode: _viewMode, selectedDate: _selectedDate),
+          )
+        else
+          Column(
+            children: [
+              _CategoryPieChart(dataMap: categoryExpenseMap, title: 'Expense Breakdown', currency: currency),
+              const Gap(32),
+              if (categoryIncomeMap.isNotEmpty)
+               _CategoryPieChart(dataMap: categoryIncomeMap, title: 'Income Breakdown', currency: currency),
+            ],
+          ),
       ],
     );
   }
 }
 
-class _DailyStats {
-  double income = 0;
-  double expense = 0;
-}
-
-class _AnalyticsContent extends StatefulWidget {
-  final double totalIncome;
-  final double totalExpense;
-  final double netResult;
-  final double totalTransfer;
-  final List<MapEntry<int, double>> expenseList;
-  final List<MapEntry<int, double>> incomeList;
-  final Map<int, Category> categoryMap;
+class _CompactStat extends StatelessWidget {
+  final String label;
+  final double amount;
+  final Color color;
   final String currency;
-
-  const _AnalyticsContent({
-    required this.totalIncome,
-    required this.totalExpense,
-    required this.netResult,
-    required this.expenseList,
-    required this.incomeList,
-    required this.categoryMap,
-    required this.totalTransfer,
-    required this.currency,
-  });
-
-  @override
-  State<_AnalyticsContent> createState() => _AnalyticsContentState();
-}
-
-class _AnalyticsContentState extends State<_AnalyticsContent> {
-  int _tabIndex = 0; // 0 = Expense, 1 = Income
+  const _CompactStat({required this.label, required this.amount, required this.color, required this.currency});
 
   @override
   Widget build(BuildContext context) {
-      final currentList = _tabIndex == 0 ? widget.expenseList : widget.incomeList;
-      final totalForChart = currentList.fold(0.0, (s, e) => s + e.value);
-      
-      final pieSections = currentList.map((e) {
-         final cat = widget.categoryMap[e.key];
-         final color = cat != null ? Color(cat.color) : Colors.grey;
-         final percentage = totalForChart == 0 ? 0.0 : (e.value / totalForChart * 100);
-         return PieChartSectionData(
-           value: e.value,
-           title: '${percentage.toStringAsFixed(0)}%',
-           color: color,
-           radius: 60,
-           titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-         );
-      }).toList();
-
-      return ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-             // Summary Card (Same as before)
-             Card(
-                     color: Theme.of(context).colorScheme.secondaryContainer,
-                     child: Padding(
-                       padding: const EdgeInsets.all(16),
-                       child: Column(
-                         children: [
-                           Row(
-                             mainAxisAlignment: MainAxisAlignment.spaceAround,
-                             children: [
-                               Column(
-                                 children: [
-                                   Text('Total Income', style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer)),
-                                   Text('${widget.currency}${widget.totalIncome.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal)),
-                                 ],
-                               ),
-                               Column(
-                                 children: [
-                                   Text('Total Expense', style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer)),
-                                   Text('${widget.currency}${widget.totalExpense.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
-                                 ],
-                               ),
-                             ],
-                           ),
-                           const Divider(height: 24),
-                           Text('Net Result', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSecondaryContainer)),
-                           const Gap(4),
-                           Text('${widget.currency}${widget.netResult.toStringAsFixed(2)}', 
-                             style: TextStyle(
-                               fontWeight: FontWeight.bold, 
-                               fontSize: 28,
-                               color: widget.netResult > 0 ? Colors.red : Colors.teal
-                             )),
-                         ],
-                       ),
-                     ),
-                   ),
-             const Gap(24),
-             
-             // Toggle
-             Center(
-               child: SegmentedButton<int>(
-                 segments: const [
-                   ButtonSegment(value: 0, label: Text('Expense Breakdown')),
-                   ButtonSegment(value: 1, label: Text('Income Breakdown')),
-                 ],
-                 selected: {_tabIndex},
-                 onSelectionChanged: (s) => setState(() => _tabIndex = s.first),
-               ),
-             ),
-             
-             const Gap(24),
-             if (pieSections.isNotEmpty) ...[
-                 AspectRatio(
-                   aspectRatio: 1.5,
-                   child: PieChart(
-                     PieChartData(
-                       sections: pieSections,
-                       sectionsSpace: 2,
-                       centerSpaceRadius: 40,
-                     ),
-                   ),
-                 ),
-                 const Gap(16),
-                 ListView.builder(
-                   shrinkWrap: true,
-                   physics: const NeverScrollableScrollPhysics(),
-                   itemCount: currentList.length,
-                   itemBuilder: (context, index) {
-                     final e = currentList[index];
-                     final cat = widget.categoryMap[e.key];
-                     return Padding(
-                       padding: const EdgeInsets.only(bottom: 8),
-                       child: Row(
-                         children: [
-                           Container(width: 12, height: 12, decoration: BoxDecoration(color: cat != null ? Color(cat.color) : Colors.grey, shape: BoxShape.circle)),
-                           const Gap(8),
-                           Expanded(child: Text(cat?.name ?? 'Unknown', overflow: TextOverflow.ellipsis)),
-                           Text('${widget.currency}${e.value.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                         ],
-                       ),
-                     );
-                   },
-                 ),
-             ] else 
-                 const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No data for this category'))),
-
-        ],
-      );
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const Gap(4),
+        Text('$currency${amount.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color)),
+      ],
+    );
   }
 }
 
+class _TrendBarChart extends StatelessWidget {
+  final List<Transaction> transactions;
+  final String viewMode;
+  final DateTime selectedDate;
+
+  const _TrendBarChart({required this.transactions, required this.viewMode, required this.selectedDate});
+
+  @override
+  Widget build(BuildContext context) {
+    // Bucket logic
+    final Map<int, double> incomeBuckets = {};
+    final Map<int, double> expenseBuckets = {};
+    int maxKey = 0;
+
+    if (viewMode == 'Month') {
+      final days = DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
+      maxKey = days;
+      for (int i=1; i<=days; i++) { incomeBuckets[i] = 0; expenseBuckets[i] = 0; }
+      
+      for (var t in transactions) {
+         if (t.type == TransactionType.income) incomeBuckets[t.date.day] = (incomeBuckets[t.date.day] ?? 0) + t.amount;
+         if (t.type == TransactionType.expense) expenseBuckets[t.date.day] = (expenseBuckets[t.date.day] ?? 0) + t.amount;
+      }
+    } else {
+      // Year or All (buckets by month)
+      maxKey = 12;
+      for (int i=1; i<=12; i++) { incomeBuckets[i] = 0; expenseBuckets[i] = 0; }
+      for (var t in transactions) {
+         if (t.type == TransactionType.income) incomeBuckets[t.date.month] = (incomeBuckets[t.date.month] ?? 0) + t.amount;
+         if (t.type == TransactionType.expense) expenseBuckets[t.date.month] = (expenseBuckets[t.date.month] ?? 0) + t.amount;
+      }
+    }
+
+    final groups = <BarChartGroupData>[];
+    for (int i=1; i<=maxKey; i++) {
+        // Optimize: Only show Bars with data or simplify x-axis
+        if (viewMode == 'Month' && i % 5 != 0 && i != 1 && i != maxKey) {
+           // Skip creating group if 0? No, need spacing.
+           // Actually FlChart handles spacing.
+        }
+        
+        groups.add(
+          BarChartGroupData(
+            x: i,
+            barRods: [
+               BarChartRodData(toY: incomeBuckets[i] ?? 0, color: Colors.teal, width: 4),
+               BarChartRodData(toY: expenseBuckets[i] ?? 0, color: Colors.redAccent, width: 4),
+            ],
+          )
+        );
+    }
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        barTouchData: BarTouchData(
+           touchTooltipData: BarTouchTooltipData(
+             getTooltipColor: (_) => Colors.blueGrey,
+           ) // Replaces tooltipBgColor
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (val, meta) {
+                 final i = val.toInt();
+                 if (viewMode == 'Month') {
+                    if (i == 1 || i == 10 || i == 20 || i == maxKey) return Text('$i', style: const TextStyle(fontSize: 10));
+                    return const SizedBox();
+                 } else {
+                    // Month initials
+                    const months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+                    if (i-1 < months.length) return Text(months[i-1], style: const TextStyle(fontSize: 10));
+                    return const SizedBox();
+                 }
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        barGroups: groups,
+        gridData: const FlGridData(show: false),
+      ),
+    );
+  }
+}
+
+class _CategoryPieChart extends ConsumerWidget {
+  final Map<int, double> dataMap;
+  final String title;
+  final String currency;
+
+  const _CategoryPieChart({required this.dataMap, required this.title, required this.currency});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (dataMap.isEmpty) return const SizedBox();
+
+    final categoriesAsync = ref.watch(categoriesRepositoryProvider).watchAllCategories();
+    
+    return StreamBuilder<List<Category>>(
+      stream: categoriesAsync,
+      builder: (context, snapshot) {
+         if (!snapshot.hasData) return const SizedBox();
+         final categories = snapshot.data!;
+         final catMap = {for (var c in categories) c.id: c};
+         
+         final total = dataMap.values.fold(0.0, (s, e) => s + e);
+         final sortedEntries = dataMap.entries.toList()..sort((a,b) => b.value.compareTo(a.value));
+
+         return Column(
+           children: [
+             Text(title, style: Theme.of(context).textTheme.titleMedium),
+             const Gap(16),
+             SizedBox(
+               height: 200,
+               child: PieChart(
+                 PieChartData(
+                   sections: sortedEntries.map((e) {
+                      final cat = catMap[e.key];
+                      final color = cat != null ? Color(cat.color) : Colors.grey;
+                      final pct = (e.value / total * 100);
+                      return PieChartSectionData(
+                        value: e.value,
+                        title: pct > 5 ? '${pct.toStringAsFixed(0)}%' : '',
+                        color: color,
+                        radius: 50,
+                        titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      );
+                   }).toList(),
+                   sectionsSpace: 2,
+                   centerSpaceRadius: 40,
+                 ),
+               ),
+             ),
+             const Gap(16),
+             // Legend List
+             ListView.builder(
+               shrinkWrap: true,
+               physics: const NeverScrollableScrollPhysics(),
+               itemCount: sortedEntries.length > 5 ? 5 : sortedEntries.length, // Top 5
+               itemBuilder: (context, index) {
+                  final e = sortedEntries[index];
+                  final cat = catMap[e.key];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    child: Row(
+                      children: [
+                        Container(width: 12, height: 12, decoration: BoxDecoration(color: cat != null ? Color(cat.color) : Colors.grey, shape: BoxShape.circle)),
+                        const Gap(8),
+                        Expanded(child: Text(cat?.name ?? 'Unknown', style: const TextStyle(fontSize: 14))),
+                        Text('$currency${e.value.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  );
+               },
+             ),
+           ],
+         );
+      }
+    );
+  }
+}

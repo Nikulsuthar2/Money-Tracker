@@ -216,13 +216,16 @@ class _AccountChartState extends State<AccountChart> {
           onSelectionChanged: (Set<String> newSelection) {
              setState(() {
                final val = newSelection.first;
-               if (val == 'Daily') _period = 'Week'; // Keep internal var or rename? renaming better but keeping var for now
-               else _period = val;
+               if (val == 'Daily') {
+                 _period = 'Week'; // Keep internal var or rename? renaming better but keeping var for now
+               } else {
+                 _period = val;
+               }
              });
           },
           style: ButtonStyle(
             visualDensity: VisualDensity.compact,
-            padding: MaterialStateProperty.all(EdgeInsets.zero),
+            padding: WidgetStateProperty.all(EdgeInsets.zero),
           ),
         ),
         const Gap(16),

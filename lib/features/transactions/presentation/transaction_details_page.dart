@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
-import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
 
 class TransactionDetailsPage extends ConsumerWidget {
@@ -138,6 +137,25 @@ class TransactionDetailsPage extends ConsumerWidget {
           const Gap(24),
           
           // Splits
+          if (t.relatedTransactionId != null) ...[
+             const Gap(16),
+             Center(
+               child: OutlinedButton.icon(
+                 onPressed: () async {
+                    // Fetch original
+                    final original = await ref.read(transactionsRepositoryProvider).getTransaction(t.relatedTransactionId!);
+                    if (original != null && context.mounted) {
+                       context.push('/transaction-details', extra: original);
+                    } else if (context.mounted) {
+                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Original transaction not found')));
+                    }
+                 },
+                 icon: const Icon(Icons.link),
+                 label: const Text('View Original Transaction'),
+               ),
+             ),
+             const Gap(16),
+          ],
           if (t.subTransactions != null && t.subTransactions!.isNotEmpty) ...[
             Text('Split Details', style: theme.textTheme.titleMedium),
             const Gap(8),
@@ -195,8 +213,9 @@ class TransactionDetailsPage extends ConsumerWidget {
               }
 
               TransactionType newType;
-              if (t.type == TransactionType.expense) newType = TransactionType.income;
-              else if (t.type == TransactionType.income) newType = TransactionType.expense;
+              if (t.type == TransactionType.expense) {
+                newType = TransactionType.income;
+              } else if (t.type == TransactionType.income) newType = TransactionType.expense;
               else newType = TransactionType.transfer; 
 
               int? accountId;
@@ -209,7 +228,9 @@ class TransactionDetailsPage extends ConsumerWidget {
                   'amount': amount,
                   'note': '$notePref${t.note ?? ''}',
                   'categoryId': t.categoryId,
+                  'categoryId': t.categoryId,
                   'accountId': accountId, 
+                  'relatedTransactionId': t.id, // Linking back
                 });
                 
                 if (result == true) {
@@ -230,10 +251,11 @@ class TransactionDetailsPage extends ConsumerWidget {
               foregroundColor: theme.colorScheme.primary,
             ),
           ) else
-            const Chip(
-              label: Text('Refunded'),
-              avatar: Icon(Icons.check_circle, color: Colors.green),
-              backgroundColor: Colors.greenAccent, // Light green background logic usually handled by theme, but explicit here for visibility
+            Chip(
+              label: Text('Refunded', style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.greenAccent : Colors.green.shade900)),
+              avatar: const Icon(Icons.check_circle, color: Colors.green),
+              backgroundColor: theme.brightness == Brightness.dark ? Colors.green.withOpacity(0.2) : Colors.green.shade100,
+              side: BorderSide.none,
             ),
           const Gap(40),
         ],

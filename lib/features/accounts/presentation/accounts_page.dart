@@ -45,7 +45,7 @@ class AccountsPage extends ConsumerWidget {
               const Gap(16),
               
               // Accounts List
-              ...accounts.map((item) => AccountCard(item: item)).toList(),
+              ...accounts.map((item) => AccountCard(item: item)),
             ],
           );
         },

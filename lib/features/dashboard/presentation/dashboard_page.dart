@@ -246,7 +246,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                  style: ButtonStyle(
                    visualDensity: VisualDensity.compact,
                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                   padding: MaterialStateProperty.all(EdgeInsets.zero),
+                   padding: WidgetStateProperty.all(EdgeInsets.zero),
                  ),
                  showSelectedIcon: false, 
                ),

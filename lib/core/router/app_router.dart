@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/core/widgets/scaffold_with_navbar.dart';
 import 'package:money_manager/features/dashboard/presentation/dashboard_page.dart';
-import 'package:money_manager/features/accounts/presentation/accounts_page.dart';
 import 'package:money_manager/features/transactions/presentation/transactions_page.dart';
 import 'package:money_manager/features/subscriptions/presentation/subscriptions_page.dart';
 import 'package:money_manager/features/analytics/presentation/analytics_page.dart';

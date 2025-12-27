@@ -6,6 +6,7 @@ import 'package:money_manager/features/accounts/application/accounts_providers.d
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:money_manager/features/accounts/domain/account.dart';
 
 class AccountCard extends ConsumerWidget {
   const AccountCard({super.key, required this.item});
@@ -117,9 +118,7 @@ class AccountCard extends ConsumerWidget {
                   )
                 ],
               ),
-                  )
-                ],
-              ),
+
               if (item.totalIncome > 0 || item.totalExpense > 0) ...[
                 const Gap(12),
                 Divider(height: 1, color: theme.colorScheme.outlineVariant.withOpacity(0.2)),
@@ -151,7 +150,7 @@ class AccountCard extends ConsumerWidget {
                  Container(
                    padding: const EdgeInsets.all(8),
                    decoration: BoxDecoration(
-                     color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                     color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                      borderRadius: BorderRadius.circular(8),
                    ),
                    child: Row(

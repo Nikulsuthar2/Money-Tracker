@@ -50,6 +50,10 @@ class TransactionsRepository {
     });
   }
   
+  Future<Transaction?> getTransaction(Id id) async {
+    return await _isar.transactions.get(id);
+  }
+  
   // Balance Calculation Logic
   Future<double> getAccountBalance(Id accountId, double openingBalance) async {
     final income = await _isar.transactions

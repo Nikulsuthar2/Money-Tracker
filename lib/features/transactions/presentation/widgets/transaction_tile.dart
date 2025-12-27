@@ -54,7 +54,7 @@ class TransactionTile extends ConsumerWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(compact ? 12 : 16),
       ),
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(compact ? 12 : 16),

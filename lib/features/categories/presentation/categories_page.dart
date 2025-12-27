@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:money_manager/features/categories/data/categories_repository.dart';
-import 'package:money_manager/features/categories/domain/category.dart';
-import 'package:gap/gap.dart';
 
 class CategoriesPage extends ConsumerWidget {
   const CategoriesPage({super.key});

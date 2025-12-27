@@ -100,7 +100,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
             ),
             const Gap(16),
             DropdownButtonFormField<CategoryType>(
-              value: _type,
+              initialValue: _type,
               decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
               items: CategoryType.values.map((e) => DropdownMenuItem(value: e, child: Text(e.name.toUpperCase()))).toList(),
               onChanged: (v) => setState(() => _type = v!),
@@ -141,7 +141,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                    width: 56,
                    height: 56,
                    decoration: BoxDecoration(
-                     color: _icon == icon.codePoint ? Color(_color).withOpacity(0.2) : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                     color: _icon == icon.codePoint ? Color(_color).withOpacity(0.2) : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
                      borderRadius: BorderRadius.circular(16),
                      border: _icon == icon.codePoint ? Border.all(color: Color(_color), width: 2) : null,
                    ),

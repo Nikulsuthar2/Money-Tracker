@@ -37,6 +37,9 @@ class Transaction {
   bool hasTime = true;
   
   bool isRefunded = false;
+
+  @Index()
+  int? relatedTransactionId;
 }
 
 @embedded

@@ -11,6 +11,7 @@ import 'package:money_manager/features/categories/data/categories_repository.dar
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:money_manager/core/providers/savings_provider.dart';
 
 class AddTransactionPage extends ConsumerStatefulWidget {
   const AddTransactionPage({super.key, this.extra});
@@ -35,6 +36,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
   // New Fields
   bool _skipFromStats = false;
   bool _hasTime = true;
+  int? _relatedTransactionId;
 
   // Split Transaction State
   bool _isSplit = false;
@@ -116,6 +118,11 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
        }
        // Default time: set current time but ensure _hasTime is true by default
        _date = DateTime.now();
+
+       // Check for relatedTransactionId
+       if (defaults != null && defaults.containsKey('relatedTransactionId')) {
+          _relatedTransactionId = defaults['relatedTransactionId'];
+       }
     }
 
     _tabController.addListener(() {
@@ -240,7 +247,8 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         ..note = _noteController.text
         ..categoryId = _isSplit ? null : _selectedCategoryId
         ..skipFromStats = _skipFromStats
-        ..hasTime = _hasTime;
+        ..hasTime = _hasTime
+        ..relatedTransactionId = _relatedTransactionId;
      
       // Assign Splits
       if (_isSplit) {
@@ -270,6 +278,30 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
          await ref.read(transactionsRepositoryProvider).updateTransaction(transaction);
       } else {
          await ref.read(transactionsRepositoryProvider).addTransaction(transaction);
+         
+         // Auto-Savings Logic
+         if (_type == TransactionType.income && _selectedAccountId != null) {
+            final savingsConfig = ref.read(savingsProvider);
+            if (savingsConfig.isEnabled && savingsConfig.accountId != null && savingsConfig.accountId != _selectedAccountId) {
+                // Determine amount
+                final saveAmount = amount * (savingsConfig.percentage / 100);
+                if (saveAmount > 0) {
+                   final savingsTxn = Transaction()
+                     ..amount = saveAmount
+                     ..type = TransactionType.transfer
+                     ..date = transaction.date
+                     ..note = 'Auto-Save (${savingsConfig.percentage.toStringAsFixed(0)}%) from Income'
+                     ..fromAccountId = _selectedAccountId
+                     ..toAccountId = savingsConfig.accountId
+                     ..hasTime = _hasTime;
+                   
+                   await ref.read(transactionsRepositoryProvider).addTransaction(savingsTxn);
+                   if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Auto-saved ${ref.read(currencyProvider)}${saveAmount.toStringAsFixed(2)} to savings')));
+                   }
+                }
+            }
+         }
       }
 
       if (mounted) {
@@ -411,7 +443,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                  if (!snapshot.hasData) return const LinearProgressIndicator();
                  final accounts = snapshot.data!;
                  return DropdownButtonFormField<int>(
-                   value: _selectedAccountId,
+                   initialValue: _selectedAccountId,
                    decoration: inputDecoration.copyWith(
                      labelText: _type == TransactionType.income ? 'Deposit To' : 'Pay From',
                    ),
@@ -433,7 +465,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                    if (!snapshot.hasData) return const SizedBox.shrink();
                    final accounts = snapshot.data!;
                    return DropdownButtonFormField<int>(
-                     value: _selectedToAccountId,
+                     initialValue: _selectedToAccountId,
                      decoration: inputDecoration.copyWith(
                        labelText: 'Transfer To',
                      ),
@@ -465,7 +497,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                         : null;
 
                      return DropdownButtonFormField<int>(
-                       value: effectiveCategoryId,
+                       initialValue: effectiveCategoryId,
                         decoration: inputDecoration.copyWith(
                          labelText: 'Category',
                        ),
@@ -523,7 +555,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                                  children: [
                                     Expanded(
                                       child: DropdownButtonFormField<int>(
-                                        value: _splits[i].categoryId,
+                                        initialValue: _splits[i].categoryId,
                                         decoration: const InputDecoration(labelText: 'Category', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                                         items: categories.map((c) => DropdownMenuItem(
                                            value: c.id,
@@ -541,7 +573,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                                     Expanded(
                                       child: TextFormField(
                                         controller: _splits[i].amountController,
-                                        decoration: InputDecoration(labelText: 'Amount', prefixText: '${ref.watch(currencyProvider)}', isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
+                                        decoration: InputDecoration(labelText: 'Amount', prefixText: ref.watch(currencyProvider), isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                       ),
                                     ),
@@ -591,7 +623,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                 onChanged: (v) => setState(() => _skipFromStats = v),
                 title: const Text('Ignore in Calculation'),
                 subtitle: const Text('Don\'t include in Analytics or Totals'),
-                activeColor: Colors.orange,
+                activeThumbColor: Colors.orange,
              ),
 
              const Gap(24),
@@ -626,8 +658,8 @@ class SubTransactionInput {
     this.categoryId,
     this.isMine = true,
   }) : 
-    this.amountController = amountController ?? TextEditingController(),
-    this.noteController = noteController ?? TextEditingController();
+    amountController = amountController ?? TextEditingController(),
+    noteController = noteController ?? TextEditingController();
 
   void dispose() {
     amountController.dispose();

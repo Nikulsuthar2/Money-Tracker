@@ -89,7 +89,7 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
             ),
             const Gap(16),
             DropdownButtonFormField<AccountType>(
-              value: _type,
+              initialValue: _type,
               decoration: inputDecoration.copyWith(labelText: 'Type'),
               borderRadius: BorderRadius.circular(12),
               items: AccountType.values.map((t) {

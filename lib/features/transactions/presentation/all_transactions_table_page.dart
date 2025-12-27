@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
-import 'package:money_manager/features/categories/data/categories_repository.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
@@ -42,7 +41,7 @@ class AllTransactionsTablePage extends ConsumerWidget {
                         columnSpacing: 12,
                         horizontalMargin: 12,
                         minWidth: 800,
-                        headingRowColor: MaterialStateProperty.all(Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3)),
+                        headingRowColor: WidgetStateProperty.all(Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3)),
                         columns: const [
                           DataColumn2(label: Text('Date'), size: ColumnSize.S),
                           DataColumn2(label: Text('Type'), size: ColumnSize.S),

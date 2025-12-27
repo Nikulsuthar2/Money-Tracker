@@ -5,12 +5,9 @@ import 'package:isar/isar.dart';
 import 'package:money_manager/core/database/isar_service.dart';
 import 'package:money_manager/features/subscriptions/domain/subscription.dart';
 import 'package:gap/gap.dart';
-import 'package:money_manager/features/transactions/presentation/add_transaction_page.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
-import 'package:money_manager/features/categories/data/categories_repository.dart';
 import 'package:money_manager/features/accounts/domain/account.dart';
-import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
@@ -206,7 +203,7 @@ class _AddSubscriptionDialogState extends ConsumerState<AddSubscriptionDialog> {
                 TextField(controller: _amountController, decoration: const InputDecoration(labelText: 'Amount', border: OutlineInputBorder()), keyboardType: TextInputType.number),
                 const Gap(16),
                 DropdownButtonFormField<SubscriptionRepeat>(
-                   value: _repeat,
+                   initialValue: _repeat,
                    decoration: const InputDecoration(labelText: 'Repeat', border: OutlineInputBorder()),
                    items: SubscriptionRepeat.values.map((e) => DropdownMenuItem(value: e, child: Text(e.name))).toList(),
                    onChanged: (v) => setState(() => _repeat = v!),
@@ -218,7 +215,7 @@ class _AddSubscriptionDialogState extends ConsumerState<AddSubscriptionDialog> {
                   builder: (context, snapshot) {
                     final accounts = snapshot.data ?? [];
                     return DropdownButtonFormField<int>(
-                      value: _accountId,
+                      initialValue: _accountId,
                       decoration: const InputDecoration(labelText: 'Pay From (Account)', border: OutlineInputBorder()),
                       items: accounts.map((a) => DropdownMenuItem(value: a.id, child: Text(a.name))).toList(),
                       onChanged: (v) => setState(() => _accountId = v),
@@ -229,7 +226,7 @@ class _AddSubscriptionDialogState extends ConsumerState<AddSubscriptionDialog> {
                 // Category Selection
                 categoriesAsync.when(
                   data: (categories) => DropdownButtonFormField<int>(
-                    value: _categoryId,
+                    initialValue: _categoryId,
                     decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                     items: categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
                     onChanged: (v) => setState(() => _categoryId = v),

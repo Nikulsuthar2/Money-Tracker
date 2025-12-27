@@ -113,7 +113,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                                  context.push('/transaction-details', extra: t);
                               },
                             );
-                          }).toList(),
+                          }),
                         ],
                       );
                     },
@@ -129,6 +129,11 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error: $e')),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/add-transaction'),
+        tooltip: 'Add Transaction',
+        child: const Icon(Icons.add),
       ),
     );
   }

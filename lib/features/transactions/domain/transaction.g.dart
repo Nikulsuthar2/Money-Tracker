@@ -57,29 +57,34 @@ const TransactionSchema = CollectionSchema(
       name: r'note',
       type: IsarType.string,
     ),
-    r'skipFromStats': PropertySchema(
+    r'relatedTransactionId': PropertySchema(
       id: 8,
+      name: r'relatedTransactionId',
+      type: IsarType.long,
+    ),
+    r'skipFromStats': PropertySchema(
+      id: 9,
       name: r'skipFromStats',
       type: IsarType.bool,
     ),
     r'subTransactions': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'subTransactions',
       type: IsarType.objectList,
       target: r'SubTransaction',
     ),
     r'subscriptionId': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'subscriptionId',
       type: IsarType.long,
     ),
     r'toAccountId': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'toAccountId',
       type: IsarType.long,
     ),
     r'type': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'type',
       type: IsarType.string,
       enumMap: _TransactiontypeEnumValueMap,
@@ -142,6 +147,19 @@ const TransactionSchema = CollectionSchema(
           caseSensitive: false,
         )
       ],
+    ),
+    r'relatedTransactionId': IndexSchema(
+      id: 1981754497867891443,
+      name: r'relatedTransactionId',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'relatedTransactionId',
+          type: IndexType.value,
+          caseSensitive: false,
+        )
+      ],
     )
   },
   links: {},
@@ -196,16 +214,17 @@ void _transactionSerialize(
   writer.writeBool(offsets[5], object.isRecurring);
   writer.writeBool(offsets[6], object.isRefunded);
   writer.writeString(offsets[7], object.note);
-  writer.writeBool(offsets[8], object.skipFromStats);
+  writer.writeLong(offsets[8], object.relatedTransactionId);
+  writer.writeBool(offsets[9], object.skipFromStats);
   writer.writeObjectList<SubTransaction>(
-    offsets[9],
+    offsets[10],
     allOffsets,
     SubTransactionSchema.serialize,
     object.subTransactions,
   );
-  writer.writeLong(offsets[10], object.subscriptionId);
-  writer.writeLong(offsets[11], object.toAccountId);
-  writer.writeString(offsets[12], object.type.name);
+  writer.writeLong(offsets[11], object.subscriptionId);
+  writer.writeLong(offsets[12], object.toAccountId);
+  writer.writeString(offsets[13], object.type.name);
 }
 
 Transaction _transactionDeserialize(
@@ -224,17 +243,18 @@ Transaction _transactionDeserialize(
   object.isRecurring = reader.readBool(offsets[5]);
   object.isRefunded = reader.readBool(offsets[6]);
   object.note = reader.readStringOrNull(offsets[7]);
-  object.skipFromStats = reader.readBool(offsets[8]);
+  object.relatedTransactionId = reader.readLongOrNull(offsets[8]);
+  object.skipFromStats = reader.readBool(offsets[9]);
   object.subTransactions = reader.readObjectList<SubTransaction>(
-    offsets[9],
+    offsets[10],
     SubTransactionSchema.deserialize,
     allOffsets,
     SubTransaction(),
   );
-  object.subscriptionId = reader.readLongOrNull(offsets[10]);
-  object.toAccountId = reader.readLongOrNull(offsets[11]);
+  object.subscriptionId = reader.readLongOrNull(offsets[11]);
+  object.toAccountId = reader.readLongOrNull(offsets[12]);
   object.type =
-      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[12])] ??
+      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[13])] ??
           TransactionType.income;
   return object;
 }
@@ -263,19 +283,21 @@ P _transactionDeserializeProp<P>(
     case 7:
       return (reader.readStringOrNull(offset)) as P;
     case 8:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 9:
+      return (reader.readBool(offset)) as P;
+    case 10:
       return (reader.readObjectList<SubTransaction>(
         offset,
         SubTransactionSchema.deserialize,
         allOffsets,
         SubTransaction(),
       )) as P;
-    case 10:
-      return (reader.readLongOrNull(offset)) as P;
     case 11:
       return (reader.readLongOrNull(offset)) as P;
     case 12:
+      return (reader.readLongOrNull(offset)) as P;
+    case 13:
       return (_TransactiontypeValueEnumMap[reader.readStringOrNull(offset)] ??
           TransactionType.income) as P;
     default:
@@ -343,6 +365,15 @@ extension TransactionQueryWhereSort
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         const IndexWhereClause.any(indexName: r'date'),
+      );
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterWhere>
+      anyRelatedTransactionId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'relatedTransactionId'),
       );
     });
   }
@@ -845,6 +876,121 @@ extension TransactionQueryWhere
       ));
     });
   }
+
+  QueryBuilder<Transaction, Transaction, QAfterWhereClause>
+      relatedTransactionIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'relatedTransactionId',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterWhereClause>
+      relatedTransactionIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'relatedTransactionId',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterWhereClause>
+      relatedTransactionIdEqualTo(int? relatedTransactionId) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'relatedTransactionId',
+        value: [relatedTransactionId],
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterWhereClause>
+      relatedTransactionIdNotEqualTo(int? relatedTransactionId) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'relatedTransactionId',
+              lower: [],
+              upper: [relatedTransactionId],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'relatedTransactionId',
+              lower: [relatedTransactionId],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'relatedTransactionId',
+              lower: [relatedTransactionId],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'relatedTransactionId',
+              lower: [],
+              upper: [relatedTransactionId],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterWhereClause>
+      relatedTransactionIdGreaterThan(
+    int? relatedTransactionId, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'relatedTransactionId',
+        lower: [relatedTransactionId],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterWhereClause>
+      relatedTransactionIdLessThan(
+    int? relatedTransactionId, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'relatedTransactionId',
+        lower: [],
+        upper: [relatedTransactionId],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterWhereClause>
+      relatedTransactionIdBetween(
+    int? lowerRelatedTransactionId,
+    int? upperRelatedTransactionId, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'relatedTransactionId',
+        lower: [lowerRelatedTransactionId],
+        includeLower: includeLower,
+        upper: [upperRelatedTransactionId],
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension TransactionQueryFilter
@@ -1340,6 +1486,80 @@ extension TransactionQueryFilter
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'note',
         value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      relatedTransactionIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'relatedTransactionId',
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      relatedTransactionIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'relatedTransactionId',
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      relatedTransactionIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'relatedTransactionId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      relatedTransactionIdGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'relatedTransactionId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      relatedTransactionIdLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'relatedTransactionId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      relatedTransactionIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'relatedTransactionId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
       ));
     });
   }
@@ -1853,6 +2073,20 @@ extension TransactionQuerySortBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      sortByRelatedTransactionId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'relatedTransactionId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      sortByRelatedTransactionIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'relatedTransactionId', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> sortBySkipFromStats() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'skipFromStats', Sort.asc);
@@ -2015,6 +2249,20 @@ extension TransactionQuerySortThenBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      thenByRelatedTransactionId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'relatedTransactionId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      thenByRelatedTransactionIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'relatedTransactionId', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> thenBySkipFromStats() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'skipFromStats', Sort.asc);
@@ -2117,6 +2365,13 @@ extension TransactionQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QDistinct>
+      distinctByRelatedTransactionId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'relatedTransactionId');
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QDistinct> distinctBySkipFromStats() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'skipFromStats');
@@ -2196,6 +2451,13 @@ extension TransactionQueryProperty
   QueryBuilder<Transaction, String?, QQueryOperations> noteProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'note');
+    });
+  }
+
+  QueryBuilder<Transaction, int?, QQueryOperations>
+      relatedTransactionIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'relatedTransactionId');
     });
   }
 
