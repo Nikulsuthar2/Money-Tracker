@@ -36,13 +36,15 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
 
   // New Fields
   bool _skipFromStats = false;
-  bool _hasTime = true;
+  bool _hasTime = false;
   int? _relatedTransactionId;
   int? _subscriptionId;
 
   // Split Transaction State
   bool _isSplit = false;
   List<SubTransactionInput> _splits = [];
+  
+  bool _isRefundMode = false;
 
   // Income Bucket State
   String _incomeDestinationBucket = 'spendable'; // spendable, savings, investment
@@ -139,13 +141,25 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
        // Default time: set current time but ensure _hasTime is true by default
        _date = DateTime.now();
 
-       // Check for relatedTransactionId
        if (defaults != null && defaults.containsKey('relatedTransactionId')) {
           _relatedTransactionId = defaults['relatedTransactionId'];
        }
         if (defaults != null && defaults.containsKey('subscriptionId')) {
            _subscriptionId = defaults['subscriptionId'];
         }
+        
+        // Refund Mode check
+        if (defaults != null && defaults['isRefundMode'] == true) {
+           _isRefundMode = true;
+           _type = TransactionType.income;
+           _tabController.index = 0;
+        }
+    }
+    
+    // Lock logic if refund mode
+    if (_isRefundMode) {
+       _type = TransactionType.income;
+       _tabController.index = 0;
     }
 
     _tabController.addListener(() {
@@ -244,7 +258,18 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
           final account = accounts.where((a) => a.id == _selectedAccountId).firstOrNull;
           
           if (account != null) {
-              final currentBalance = await repo.getAccountBalance(account.id, account.openingBalance);
+              double currentBalance = await repo.getAccountBalance(account.id, account.openingBalance);
+              
+              // If Editing: Add back the original amount to currentBalance (conceptually reverting the old tx)
+              // to check if the NEW amount fits.
+              if (widget.extra is Transaction) {
+                  final t = widget.extra as Transaction;
+                  // If we are still in the same account
+                  if ((t.type == TransactionType.expense || t.type == TransactionType.transfer) && t.fromAccountId == account.id) {
+                      currentBalance += t.amount; 
+                  }
+              }
+
               // Expense Priority Logic: Spendable -> Custom (Savings/Investment) -> Reserved
               // We need to know the breakdown.
               // Spendable = Current - Reserved - Savings - Investment
@@ -456,8 +481,8 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.extra is Transaction ? 'Edit Transaction' : 'Add Transaction'),
-        bottom: TabBar(
+        title: Text(widget.extra is Transaction ? 'Edit Transaction' : (_isRefundMode ? 'Refund Transaction' : 'Add Transaction')),
+        bottom: _isRefundMode ? null : TabBar(
           controller: _tabController,
           tabs: const [
             Tab(text: 'Income'),
@@ -468,24 +493,50 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        child: Column(
           children: [
-             // Amount
-            TextFormField(
-              controller: _amountController,
-              decoration: inputDecoration.copyWith(
-                labelText: 'Amount',
-                prefixText: '${ref.watch(currencyProvider)} ',
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Required';
-                if (double.tryParse(v) == null) return 'Invalid';
-                return null;
-              },
-            ),
+             if (_isRefundMode) 
+                MaterialBanner(
+                  content: const Text('Refund Mode Active', style: TextStyle(fontWeight: FontWeight.bold)),
+                  leading: const Icon(Icons.info, color: Colors.blue),
+                  backgroundColor: Colors.blue.withOpacity(0.1),
+                  actions: [
+                     TextButton(
+                       onPressed: () {
+                         setState(() {
+                            _isRefundMode = false;
+                            // Reset type if needed or keep fields?
+                            // User said "go back to normal add transaction mode"
+                         });
+                       }, 
+                       child: const Text('Exit Mode')
+                     ),
+                  ],
+                ),
+                
+             Expanded(
+               child: ListView(
+                 padding: const EdgeInsets.all(16),
+                 children: [
+                    // Amount
+                   TextFormField(
+                     controller: _amountController,
+                     readOnly: _isRefundMode,
+                     decoration: inputDecoration.copyWith(
+                       labelText: 'Amount',
+                       prefixText: '${ref.watch(currencyProvider)} ',
+                       // Visual cue that it's disabled/fixed
+                       fillColor: _isRefundMode ? Theme.of(context).disabledColor.withOpacity(0.05) : null,
+                       filled: _isRefundMode,
+                     ),
+                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                     validator: (v) {
+                       if (v == null || v.isEmpty) return 'Required';
+                       if (double.tryParse(v) == null) return 'Invalid';
+                       return null;
+                     },
+                   ),
             const Gap(16),
 
            // Title Field
@@ -559,7 +610,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                       ),
                     ),
                   ) : SizedBox(
-                    height: 56,
+                    height: 47,
                     child: OutlinedButton.icon(
                       onPressed: () => setState(() => _hasTime = true),
                       icon: const Icon(Icons.access_time),
@@ -772,14 +823,22 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                                  ],
                                ),
                                const Gap(8),
-                               Row(
-                                 children: [
-                                   Checkbox(
-                                     value: _splits[i].isMine, 
-                                     onChanged: (v) => setState(() => _splits[i].isMine = v ?? true),
-                                   ),
-                                   Text(_type == TransactionType.income ? 'My Income' : 'My Expense'),
-                                 ],
+                               Padding(
+                                 padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                 child: Row(
+                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                   children: [
+                                     Text(_type == TransactionType.income ? 'My Income' : 'My Expense'),
+                                     Transform.scale(
+                                       scale: 0.8,
+                                       child: Switch(
+                                         value: _splits[i].isMine,
+                                         onChanged: (v) => setState(() => _splits[i].isMine = v),
+                                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                       ),
+                                     ),
+                                   ],
+                                 ),
                                )
                              ],
                            ),
@@ -804,11 +863,13 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
              
              const Gap(16),
              SwitchListTile(
-                value: _skipFromStats, 
-                onChanged: (v) => setState(() => _skipFromStats = v),
-                title: const Text('Ignore in Calculation'),
-                subtitle: const Text('Don\'t include in Analytics or Totals'),
-                activeThumbColor: Colors.orange,
+               value: _skipFromStats,
+               onChanged: (v) => setState(() => _skipFromStats = v),
+               title: const Text('Ignore in Calculation'),
+               subtitle: const Text('Don\'t include in Analytics or Totals'),
+               activeThumbColor: Colors.orange,
+               tileColor: Colors.grey.withOpacity(0.1),
+               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
              ),
 
              const Gap(24),
@@ -825,9 +886,12 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
              ),
              const Gap(40),
           ],
-        ),
-      ),
-    );
+              ), // ListView
+            ), // Expanded
+          ], // Column children
+        ), // Column
+      ), // Form
+    ); // Scaffold
   }
 }
 

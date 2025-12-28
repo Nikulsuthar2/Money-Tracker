@@ -12,98 +12,126 @@ class ScaffoldWithNavbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final useRail = width > 800; // Threshold for desktop layout
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useRail = constraints.maxWidth >= 800;
 
-    // Map branch index (0,1,2,3) to visual index (0,1,3,4)
-    // 0 -> 0 (Home)
-    // 1 -> 1 (Transactions)
-    // 2 -> 3 (Analytics)
-    // 3 -> 4 (Settings)
-    int visualIndex = navigationShell.currentIndex;
-    if (visualIndex >= 2) {
-       visualIndex += 1; 
-    }
+        if (useRail) {
+           return Scaffold(
+             body: Row(
+               children: [
+                 NavigationRail(
+                   leading: Padding(
+                     padding: const EdgeInsets.symmetric(vertical: 16),
+                     child: FloatingActionButton.extended(
+                       onPressed: () => context.push('/add-transaction'),
+                       icon: const Icon(Icons.add),
+                       label: const Text('Add'),
+                       elevation: 0,
+                     ),
+                   ),
+                   selectedIndex: navigationShell.currentIndex,
+                   onDestinationSelected: (index) => _onTap(index),
+                   labelType: NavigationRailLabelType.all,
+                   destinations: const [
+                       NavigationRailDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: Text('Home')),
+                       NavigationRailDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: Text('History')),
+                       NavigationRailDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: Text('Analysis')),
+                       NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: Text('Settings')),
+                   ],
+                 ),
+                 const VerticalDivider(thickness: 1, width: 1),
+                 Expanded(child: navigationShell),
+               ],
+             ),
+           );
+        }
 
-    if (useRail) {
-      return Scaffold(
-        body: Row(
-          children: [
-            NavigationRail(
-              onDestinationSelected: (index) {
-                  if (index == 2) {
-                     context.push('/add-transaction');
-                  } else {
-                     _onTap(index);
-                  }
-              },
-              selectedIndex: visualIndex,
-              labelType: NavigationRailLabelType.all,
-              destinations: const [
-                  NavigationRailDestination(icon: Icon(Icons.dashboard), label: Text('Dashboard')),
-                  NavigationRailDestination(icon: Icon(Icons.receipt_long), label: Text('History')),
-                  NavigationRailDestination(icon: Icon(Icons.add_circle, size: 32), label: Text('Add')),
-                  NavigationRailDestination(icon: Icon(Icons.analytics), label: Text('Analytics')),
-                  NavigationRailDestination(icon: Icon(Icons.settings), label: Text('Settings')),
+        return Scaffold(
+          body: navigationShell,
+          bottomNavigationBar: BottomAppBar(
+            padding: EdgeInsets.zero,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavBarIcon(
+                  icon: Icons.dashboard_outlined, 
+                  selectedIcon: Icons.dashboard, 
+                  label: 'Home', 
+                  isSelected: navigationShell.currentIndex == 0,
+                  onTap: () => _onTap(0)
+                ),
+                _NavBarIcon(
+                  icon: Icons.receipt_long_outlined, 
+                  selectedIcon: Icons.receipt_long, 
+                  label: 'History', 
+                  isSelected: navigationShell.currentIndex == 1,
+                  onTap: () => _onTap(1)
+                ),
+                const Gap(48), // Space for FAB
+                _NavBarIcon(
+                  icon: Icons.analytics_outlined, 
+                  selectedIcon: Icons.analytics, 
+                  label: 'Analysis', 
+                  isSelected: navigationShell.currentIndex == 2,
+                  onTap: () => _onTap(2)
+                ),
+                _NavBarIcon(
+                  icon: Icons.settings_outlined, 
+                  selectedIcon: Icons.settings, 
+                  label: 'Settings', 
+                  isSelected: navigationShell.currentIndex == 3,
+                  onTap: () => _onTap(3)
+                ),
               ],
             ),
-            const VerticalDivider(thickness: 1, width: 1),
-            Expanded(child: navigationShell),
-          ],
-        ),
-      );
-    }
-
-    return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: visualIndex,
-        onDestinationSelected: (index) {
-          if (index == 2) {
-             context.push('/add-transaction');
-          } else {
-             _onTap(index);
-          }
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Home',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'History',
+          floatingActionButton: FloatingActionButton(
+             onPressed: () => context.push('/add-transaction'),
+             child: const Icon(Icons.add),
           ),
-          NavigationDestination(
-             icon: Icon(Icons.add_circle_outline, size: 32),
-             selectedIcon: Icon(Icons.add_circle, size: 32),
-             label: 'Add',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics),
-            label: 'Analysis',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-      ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        );
+      },
     );
   }
 
-  void _onTap(int visualIndex) {
-     // Map visual index (0,1,3,4) back to branch index (0,1,2,3)
-     int branchIndex = visualIndex;
-     if (visualIndex > 2) branchIndex -= 1;
-
+  void _onTap(int index) {
      navigationShell.goBranch(
-            branchIndex,
-            initialLocation: branchIndex == navigationShell.currentIndex,
+            index,
+            initialLocation: index == navigationShell.currentIndex,
           );
+  }
+}
+
+class _NavBarIcon extends StatelessWidget {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _NavBarIcon({required this.icon, required this.selectedIcon, required this.label, required this.isSelected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant;
+    
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(isSelected ? selectedIcon : icon, color: color),
+            const Gap(4),
+            Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+          ],
+        ),
+      ),
+    );
   }
 }

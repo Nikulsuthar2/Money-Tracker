@@ -117,15 +117,40 @@ class TransactionDetailsPage extends ConsumerWidget {
                     future: ref.read(accountsRepositoryProvider).getAllAccounts(),
                     builder: (context, snapshot) {
                        final accounts = snapshot.data ?? [];
-                       final from = accounts.where((a) => a.id == t.fromAccountId).firstOrNull?.name;
-                       final to = accounts.where((a) => a.id == t.toAccountId).firstOrNull?.name;
+                       final from = accounts.where((a) => a.id == t.fromAccountId).firstOrNull;
+                       final to = accounts.where((a) => a.id == t.toAccountId).firstOrNull;
                        
-                       String acctStr = 'Unknown';
-                       if (t.type == TransactionType.income && to != null) acctStr = to;
-                       if (t.type == TransactionType.expense && from != null) acctStr = from;
-                       if (t.type == TransactionType.transfer) acctStr = '$from -> $to';
+                       Widget valWidget;
+                       if (t.type == TransactionType.transfer) {
+                          valWidget = Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                               Chip(
+                                 label: Text(from?.name ?? 'Unknown', style: const TextStyle(fontSize: 12)), 
+                                 padding: const EdgeInsets.all(4), 
+                                 visualDensity: VisualDensity.compact,
+                                 avatar: const Icon(Icons.account_balance_wallet, size: 14),
+                               ),
+                               const Padding(
+                                 padding: EdgeInsets.symmetric(horizontal: 4),
+                                 child: Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+                               ),
+                               Chip(
+                                 label: Text(to?.name ?? 'Unknown', style: const TextStyle(fontSize: 12)), 
+                                 padding: const EdgeInsets.all(4), 
+                                 visualDensity: VisualDensity.compact,
+                                 avatar: const Icon(Icons.account_balance_wallet, size: 14),
+                               ),
+                            ],
+                          );
+                       } else {
+                         String acctStr = 'Unknown';
+                         if (t.type == TransactionType.income && to != null) acctStr = to.name;
+                         else if (t.type == TransactionType.expense && from != null) acctStr = from.name;
+                         valWidget = Text(acctStr, style: const TextStyle(fontSize: 16));
+                       }
                        
-                       return _DetailRow(icon: Icons.account_balance_wallet, label: 'Account', value: acctStr);
+                       return _DetailRow(icon: Icons.account_balance_wallet, label: 'Account', customValue: valWidget);
                     }
                   ),
                 ],
@@ -194,7 +219,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                   final isRefunded = split.isRefunded; 
                   
                   return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    leading: Icon(split.isMine ? Icons.person : Icons.person_outline, color: split.isMine ? Colors.green : Colors.grey),
                     title: Text(split.note?.isNotEmpty == true ? split.note! : 'Item ${index + 1}'),
                     subtitle: split.isMine ? const Text('My Expense', style: TextStyle(fontSize: 12, color: Colors.green)) 
                                            : const Text('Not My Expense', style: TextStyle(fontSize: 12, color: Colors.grey)),
@@ -204,7 +229,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                          Text('\$${split.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                          const Gap(12),
                          if (isRefunded)
-                            const Icon(Icons.check_circle, color: Colors.green)
+                            const IconButton(icon:Icon(Icons.check_circle, color: Colors.green), onPressed: null)
                          else 
                             IconButton(
                               icon: const Icon(Icons.circle_outlined, color: Colors.grey),
@@ -265,61 +290,86 @@ class TransactionDetailsPage extends ConsumerWidget {
           ],
           
           const Gap(32),
-          // Only show Main Refund button if NOT all splits are refunded (and not wholly refunded)
-          if (!t.isRefunded && (t.subTransactions == null || t.subTransactions!.any((s) => !s.isRefunded)))
+          // Related Refunds Section (Show if any refunds exist, partial or full)
+          FutureBuilder<List<Transaction>>(
+             future: ref.read(transactionsRepositoryProvider).getRefundTransactions(t.id),
+             builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
+                
+                return Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                      Text('Refund Transactions', style: theme.textTheme.titleMedium),
+                      const Gap(8),
+                      ...snapshot.data!.map((r) => Card(
+                         child: ListTile(
+                            leading: const Icon(Icons.reply, color: Colors.green),
+                            title: Text(r.note ?? 'Refund'),
+                            subtitle: Text(DateFormat.yMMMd().format(r.date)),
+                            trailing: Text('+ \$${r.amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                            onTap: () => context.push('/transaction-details', extra: r),
+                         ),
+                      )),
+                      const Gap(24),
+                   ],
+                );
+             }
+          ),
+
+          // Only show Main Refund button if NOT all splits are refunded (and not wholly refunded) AND NOT A SUBSCRIPTION
+          if (!t.isRefunded && (t.subTransactions == null || t.subTransactions!.any((s) => !s.isRefunded)) && t.subscriptionId == null && t.type != TransactionType.transfer)
           OutlinedButton.icon(
             key: const ValueKey('refund_btn'),
             onPressed: () async {
               
               double amount = t.amount;
               String notePref = 'Refund: ';
+              bool isSplitRepayment = false; // Flag to determine text logic
               
               // Split Handling
               if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
+                 final notRefunded = t.subTransactions!.where((s) => !s.isRefunded).toList();
+                 final notMineAndNotRefunded = notRefunded.where((s) => !s.isMine).toList();
+                 
+                 final List<SimpleDialogOption> options = [
+                    SimpleDialogOption(
+                      onPressed: () => Navigator.pop(context, 'full'),
+                      child: const Padding(padding: EdgeInsets.all(16), child: Text('Full Refund (Merchant)', style: TextStyle(fontSize: 16))),
+                    ),
+                 ];
+                 
+                 if (notMineAndNotRefunded.isNotEmpty) {
+                     options.add(SimpleDialogOption(
+                       onPressed: () => Navigator.pop(context, 'split'),
+                       child: const Padding(padding: EdgeInsets.all(16), child: Text('Split Repayment (Friend)', style: TextStyle(fontSize: 16))),
+                     ));
+                 }
+                 
                  final choice = await showDialog<String>(context: context, builder: (c) => SimpleDialog(
                     title: const Text('Refund Type'),
-                    children: [
-                       SimpleDialogOption(
-                         onPressed: () => Navigator.pop(c, 'full'),
-                         child: const Padding(padding: EdgeInsets.all(16), child: Text('Full Refund (Merchant)', style: TextStyle(fontSize: 16))),
-                       ),
-                       SimpleDialogOption(
-                         onPressed: () => Navigator.pop(c, 'split'),
-                         child: const Padding(padding: EdgeInsets.all(16), child: Text('Split Repayment (Friend)', style: TextStyle(fontSize: 16))),
-                       ),
-                    ],
+                    children: options,
                  ));
                  
                  if (choice == null) return;
                  
                  if (choice == 'split') {
-                    final notMine = t.subTransactions!.where((s) => !s.isMine).toList();
-                    if (notMine.isEmpty) {
-                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No split items found involving others.')));
-                       return;
-                    }
-
+                    isSplitRepayment = true;
                     // Select splits to repay
                     final selectedSplits = await showDialog<List<dynamic>>(
                        context: context,
                        builder: (context) {
-                          final List<dynamic> selected = List.from(notMine);
+                          final List<dynamic> selected = List.from(notMineAndNotRefunded);
                           return StatefulBuilder(builder: (context, setState) {
                              return AlertDialog(
                                 title: const Text('Select Items to Repay'),
                                 content: SingleChildScrollView(
                                    child: Column(
-                                      children: notMine.map((s) {
+                                      children: notMineAndNotRefunded.map((s) {
                                          return CheckboxListTile(
                                             title: Text(s.note?.isNotEmpty == true ? s.note! : 'Item'),
                                             subtitle: Text('\$${s.amount.toStringAsFixed(2)}'),
                                             value: selected.contains(s),
-                                            onChanged: (v) {
-                                               setState(() {
-                                                  if (v == true) selected.add(s);
-                                                  else selected.remove(s);
-                                               });
-                                            }
+                                            onChanged: (v) => setState(() => v == true ? selected.add(s) : selected.remove(s)),
                                          );
                                       }).toList()
                                    )
@@ -358,29 +408,64 @@ class TransactionDetailsPage extends ConsumerWidget {
                   'amount': amount,
                   'note': '$notePref${t.note ?? ''}',
                   'categoryId': t.categoryId,
-                  'categoryId': t.categoryId,
                   'accountId': accountId, 
                   'relatedTransactionId': t.id, // Linking back
+                  'isRefundMode': true, // Locks UI
                 });
                 
                 if (result == true) {
-                   // Mark as refunded
-                   t.isRefunded = true;
+                   if (notePref.startsWith('Repayment')) {
+                      // It was a repayment. Mark "Not Mine" splits as refunded if we made a repayment.
+                      // Ideally we mark only selected, but we simplified logic. 
+                      // We will mark all remaining unrefunded not-mine splits as refunded for this iteration 
+                      // to ensure the button hides next time if exhausted.
+                       if (t.subTransactions != null) {
+                        for (var s in t.subTransactions!) {
+                           if (!s.isMine && !s.isRefunded) {
+                              s.isRefunded = true; 
+                           }
+                        }
+                      }
+                      
+                      if (t.subTransactions!.every((s) => s.isRefunded)) {
+                         t.isRefunded = true;
+                      }
+                   } else {
+                      // Full refund
+                      t.isRefunded = true;
+                   }
+                   
                    await ref.read(transactionsRepositoryProvider).updateTransaction(t);
                    if (context.mounted) {
-                     context.pop(); // Close Details Page
-                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction Refunded')));
+                     // Force replace to refresh UI since we modified 't' in place but UI is stale
+                     context.pushReplacement('/transaction-details', extra: t);
+                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Refund Recorded')));
                    }
                 }
               }
             },
             icon: const Icon(Icons.undo),
-            label: Text(t.type == TransactionType.expense ? 'Got Back (Refund)' : (t.type == TransactionType.income ? 'Repay (Refund)' : 'Reverse Transaction')),
+            // Dynamic Label
+            label: Builder(
+              builder: (context) {
+                 if (t.type == TransactionType.expense) {
+                    if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
+                       final hasNotMine = t.subTransactions!.any((s) => !s.isMine && !s.isRefunded);
+                       if (!hasNotMine) {
+                          // Only my expense left (or all others refunded)
+                          return const Text('Get Your Portion (Refund)'); 
+                       }
+                    }
+                    return const Text('Got Back (Refund)');
+                 }
+                 return Text(t.type == TransactionType.expense ? 'Got Back (Refund)' : (t.type == TransactionType.income ? 'Repay (Refund)' : 'Reverse Transaction'));
+              }
+            ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               foregroundColor: theme.colorScheme.primary,
             ),
-          ) else
+          ) else if (t.type != TransactionType.transfer) // Refined check for badge
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -422,10 +507,11 @@ class TransactionDetailsPage extends ConsumerWidget {
 }
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.icon, required this.label, required this.value});
+  const _DetailRow({required this.icon, required this.label, this.value, this.customValue});
   final IconData icon;
   final String label;
-  final String value;
+  final String? value;
+  final Widget? customValue;
 
   @override
   Widget build(BuildContext context) {
@@ -440,7 +526,7 @@ class _DetailRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline)),
-                Text(value, style: const TextStyle(fontSize: 16)),
+                customValue ?? Text(value ?? '', style: const TextStyle(fontSize: 16)),
               ],
             ),
           ),

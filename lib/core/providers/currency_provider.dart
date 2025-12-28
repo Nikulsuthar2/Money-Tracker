@@ -24,7 +24,7 @@ class CurrencyNotifier extends StateNotifier<String> {
   }
 }
 
-final supportedCurrencies = ['\$', '€', '£', '₹', '¥', '₽', '₩'];
+final supportedCurrencies = ['\$', '€', '£', '₹', '¥', '₽', '₩', 'A\$', 'C\$', 'CHF', 'kr', 'R\$', '₺', 'Rp', 'RM', '₱', '฿', '₫', '₪'];
 final currencyNames = {
   '\$': 'US Dollar',
   '€': 'Euro',
@@ -33,4 +33,16 @@ final currencyNames = {
   '¥': 'Japanese Yen',
   '₽': 'Russian Ruble',
   '₩': 'Korean Won',
+  'A\$': 'Australian Dollar',
+  'C\$': 'Canadian Dollar',
+  'CHF': 'Swiss Franc',
+  'kr': 'Swedish Krona',
+  'R\$': 'Brazilian Real',
+  '₺': 'Turkish Lira',
+  'Rp': 'Indonesian Rupiah',
+  'RM': 'Malaysian Ringgit',
+  '₱': 'Philippine Peso',
+  '฿': 'Thai Baht',
+  '₫': 'Vietnamese Dong',
+  '₪': 'Israeli Shekel',
 };

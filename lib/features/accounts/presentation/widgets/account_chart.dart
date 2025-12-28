@@ -206,26 +206,29 @@ class _AccountChartState extends State<AccountChart> {
     return Column(
       children: [
         // Toggles
-        SegmentedButton<String>(
-          segments: const [
-             ButtonSegment(value: 'Daily', label: Text('Daily')),
-             ButtonSegment(value: 'Weekly', label: Text('Weekly')),
-             ButtonSegment(value: 'Monthly', label: Text('Monthly')),
-          ], 
-          selected: {_period == 'Week' ? 'Daily' : _period}, // Mismatch mapping: Week->Daily
-          onSelectionChanged: (Set<String> newSelection) {
-             setState(() {
-               final val = newSelection.first;
-               if (val == 'Daily') {
-                 _period = 'Week'; // Keep internal var or rename? renaming better but keeping var for now
-               } else {
-                 _period = val;
-               }
-             });
-          },
-          style: ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            padding: WidgetStateProperty.all(EdgeInsets.zero),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'Daily', label: Text('Daily')),
+              ButtonSegment(value: 'Weekly', label: Text('Weekly')),
+              ButtonSegment(value: 'Monthly', label: Text('Monthly')),
+            ], 
+            selected: {_period == 'Week' ? 'Daily' : _period}, // Mismatch mapping: Week->Daily
+            onSelectionChanged: (Set<String> newSelection) {
+              setState(() {
+                final val = newSelection.first;
+                if (val == 'Daily') {
+                  _period = 'Week'; // Keep internal var or rename? renaming better but keeping var for now
+                } else {
+                  _period = val;
+                }
+              });
+            },
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              // padding: WidgetStateProperty.all(EdgeInsets.zero),
+            ),
           ),
         ),
         const Gap(16),

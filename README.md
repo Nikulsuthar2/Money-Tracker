@@ -1,82 +1,77 @@
-# Money Tracker 🚀
+# 💰 Money Tracker
 
-#### v4.0.2+5
-A modern, fast, and beautiful cross-platform finance manager built with Flutter. Manage your accounts, transactions, and subscriptions with a premium Material 3 experience.
+<div align="center">
 
-![Dashboard Preview](https://github.com/nikul/money_tracker/raw/main/assets/readme/dashboard.png) *(Placeholder)*
+![App Icon](https://github.com/nikul/money_tracker/raw/main/assets/icon/walletwin.png)
 
-## ✨ Features
+**A professional, privacy-focused financial manager built with Flutter.**  
+*Track expenses, manage budgets, and analyze your wealth with a premium Material 3 experience.*
 
--   **Unified Dashboard**: View total balance, wallet cards, and spending trends at a glance.
--   **Multi-Account Management**: Track bank accounts, cash, and wallets separately.
--   **Smart Transactions**: Categorize spending, add notes, and view history in list or table formats.
--   **Subscription Tracking**: Never miss a recurring payment with the built-in subscription manager and auto-pay notifications.
--   **Modern Analytics**: Beautiful charts and breakdowns (Month/Year/All-time) to visualize your financial health.
--   **Material You Support**: Dynamic color themes that adapt to your device (Android).
--   **Local & Secure**: All data is stored locally using **Isar Database** for maximum speed and privacy.
--   **Data Portability**: Export/Import your data as JSON for backups.
+[![Flutter](https://img.shields.io/badge/Flutter-3.19+-02569B?logo=flutter)](https://flutter.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Style](https://img.shields.io/badge/style-Material_3-blue)](https://m3.material.io)
+
+</div>
+
+---
+
+## ✨ Key Features
+
+*   **📊 Unified Dashboard**: View real-time balance trends, account cards, and quick summary stats.
+*   **💳 Smart Accounts**: Manage multiple wallets & bank accounts with our unique **Bucketing System** (Spendable vs. Reserved funds).
+*   **💸 Advanced Transactions**: 
+    *   Split transactions across categories.
+    *   **Refund Mode**: Easily handle returns and shared expense repayments.
+    *   Bi-directional sorting and filtering.
+*   **🔄 Subscriptions**: Track recurring payments with auto-date projection and "Pay Now" logic.
+*   **📈 Analytics**: Beautiful interactive charts for Income, Expense, and Cash Flow (Monthly/Yearly).
+*   **🎨 Personalization**: Full Material You support, Dark Mode, and custom currency symbols ($, €, ₹, etc.).
+*   **🔒 Security & Privacy**: 
+    *   All data stored locally via **Isar Database**.
+    *   **Biometric Lock** (Fingerprint/Face ID) support.
+    *   Backup & Restore (JSON).
+
+## 📸 Screenshots
+
+| Dashboard | Analytics | Transactions |
+|:---:|:---:|:---:|
+| ![Dashboard](https://via.placeholder.com/200x400?text=Dashboard+View) | ![Analytics](https://via.placeholder.com/200x400?text=Analytics+View) | ![History](https://via.placeholder.com/200x400?text=Transaction+History) |
+
+*(Screenshots coming soon)*
+
+## 📥 Downloads
+
+### Android
+Download the latest APK from the [Releases Page](https://github.com/Nikulsuthar2/Money-Tracker/releases).
+
+### Windows
+Download the `.zip` or installer from the [Releases Page](https://github.com/Nikulsuthar2/Money-Tracker/releases).
+
+---
 
 ## 🛠 Tech Stack
 
--   **Framework**: [Flutter](https://flutter.dev) (Dart)
--   **State Management**: [Riverpod](https://riverpod.dev)
--   **Database**: [Isar](https://isar.dev) (NoSQL)
--   **Navigation**: [GoRouter](https://pub.dev/packages/go_router)
--   **Charts**: [FL Chart](https://pub.dev/packages/fl_chart)
--   **Theming**: Material 3 / Google Fonts (Outfit)
-
-## 📦 Installation
-
-### Mobile (Android)
-1. Download the latest `app-release.apk` from the [Releases](https://github.com/nikul/money_tracker/releases) page.
-2. Install the APK on your Android device.
-
-### Desktop (Linux)
-1. Download the Linux release binary.
-2. Extract and run the executable.
-
-### Web
-Visit the live demo at: [Link to Web App] *(Placeholder)*
-
-## 🚀 Building from Source
-
-1.  **Clone the Repo**:
-    ```bash
-    git clone https://github.com/Nikulsuthar2/Money-Tracker.git
-    cd money_tracker
-    ```
-
-2.  **Install Dependencies**:
-    ```bash
-    flutter pub get
-    ```
-
-3.  **Run Build Runner**:
-    ```bash
-    flutter pub run build_runner build --delete-conflicting-outputs
-    ```
-
-4.  **Run the App**:
-    ```bash
-    flutter run
-    ```
-
-### Release Commands:
-- **Android APK**: `flutter build apk --release`
-- **Windows**: `flutter build windows --release`
-- **Linux**: `flutter build linux --release`
-- **Web**: `flutter build web --release`
-
-## Isues    
-- App Icon not working
-- Refund or got back not working properly
-- Some UI bugs
-
-## 📄 License
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+*   **Framework**: [Flutter](https://flutter.dev)
+*   **State Management**: [Riverpod 2.0](https://riverpod.dev)
+*   **Database**: [Isar](https://isar.dev) (Local NoSQL)
+*   **Routing**: [GoRouter](https://pub.dev/packages/go_router)
+*   **Charts**: [FL Chart](https://pub.dev/packages/fl_chart)
+*   **Icons**: Material Icons, FontAwesome
 
 ## 🤝 Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
+
+We welcome contributions! 
+1.  Read the [Developer Handbook](C:\Users\nikul\.gemini\antigravity\brain\da3750e8-2c7a-4643-ab7e-b5453c932500/developer_handbook.md) to understand the architecture.
+2.  Fork the repository.
+3.  Create a feature branch (`git checkout -b feature/amazing-feature`).
+4.  Commit your changes.
+5.  Open a Pull Request.
+
+## 📄 License
+Distributed under the **MIT License**. See `LICENSE` for more information.
 
 ---
-Built with ❤️ by Antigravity (Gemini 3 Pro) & [Nikul Suthar](https://github.com/Nikulsuthar2)
+
+<div align="center">
+Built with ❤️ by Nikul Suthar & Google Antigravity
+</div>

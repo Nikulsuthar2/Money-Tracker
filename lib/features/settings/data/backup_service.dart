@@ -75,7 +75,7 @@ class BackupService {
       }).toList(),
     };
 
-    final jsonString = jsonEncode(data);
+    final jsonString = const JsonEncoder.withIndent('  ').convert(data);
     // Remove extension from name because FileSaver adds it?? No, usually explicitly needed or handled by ext param.
     // FileSaver adds extension if not present.
     final filename = 'money_manager_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}';

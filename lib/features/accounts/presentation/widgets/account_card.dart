@@ -119,20 +119,6 @@ class AccountCard extends ConsumerWidget {
                 ],
               ),
 
-              if (item.totalIncome > 0 || item.totalExpense > 0) ...[
-                const Gap(12),
-                Divider(height: 1, color: theme.colorScheme.outlineVariant.withOpacity(0.2)),
-                const Gap(12),
-                Row(
-                  children: [
-                     Expanded(child: _CompactStat(label: 'Total In', amount: item.totalIncome, color: Colors.teal.withOpacity(0.7), icon: Icons.arrow_downward)),
-                     Container(width: 1, height: 24, color: theme.colorScheme.outlineVariant.withOpacity(0.2)),
-                     Expanded(child: _CompactStat(label: 'Total Out', amount: item.totalExpense, color: Colors.redAccent.withOpacity(0.7), icon: Icons.arrow_upward)),
-                  ],
-                ),
-
-              ],
-              
               if (account.reservedBalance > 0) ...[
                  const Gap(12),
                  Container(
@@ -147,7 +133,7 @@ class AccountCard extends ConsumerWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Reserved Savings', style: TextStyle(fontSize: 10)),
+                            const Text('Reserved Amount', style: TextStyle(fontSize: 10)),
                             Text('${ref.watch(currencyProvider)}${account.reservedBalance.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                           ],
                         ),
@@ -155,7 +141,7 @@ class AccountCard extends ConsumerWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text('Spendable', style: TextStyle(fontSize: 10)),
+                            const Text('Spendable Amount', style: TextStyle(fontSize: 10)),
                               Text(
                                 '${ref.watch(currencyProvider)}${(item.balance - account.reservedBalance - account.buckets.fold(0.0, (sum, b) => sum + b.balance)).toStringAsFixed(2)}', 
                                 style: TextStyle(
@@ -169,7 +155,22 @@ class AccountCard extends ConsumerWidget {
                      ],
                    ),
                  )
-              ]
+              ],
+              if (item.totalIncome > 0 || item.totalExpense > 0) ...[
+                const Gap(12),
+                Divider(height: 1, color: theme.colorScheme.outlineVariant.withOpacity(0.2)),
+                const Gap(12),
+                Row(
+                  children: [
+                     Expanded(child: _CompactStat(label: 'Total In', amount: item.totalIncome, color: Colors.teal.withOpacity(0.7), icon: Icons.arrow_downward)),
+                     Container(width: 1, height: 24, color: theme.colorScheme.outlineVariant.withOpacity(0.2)),
+                     Expanded(child: _CompactStat(label: 'Total Out', amount: item.totalExpense, color: Colors.redAccent.withOpacity(0.7), icon: Icons.arrow_upward)),
+                  ],
+                ),
+
+              ],
+              
+              
             ],
           ),
         ),

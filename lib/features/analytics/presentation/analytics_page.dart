@@ -75,24 +75,6 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
         title: const Text('Analytics'), // Default left aligned on Material 3 if centerTitle not true
         centerTitle: false,
         actions: [
-          PopupMenuButton<String>(
-            initialValue: _period,
-            onSelected: (v) => setState(() => _period = v),
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'Monthly', child: Text('Monthly')),
-              const PopupMenuItem(value: 'Yearly', child: Text('Yearly')),
-              const PopupMenuItem(value: 'All Time', child: Text('All Time')),
-            ],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Text(_period, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
-                  const Icon(Icons.arrow_drop_down),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
       body: transactionsAsync.when(
@@ -101,19 +83,47 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
           
           return Column(
             children: [
+               // Period Switch
+               Padding(
+                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                 child: SizedBox(
+                   width: double.infinity,
+                   child: SegmentedButton<String>(
+                      segments: const [
+                         ButtonSegment(value: 'Monthly', label: Text('Monthly')),
+                         ButtonSegment(value: 'Yearly', label: Text('Yearly')),
+                         ButtonSegment(value: 'All Time', label: Text('All Time')),
+                      ],
+                      selected: {_period},
+                      onSelectionChanged: (s) => setState(() => _period = s.first),
+                      style: ButtonStyle(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                   ),
+                 ),
+               ),
+              // 1. Date Navigation (Hidden for All Time)
               // 1. Date Navigation (Hidden for All Time)
               if (_period != 'All Time')
-                Container(
-                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                   color: theme.colorScheme.surface,
-                   child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton.filledTonal(onPressed: _prevPeriod, icon: const Icon(Icons.chevron_left)),
-                        Text(dateLabel, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        IconButton.filledTonal(onPressed: _nextPeriod, icon: const Icon(Icons.chevron_right)),
-                      ],
-                   ),
+                Center(
+                  child: Container(
+                     margin: const EdgeInsets.symmetric(vertical: 8),
+                     constraints: const BoxConstraints(maxWidth: 300),
+                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                     decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(50),
+                     ),
+                     child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton.filledTonal(onPressed: _prevPeriod, icon: const Icon(Icons.chevron_left), constraints: const BoxConstraints(minWidth: 32, minHeight: 32), padding: EdgeInsets.zero, iconSize: 18),
+                          Text(dateLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          IconButton.filledTonal(onPressed: _nextPeriod, icon: const Icon(Icons.chevron_right), constraints: const BoxConstraints(minWidth: 32, minHeight: 32), padding: EdgeInsets.zero, iconSize: 18),
+                        ],
+                     ),
+                  ),
                 ),
                
                if (_period != 'All Time') const Divider(height: 1),
@@ -126,6 +136,8 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                      // Net Result Card
                      _NetResultCard(transactions: transactions, currency: currency),
                      const Gap(24),
+// ... (Skipping to NetResultCard modification) ...
+
 
                      // View Switcher
                      SegmentedButton<String>(
@@ -339,6 +351,7 @@ class _TrendsView extends StatelessWidget {
                titlesData: FlTitlesData(
                   topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (val, meta) => Text(val >= 1000 ? '${(val/1000).toStringAsFixed(1)}k' : val.toInt().toString(), style: const TextStyle(fontSize: 10, color: Colors.grey)))),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -524,6 +537,11 @@ class _CalendarView extends StatelessWidget {
 
     if (period == 'Monthly') {
        final daysInMonth = DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
+       final firstDayWeekday = DateTime(selectedDate.year, selectedDate.month, 1).weekday; // 1=Mon, 7=Sun
+       // Let's assume Mon-Sun week
+       final offset = firstDayWeekday - 1;
+       final totalCells = offset + daysInMonth;
+       
        final dayMap = <int, double>{}; // Net for the day
        
        for(var t in transactions) {
@@ -534,29 +552,43 @@ class _CalendarView extends StatelessWidget {
          dayMap[t.date.day] = (dayMap[t.date.day] ?? 0) + val;
        }
 
-       return GridView.builder(
-         shrinkWrap: true,
-         physics: const NeverScrollableScrollPhysics(),
-         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 0.8),
-         itemCount: daysInMonth,
-         itemBuilder: (context, index) {
-            final day = index + 1;
-            final net = dayMap[day] ?? 0;
-            return Card(
-               elevation: 0,
-               color: net > 0 ? Colors.teal.withOpacity(0.1) : (net < 0 ? Colors.red.withOpacity(0.1) : Colors.transparent),
-               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3))),
-               child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                     Text('$day', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                     if (net != 0)
-                       Text('${net > 0 ? "+" : ""}${net.abs().toStringAsFixed(0)}', 
-                          style: TextStyle(fontSize: 9, color: net > 0 ? Colors.teal : Colors.red, fontWeight: FontWeight.bold))
-                  ],
-               ),
-            );
-         },
+       const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+       return Column(
+         children: [
+            // Weekday Headers
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: weekDays.map((d) => SizedBox(width: 30, child: Center(child: Text(d, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))))).toList(),
+            ),
+            const Gap(8),
+            GridView.builder(
+             shrinkWrap: true,
+             physics: const NeverScrollableScrollPhysics(),
+             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 0.8),
+             itemCount: totalCells,
+             itemBuilder: (context, index) {
+                if (index < offset) return const SizedBox();
+                
+                final day = index - offset + 1;
+                final net = dayMap[day] ?? 0;
+                return Card(
+                   elevation: 0,
+                   color: net > 0 ? Colors.teal.withOpacity(0.1) : (net < 0 ? Colors.red.withOpacity(0.1) : Colors.transparent),
+                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3))),
+                   child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                         Text('$day', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                         if (net != 0)
+                           Text('${net > 0 ? "+" : ""}${net.abs().toStringAsFixed(0)}', 
+                              style: TextStyle(fontSize: 9, color: net > 0 ? Colors.teal : Colors.red, fontWeight: FontWeight.bold))
+                      ],
+                   ),
+                );
+             },
+           ),
+         ],
        );
     } else {
        // Yearly -> 12 Months

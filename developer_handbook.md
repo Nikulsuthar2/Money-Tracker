@@ -1,110 +1,111 @@
 # Developer Handbook - Money Tracker App
 
-This document serves as a comprehensive guide to understanding the structure, logic, and architecture of the "Money Tracker" Flutter application. It is designed to help you handle UI/UX tasks and understand the underlying systems.
+This document serves as a comprehensive guide to understanding the structure, logic, and architecture of the **Money Tracker** Flutter application. It is designed to help contributors understand the codebase and maintain the high standards of the project.
 
 ## 1. Project Overview
-*   **Framework**: Flutter (Dart)
-*   **State Management**: `flutter_riverpod` (Providers used for dependency injection and state)
-*   **Database**: `isar` (NoSQL, local database for optimal performance)
-*   **Navigation**: `go_router` (Routing logic and deep linking support)
-*   **Graphs**: `fl_chart`
+*   **Framework**: Flutter (Dart) (Min SDK: 3.0.0)
+*   **State Management**: `flutter_riverpod` (Providers for dependency injection and reactive state)
+*   **Database**: `isar` (NoSQL, highly performant local storage)
+*   **Navigation**: `go_router` (Deep linking and declarative routing)
+*   **Charts**: `fl_chart` (Interactive financial graphs)
+*   **Security**: `local_auth` (Biometric protection)
 
 ## 2. Directory Structure (`lib/`)
-The project follows a **Feature-First Architecture**.
+The project utilizes a scalable **Feature-First Architecture**, ensuring code isolation and maintainability.
 
-*   `core/`: Shared utilities, widgets, and router. (e.g., `IsarService`, `ScaffoldWithNavbar`).
-*   `features/`: Contains the main business logic and UI, split by domain.
-    *   `accounts/`: Account management, bucket logic, account details page.
-    *   `transactions/`: Transaction CRUD, Add Transaction logic, History.
-    *   `categories/`: Category management, default seeding.
-    *   `dashboard/`: The main Home screen logic.
-    *   `analytics/`: Charts, Graphs, and breakdown views.
-    *   `subscriptions/`: Subscription management, recurrence logic.
-    *   `settings/`: App preferences, backup/restore.
+*   `core/`: Shared utilities, global widgets, themes, and router configuration.
+    *   `database/`: Isar service initialization.
+    *   `providers/`: Global state (Currency, Theme, Security).
+    *   `widgets/`: Reusable UI components (`ScaffoldWithNavbar`, `AppCard`).
+*   `features/`: Contains domain-specific logic, split by feature:
+    *   `accounts/`: Wallet/Bank management, fund allocation logic.
+    *   `transactions/`: CRUD operations, Add/Edit logic, History views.
+    *   `categories/`: Category management, icon/color pickers.
+    *   `dashboard/`: Home screen aggregation and summary cards.
+    *   `analytics/`: Trends, Spending breakdown, Calendar view.
+    *   `subscriptions/`: Recurring payment logic and virtual history generation.
+    *   `settings/`: App configuration, Backup/Restore (JSON), Security settings.
 
-Each feature folder typically contains:
-*   `data/`: Repositories (Database access).
-*   `domain/`: Models (`.dart` and `.g.dart` generated files).
-*   `presentation/`: UI Pages and Widgets.
-*   `application/`: Providers (Logic glue between UI and Data).
+**Feature Internal Structure:**
+Each feature typically follows this pattern:
+*   `data/`: Repositories (`_repository.dart`) handling direct database interactions.
+*   `domain/`: Data Models (`model.dart` and auto-generated `.g.dart`).
+*   `presentation/`: UI Pages (`_page.dart`) and feature-specific Widgets.
+*   `application/`: Providers (`_providers.dart`) bridging UI and Data layers.
 
 ## 3. Data Schema (Isar Models)
 
 ### Account (`features/accounts/domain/account.dart`)
-Represents a financial account (Wallet, Bank, etc.).
-*   `buckets`: A list of `AccountBucket` (Custom funds like "Car Fund", "Travel").
-*   `reservedBalance`: A specific "locked" amount that shouldn't be spent freely.
-*   `reservedLimit`: The target limit for the reserved balance.
-*   `openingBalance`: Initial balance. *Current Balance is calculated dynamically (Opening + Income - Expense).*
+Represents a financial container (e.g., Wallet, Bank Account).
+*   `buckets`: List of `AccountBucket` (Custom allocation funds like "Travel", "Car").
+*   `reservedBalance`: Restricted funds within the account.
+*   `openingBalance`: Initial amount. *Current Balance = Opening + Income - Expense.*
 
 ### Transaction (`features/transactions/domain/transaction.dart`)
-The core record of money movement.
+The central record of financial movement.
 *   `type`: `income`, `expense`, or `transfer`.
-*   `categoryId`: Links to a Category.
-*   `subscriptionId`: Links to a Subscription (if auto-generated).
-*   `subTransactions`: List of splits (if a single purchase includes multiple categories).
-*   `relatedTransactionId`: Used for refunds or transfers (linking the two sides).
+*   `subTransactions`: Support for **Split Transactions** (multiple categories in one entry).
+*   `relatedTransactionId`: Links transactions (e.g., Original Expense <-> Refund).
+*   `subscriptionId`: Links to source Subscription.
 
-### Subscription (`features/subscriptions/domain/subscription.dart`)
-Recurring payments.
-*   `repeat`: Enum (`daily`, `weekly`, `monthly`, `yearly`).
-*   `accountId`: Default account to charge.
+### Category (`features/categories/domain/category.dart`)
+*   `type`: `income`, `expense`, or `common` (available for both).
+*   `icon` & `color`: stored as integers (CodePoint/ARGB).
 
-## 4. Navigation & Pages
-We use `GoRouter` with a "Shell Route" for the bottom navigation bar.
+## 4. Navigation & Routing
+We use **GoRouter** with a ShellRoute pattern for persistent bottom navigation.
 
-**Routes (`lib/core/router/app_router.dart`):**
-*   `/` (Home): `DashboardPage`
-*   `/transactions`: `TransactionsPage` (History)
-*   `/analytics`: `AnalyticsPage`
-*   `/settings`: `SettingsPage`
-*   **Sub-pages** (pushed on top):
-    *   `/add-transaction`: `AddTransactionPage` (The complex form)
-    *   `/account-details`: `AccountDetailsPage`
-    *   `/subscriptions`: `SubscriptionsPage`
-
-**Visual Navigation (`lib/core/widgets/scaffold_with_navbar.dart`):**
-The Bottom Bar has **5 items**, but only **4 real tabs**.
-1.  **Dashboard** (Route `/`)
-2.  **History** (Route `/transactions`)
-3.  **Add (+)**: This is **NOT** a tab. It acts as a button that pushes `/add-transaction` immediately.
-4.  **Analysis** (Route `/analytics`)
-5.  **Settings** (Route `/settings`)
+**Key Routes (`lib/core/router/app_router.dart`):**
+*   `/` (Home): Dashboard
+*   `/transactions`: History Table/List
+*   `/analytics`: Reports & Charts
+*   `/settings`: Configuration
+*   **Modals/Sub-pages**: `/add-transaction`, `/account-details`, `/categories`, `/subscriptions`.
 
 ## 5. Core Business Logic
 
-### The Bucketing System (Unique Feature)
-Money isn't just one big pile; it's segregated into tiers for smarter spending.
-
-1.  **Spendable**: Free cash you can use.
-2.  **Custom Buckets**: Specific funds (e.g., "Holiday").
+### The Bucketing System
+A unique feature that segments account balances into "Tiers" of availability:
+1.  **Spendable**: Free-to-use cash.
+2.  **Custom Buckets**: User-defined funds (e.g., "Holiday Fund").
 3.  **Reserved**: Emergency/Locked funds.
 
-**Logic in `AddTransactionPage`:**
-*   **Income**:
-    1.  **Fills Reserved First** (up to `reservedLimit`).
-    2.  **Fills Custom Bucket** (if user selects one).
-    3.  **Rest goes to Spendable**.
-*   **Expense**:
-    1.  **Deducts from Spendable First**.
-    2.  **Deducts from Custom Buckets** (user warning if Spendable empty).
-    3.  **Deducts from Reserved** (critical warning if everything else empty).
+**Logic Flow (`AddTransactionPage`):**
+*   **Income**: Fills **Reserved** (to limit) -> Fills **Custom Bucket** (optional) -> Rest to **Spendable**.
+*   **Expense**: Deducts **Spendable** -> Deducts **Custom Buckets** -> Deducts **Reserved** (with warnings).
 
-### Analytics Logic
-*   **Accounting View**: Calculation = `Income - Expense`. (Ignores Transfers). Shows if you are earning more than spending.
-*   **Cash Flow View**: Calculation = `Total In - Total Out`. (Includes Transfers). Shows actual movement of money.
+### Refund System
+Handles the complex logic of reverting payments or splitting shared costs.
+*   **Refund Mode**: A dedicated UI state in `AddTransactionPage` that locks the type to Income and fields to Read-Only.
+*   **Logic**:
+    *   **Full Refund**: Reverses the entire transaction.
+    *   **Split Repayment**: For split expenses, allows repaying specific items (e.g., "friend paid me back").
+    *   **Smart Labels**: "Got Back" vs "Repay" vs "Reverse" based on context.
 
-### Subscriptions
-*   **Virtual Projection**: The app doesn't create future transactions in the database database until they happen (or you click "Pay Now").
-*   **Status**: The app checks the *history* of transactions to see if a transaction exists near the `due date` to mark it as `Paid` or `Missed`.
+### Virtual Subscriptions
+To keep the database clean, future subscription payments are **not** pre-generated.
+*   **History**: Calculated on-the-fly by projecting the `startDate` forward based on the `repeat` interval.
+*   **Status**: The app checks the *actual* transaction history against these projected dates to determine if a period is "Paid" or "Due".
 
-## 6. How to Work on This App
-*   **UI Changes**: Most UI is in `presentation/` folders. Edit `_page.dart` files for screens and `widgets/` for components.
-*   **Logic Changes**: If editing how data is saved, check `add_transaction_page.dart` (for immediate logic) or `..._repository.dart` files (for database logic).
-*   **Schema Changes**: If you add fields to `Account` or `Transaction`, you **MUST** run:
+## 6. Development Workflow
+1.  **Modify Models**: If you edit any class annotated with `@collection` or `@embedded`, run:
     ```bash
     flutter pub run build_runner build --delete-conflicting-outputs
     ```
-    This regenerates the `.g.dart` files required by Isar.
+2.  **State Updates**: Use `ref.read/watch` for state. Avoid large `setState` calls in complex widgets.
+3.  **UI Components**: Use the defined `Theme.of(context)` to maintain Material 3 consistency.
 
-Good luck! The codebase is structured to be modular, so you can focus on one feature at a time.
+## 7. Release Process
+To prepare a release for GitHub:
+1.  **Update Version**: Bump version in `pubspec.yaml` (e.g., `5.0.0+1`).
+2.  **Build Android**:
+    ```bash
+    flutter build apk --release
+    ```
+3.  **Build Windows**:
+    ```bash
+    flutter build windows --release
+    ```
+4.  **Upload**: Create a new Release tag on GitHub and upload the artifacts.
+
+Happy Coding! 🚀

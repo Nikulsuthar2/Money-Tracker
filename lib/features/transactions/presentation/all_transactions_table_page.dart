@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
 import 'package:intl/intl.dart';
-import 'package:data_table_2/data_table_2.dart'; // Standard DataTable is okay but responsive is better. Using standard for now to avoid dep if simple.
-// Actually standard DataTable in SingleChildScrollView is fine.
+import 'package:data_table_2/data_table_2.dart'; 
 
 class AllTransactionsTablePage extends ConsumerWidget {
   const AllTransactionsTablePage({super.key});
@@ -41,13 +41,15 @@ class AllTransactionsTablePage extends ConsumerWidget {
                         columnSpacing: 12,
                         horizontalMargin: 12,
                         minWidth: 800,
+                        showCheckboxColumn: false, // Hide checkboxes
                         headingRowColor: WidgetStateProperty.all(Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3)),
                         columns: const [
-                          DataColumn2(label: Text('Date'), size: ColumnSize.S),
-                          DataColumn2(label: Text('Type'), size: ColumnSize.S),
+                          DataColumn2(label: Text('Date'), size: ColumnSize.M),
+                          DataColumn2(label: Text('Type'), size: ColumnSize.M),
                           DataColumn2(label: Text('Amount'), size: ColumnSize.S, numeric: true),
-                          DataColumn2(label: Text('Category'), size: ColumnSize.L),
+                          DataColumn2(label: Text('Title'), size: ColumnSize.L),
                           DataColumn2(label: Text('Account'), size: ColumnSize.M),
+                          DataColumn2(label: Text('Category'), size: ColumnSize.L),
                           DataColumn2(label: Text('Note'), size: ColumnSize.L),
                         ],
                         rows: transactions.map((t) {
@@ -55,13 +57,17 @@ class AllTransactionsTablePage extends ConsumerWidget {
                           final accountId = t.type == TransactionType.income ? t.toAccountId : t.fromAccountId;
                           final acc = accounts.where((a) => a.id == accountId).firstOrNull;
                           
-                          return DataRow(cells: [
-                            DataCell(Text(DateFormat('MM/dd HH:mm').format(t.date))),
-                            DataCell(Text(t.type.name.toUpperCase().substring(0, 3))),
+                          return DataRow(
+                            onSelectChanged: (_) => context.push('/transaction-details', extra: t), // Clickable
+                            cells: [
+                            DataCell(Text(DateFormat('dd-MM-yyyy  hh:mm a').format(t.date))),
+                            DataCell(Text(t.type.name.toUpperCase())),
                             DataCell(Text('\$${t.amount.toStringAsFixed(0)}', style: TextStyle(
                               color: t.type == TransactionType.expense ? Colors.red : (t.type == TransactionType.income ? Colors.green : Colors.blue),
                               fontWeight: FontWeight.bold
                             ))),
+                            DataCell(Text(t.title ?? '-', overflow: TextOverflow.ellipsis)),
+                            DataCell(Text(acc?.name ?? '-', overflow: TextOverflow.ellipsis)), 
                             DataCell(Row(children: [
                                if (t.subTransactions != null && t.subTransactions!.isNotEmpty)
                                   const Text('Split Transaction', style: TextStyle(fontStyle: FontStyle.italic))
@@ -71,7 +77,6 @@ class AllTransactionsTablePage extends ConsumerWidget {
                                  Text(cat?.name ?? '-', overflow: TextOverflow.ellipsis)
                                ]
                             ])),
-                            DataCell(Text(acc?.name ?? '-', overflow: TextOverflow.ellipsis)), 
                             DataCell(Text(t.note ?? '-', overflow: TextOverflow.ellipsis)),
                           ]);
                         }).toList(),

@@ -87,55 +87,52 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                     itemBuilder: (context, index) {
                       if (index == 0) {
                          // Stats Header
-                         return Padding(
-                           padding: const EdgeInsets.only(bottom: 24),
-                           child: Row(
-                             children: [
-                               Expanded(
-                                 child: Container(
-                                   padding: const EdgeInsets.all(16),
-                                   decoration: BoxDecoration(
-                                     color: Colors.teal.withOpacity(0.1),
-                                     borderRadius: BorderRadius.circular(16),
-                                     border: Border.all(color: Colors.teal.withOpacity(0.3))
-                                   ),
+                         return Card(
+                           elevation: 0,
+                           color: Theme.of(context).colorScheme.surfaceContainer,
+                           margin: const EdgeInsets.only(bottom: 24),
+                           child: Padding(
+                             padding: const EdgeInsets.all(16),
+                             child: Row(
+                               children: [
+                                 Expanded(
                                    child: Column(
-                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                     crossAxisAlignment: CrossAxisAlignment.center, // Centered
                                      children: [
-                                       const Row(children: [Icon(Icons.arrow_downward, size: 16, color: Colors.teal), Gap(8), Text('Income', style: TextStyle(color: Colors.teal))]),
+                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_downward, size: 16, color: Colors.teal), Gap(8), Text('Total Income', style: TextStyle(color: Colors.teal))]),
                                        const Gap(8),
-                                       Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalIncome.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal))),
+                                       Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalIncome.toStringAsFixed(0)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal))),
                                      ],
                                    ),
                                  ),
-                               ),
-                               const Gap(16),
-                               Expanded(
-                                 child: Container(
-                                   padding: const EdgeInsets.all(16),
-                                   decoration: BoxDecoration(
-                                     color: Colors.red.withOpacity(0.1),
-                                     borderRadius: BorderRadius.circular(16),
-                                     border: Border.all(color: Colors.red.withOpacity(0.3))
-                                   ),
+                                 Container(width: 1, height: 40, color: Theme.of(context).colorScheme.outlineVariant),
+                                 const Gap(16),
+                                 Expanded(
                                    child: Column(
-                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                     crossAxisAlignment: CrossAxisAlignment.center, // Centered
                                      children: [
-                                       const Row(children: [Icon(Icons.arrow_upward, size: 16, color: Colors.red), Gap(8), Text('Expense', style: TextStyle(color: Colors.red))]),
+                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_upward, size: 16, color: Colors.red), Gap(8), Text('Total Expense', style: TextStyle(color: Colors.red))]),
                                        const Gap(8),
-                                       Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalExpense.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red))),
+                                       Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalExpense.toStringAsFixed(0)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red))),
                                      ],
                                    ),
                                  ),
-                               ),
-                             ],
+                               ],
+                             ),
                            ),
                          );
                       }
 
                       final date = sortedDates[index - 1];
                       final dayTransactions = grouped[date]!;
-                      dayTransactions.sort((a, b) => b.date.compareTo(a.date)); // Ensure newest on top
+                      
+                      // Sort: Timed (Desc) -> Untimed (Desc)
+                      dayTransactions.sort((a, b) {
+                         if (a.hasTime && !b.hasTime) return -1; // a (timed) before b (untimed)
+                         if (!a.hasTime && b.hasTime) return 1;  // b (timed) before a (untimed)
+                         // Both timed or both untimed -> Sort by date (descending)
+                         return b.date.compareTo(a.date);
+                      });
                       
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

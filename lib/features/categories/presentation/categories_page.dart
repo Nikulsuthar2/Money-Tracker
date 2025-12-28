@@ -27,31 +27,42 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
            // Filters
            Padding(
              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-             child: Row(
-               children: [
-                 FilterChip(
-                   label: const Text('All'), 
-                   selected: _filterType == null,
-                   onSelected: (b) => setState(() => _filterType = null),
-                   showCheckmark: false,
-                 ),
-                 const Gap(8),
-                 FilterChip(
-                   label: const Text('Income'), 
-                   selected: _filterType == CategoryType.income,
-                   onSelected: (b) => setState(() => _filterType = CategoryType.income),
-                   showCheckmark: false,
-                   avatar: _filterType == CategoryType.income ? const Icon(Icons.check, size: 16) : null,
-                 ),
-                 const Gap(8),
-                 FilterChip(
-                   label: const Text('Expense'), 
-                   selected: _filterType == CategoryType.expense,
-                   onSelected: (b) => setState(() => _filterType = CategoryType.expense),
-                   showCheckmark: false,
-                   avatar: _filterType == CategoryType.expense ? const Icon(Icons.check, size: 16) : null,
-                 ),
-               ],
+             child: SingleChildScrollView(
+               scrollDirection: Axis.horizontal,
+               child: Row(
+                 children: [
+                   FilterChip(
+                     label: const Text('All'), 
+                     selected: _filterType == null,
+                     onSelected: (b) => setState(() => _filterType = null),
+                     showCheckmark: false,
+                   ),
+                   const Gap(8),
+                   FilterChip(
+                     label: const Text('Income'), 
+                     selected: _filterType == CategoryType.income,
+                     onSelected: (b) => setState(() => _filterType = CategoryType.income),
+                     showCheckmark: false,
+                     avatar: _filterType == CategoryType.income ? const Icon(Icons.check, size: 16) : null,
+                   ),
+                   const Gap(8),
+                   FilterChip(
+                     label: const Text('Expense'), 
+                     selected: _filterType == CategoryType.expense,
+                     onSelected: (b) => setState(() => _filterType = CategoryType.expense),
+                     showCheckmark: false,
+                     avatar: _filterType == CategoryType.expense ? const Icon(Icons.check, size: 16) : null,
+                   ),
+                   const Gap(8),
+                   FilterChip(
+                     label: const Text('Common'), 
+                     selected: _filterType == CategoryType.common,
+                     onSelected: (b) => setState(() => _filterType = CategoryType.common),
+                     showCheckmark: false,
+                     avatar: _filterType == CategoryType.common ? const Icon(Icons.check, size: 16) : null,
+                   ),
+                 ],
+               ),
              ),
            ),
            const Divider(height: 1),
@@ -66,6 +77,8 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
                           return c.type == CategoryType.income || c.type == CategoryType.common;
                        } else if (_filterType == CategoryType.expense) {
                           return c.type == CategoryType.expense || c.type == CategoryType.common;
+                       } else if (_filterType == CategoryType.common) {
+                           return c.type == CategoryType.common;
                        }
                        return c.type == _filterType;
                     }).toList();
@@ -82,51 +95,55 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
                      return a.name.compareTo(b.name);
                   });
 
-                  return ListView.separated(
+                  return ListView.builder(
                     padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
                     itemCount: filtered.length,
-                    separatorBuilder: (_,__) => const Divider(height: 1, indent: 64),
                     itemBuilder: (context, index) {
                       final cat = filtered[index];
-                      return ListTile(
-                        visualDensity: VisualDensity.compact,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        onTap: () {
-                          context.push('/add-category', extra: cat);
-                        },
-                        leading: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Color(cat.color == 0 ? 0xFF9E9E9E : cat.color).withOpacity(0.2),
-                          child: Icon(IconData(cat.icon, fontFamily: 'MaterialIcons'), size: 20, color: Color(cat.color == 0 ? 0xFF9E9E9E : cat.color)),
-                        ),
-                        title: Text(cat.name, style: Theme.of(context).textTheme.bodyLarge),
-                        subtitle: Text(cat.type.name.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
-                        trailing: PopupMenuButton(
-                          icon: const Icon(Icons.more_vert, size: 20),
-                          padding: EdgeInsets.zero,
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                              onTap: () {
-                                 Future.delayed(Duration.zero, () {
-                                   if (context.mounted) {
-                                     showDialog(context: context, builder: (d) => AlertDialog(
-                                        title: const Text('Delete Category?'),
-                                        content: const Text('This will delete the category. Transactions will lose this category.'),
-                                        actions: [
-                                          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
-                                          TextButton(onPressed: () async {
-                                              await ref.read(categoriesRepositoryProvider).deleteCategory(cat.id);
-                                              if (context.mounted) Navigator.pop(d);
-                                          }, child: const Text('Delete', style: TextStyle(color: Colors.red))),
-                                        ],
-                                      ));
-                                   }
-                                 });
-                              },
-                            ),
-                          ],
-                        ),
+                      return Card(
+                         elevation: 0,
+                         color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                         margin: const EdgeInsets.only(bottom: 8),
+                         child: ListTile(
+                           visualDensity: VisualDensity.compact,
+                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                           onTap: () {
+                             context.push('/add-category', extra: cat);
+                           },
+                           leading: CircleAvatar(
+                             radius: 20,
+                             backgroundColor: Color(cat.color == 0 ? 0xFF9E9E9E : cat.color).withOpacity(0.2),
+                             child: Icon(IconData(cat.icon, fontFamily: 'MaterialIcons'), size: 22, color: Color(cat.color == 0 ? 0xFF9E9E9E : cat.color)),
+                           ),
+                           title: Text(cat.name, style: Theme.of(context).textTheme.titleMedium),
+                           subtitle: Text(cat.type.name.toUpperCase(), style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).colorScheme.secondary)),
+                           trailing: PopupMenuButton(
+                             icon: const Icon(Icons.more_vert, size: 20),
+                             padding: EdgeInsets.zero,
+                             itemBuilder: (context) => [
+                               PopupMenuItem(
+                                 child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                 onTap: () {
+                                    Future.delayed(Duration.zero, () {
+                                      if (context.mounted) {
+                                        showDialog(context: context, builder: (d) => AlertDialog(
+                                           title: const Text('Delete Category?'),
+                                           content: const Text('This will delete the category. Transactions will lose this category.'),
+                                           actions: [
+                                             TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+                                             TextButton(onPressed: () async {
+                                                 await ref.read(categoriesRepositoryProvider).deleteCategory(cat.id);
+                                                 if (context.mounted) Navigator.pop(d);
+                                             }, child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                                           ],
+                                         ));
+                                      }
+                                    });
+                                 },
+                               ),
+                             ],
+                           ),
+                         ),
                       );
                     },
                   );
@@ -135,8 +152,8 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
                 error: (e, s) => Center(child: Text('Error: $e')),
               ),
            ),
-        ],
-      ),
+         ],
+       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           context.push('/add-category');

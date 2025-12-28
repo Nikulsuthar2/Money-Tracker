@@ -187,9 +187,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                      )
                    ],
                  ),
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                     children: [
+                 child: Row(
+                   crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
                        Container(
                          padding: const EdgeInsets.all(12),
                          decoration: BoxDecoration(
@@ -406,7 +406,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 if (maxY == 0) maxY = 100;
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: 16, top: 16),
+                  padding: const EdgeInsets.only(right: 16, top: 16, left: 16),
                   child: LineChart(
                      LineChartData(
                       gridData: const FlGridData(show: false),

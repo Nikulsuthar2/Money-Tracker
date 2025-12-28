@@ -127,10 +127,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
               onChanged: (v) => setState(() => _type = v!),
             ),
             const Gap(16),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Color'),
-              trailing: CircleAvatar(backgroundColor: Color(_color), radius: 16),
+            InkWell(
               onTap: () async {
                  await showDialog(
                    context: context,
@@ -142,8 +139,8 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                          runSpacing: 12,
                          children: _colors.map((c) => InkWell(
                            onTap: () {
-                              setState(() => _color = c.value);
-                              Navigator.pop(context);
+                               setState(() => _color = c.value);
+                               Navigator.pop(context);
                            },
                            child: Container(
                              width: 42,
@@ -151,7 +148,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                              decoration: BoxDecoration(
                                color: c,
                                shape: BoxShape.circle,
-                               border: _color == c.value ? Border.all(color: Colors.white, width: 3) : null,
+                               border: _color == c.value ? Border.all(color: Theme.of(context).colorScheme.onSurface, width: 3) : null,
                                boxShadow: [
                                  BoxShadow(color: c.withOpacity(0.4), blurRadius: 8, spreadRadius: 2)
                                ]
@@ -165,13 +162,25 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                    )
                  );
               },
+              child: InputDecorator(
+                 decoration: const InputDecoration(labelText: 'Color', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                 child: Row(
+                   children: [
+                      Container(
+                        width: 24, height: 24, 
+                        decoration: BoxDecoration(color: Color(_color), shape: BoxShape.circle)
+                      ),
+                      const Gap(12),
+                      Text('#${_color.toRadixString(16).toUpperCase().substring(2)}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                      const Spacer(),
+                      const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                   ],
+                 ),
+              ),
             ),
-            const Divider(),
+            const Gap(16),
             
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Icon'),
-              trailing: Icon(IconData(_icon, fontFamily: 'MaterialIcons'), size: 28, color: Color(_color)), // Use selected color
+            InkWell(
               onTap: () async {
                  await showDialog(
                    context: context,
@@ -183,8 +192,8 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                          runSpacing: 12,
                          children: _icons.map((icon) => InkWell(
                            onTap: () {
-                              setState(() => _icon = icon.codePoint);
-                              Navigator.pop(context);
+                               setState(() => _icon = icon.codePoint);
+                               Navigator.pop(context);
                            },
                            borderRadius: BorderRadius.circular(12),
                            child: Container(
@@ -204,6 +213,18 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                    )
                  );
               },
+              child: InputDecorator(
+                 decoration: const InputDecoration(labelText: 'Icon', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                 child: Row(
+                   children: [
+                      Icon(IconData(_icon, fontFamily: 'MaterialIcons'), size: 24, color: Color(_color)),
+                      const Gap(12),
+                      const Text('Selected Icon', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const Spacer(),
+                      const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                   ],
+                 ),
+              ),
             ),
              const Gap(32),
              ElevatedButton(

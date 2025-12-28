@@ -11,13 +11,21 @@ import 'package:money_manager/features/transactions/presentation/widgets/transac
 import 'package:money_manager/features/accounts/presentation/widgets/account_chart.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
 
-class AccountDetailsPage extends ConsumerWidget {
+class AccountDetailsPage extends ConsumerStatefulWidget {
   const AccountDetailsPage({super.key, required this.account});
 
   final Account account;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AccountDetailsPage> createState() => _AccountDetailsPageState();
+}
+
+class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
+  int _transactionFilterIndex = 0; // 0: All, 1: Income, 2: Expense
+
+  @override
+  Widget build(BuildContext context) {
+    final account = widget.account;
     final transactionsAsync = ref.watch(transactionsStreamProvider);
     final theme = Theme.of(context);
     final currency = ref.watch(currencyProvider);
@@ -128,21 +136,29 @@ class AccountDetailsPage extends ConsumerWidget {
                       ),
                       const Gap(24),
                       // Line 2: Total In vs Out (Cash Flow)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.3)),
+                        ),
+                        child: 
                       Row(
                         children: [
                            Expanded(child: _StatColumn(label: 'Total In', amount: _calculateTotalIncome(account, accountTransactions), color: Colors.teal.shade800, currency: currency)),
                            Container(width: 1, height: 40, color: theme.colorScheme.onPrimaryContainer.withOpacity(0.2)),
                            Expanded(child: _StatColumn(label: 'Total Out', amount: _calculateTotalExpense(account, accountTransactions), color: Colors.red.shade800, currency: currency)),
                         ], 
-                      ),
+                      ),),
                       const Gap(16),
                       // Line 3: Net Income | Net Spend (Real/Category)
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withOpacity(0.5),
+                          color: theme.colorScheme.surface.withOpacity(0.8),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
+                          // border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.3)),
                         ),
                         child: Row(
                         children: [
@@ -191,40 +207,47 @@ class AccountDetailsPage extends ConsumerWidget {
                             children: [
                                Icon(Icons.account_balance_wallet, color: theme.colorScheme.primary),
                                const Gap(12),
-                               const Text('Funds', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                               const Text('Funds Allocation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             ],
                           ),
                           const Gap(16),
                           // Spendable & Reserved
-                          Row(
-                             children: [
-                                Expanded(
-                                   child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                         const Text('Spendable', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                         Text(
-                                            '$currency${(_calculateBalance(account, accountTransactions) - account.reservedBalance - account.buckets.fold(0.0, (sum, b) => sum + b.balance)).toStringAsFixed(2)}',
-                                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
-                                         ),
-                                      ],
-                                   ),
-                                ),
-                                Container(width: 1, height: 30, color: theme.colorScheme.outlineVariant),
-                                Expanded(
-                                   child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                         const Text('Reserved', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                         Text(
-                                            '$currency${account.reservedBalance.toStringAsFixed(2)}',
-                                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange),
-                                         ),
-                                      ],
-                                   ),
-                                ),
-                             ],
+                          Builder(
+                            builder: (context) {
+                              final balance = _calculateBalance(account, accountTransactions);
+                              final spendable = balance - (account.reservedBalance.isNaN ? 0.0 : account.reservedBalance) - account.buckets.fold(0.0, (sum, b) => sum + (b.balance.isNaN ? 0.0 : b.balance));
+                              return Row(
+                                 children: [
+                                    Expanded(
+                                       child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                             const Text('Spendable', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                             Text(
+                                                '$currency${spendable.toStringAsFixed(2)}',
+                                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                                             ),
+                                          ],
+                                       ),
+                                    ),
+                                    Container(width: 1, height: 30, color: theme.colorScheme.outlineVariant),
+                                    Expanded(
+                                       child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                             const Text('Reserved', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                             Text(
+                                                '$currency${(account.reservedBalance.isNaN ? 0.0 : account.reservedBalance).toStringAsFixed(2)}',
+                                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange),
+                                             ),
+                                          ],
+                                       ),
+                                    ),
+                                 ],
+                              );
+                            }
                           ),
+
                           
                           // Custom Buckets (Conditional)
                           if (account.buckets.isNotEmpty) ...[
@@ -289,17 +312,53 @@ class AccountDetailsPage extends ConsumerWidget {
               ),
               const Gap(16),
               
-              const Text('History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const Gap(16),
+              
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                   const Text('History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                   SegmentedButton<int>(
+                      segments: const [
+                         ButtonSegment(value: 0, label: Text('All')),
+                         ButtonSegment(value: 1, label: Text('Income')),
+                         ButtonSegment(value: 2, label: Text('Expense')),
+                      ],
+                      selected: {_transactionFilterIndex},
+                      onSelectionChanged: (Set<int> newSelection) {
+                         setState(() {
+                            _transactionFilterIndex = newSelection.first;
+                         });
+                      },
+                      style: ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                   )
+                ],
+              ),
               const Gap(8),
               
-              if (accountTransactions.isEmpty)
-                const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No transactions found'))),
-
-              ...accountTransactions.map((t) => TransactionTile(
-                  transaction: t, 
-                  accountName: account.name, 
-                  onTap: () => context.push('/transaction-details', extra: t),
-              )),
+              Builder(
+                builder: (context) {
+                   List<dynamic> filtered = accountTransactions;
+                   if (_transactionFilterIndex == 1) {
+                      filtered = accountTransactions.where((t) => t.type == TransactionType.income).toList();
+                   } else if (_transactionFilterIndex == 2) {
+                      filtered = accountTransactions.where((t) => t.type == TransactionType.expense).toList();
+                   }
+                   
+                   if (filtered.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No transactions found')));
+    
+                   return Column(
+                     children: filtered.map((t) => TransactionTile(
+                        transaction: t, 
+                        accountName: account.name, 
+                        onTap: () => context.push('/transaction-details', extra: t),
+                    )).toList(),
+                   );
+                }
+              ),
             ],
           );
         },

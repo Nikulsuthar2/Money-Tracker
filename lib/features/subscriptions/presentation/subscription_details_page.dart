@@ -24,6 +24,7 @@ class SubscriptionDetailsPage extends ConsumerWidget {
       ),
       body: transactionsAsync.when(
         data: (allTransactions) {
+          final linkedTxs = allTransactions.where((t) => t.subscriptionId == subscription.id).toList();
           final history = _generateHistory(subscription, allTransactions);
           
           final totalPaid = history.where((h) => h.status == _PaymentStatus.paid).length * subscription.amount;
@@ -42,7 +43,7 @@ class SubscriptionDetailsPage extends ConsumerWidget {
                      children: [
                        Text(subscription.name, style: Theme.of(context).textTheme.headlineSmall),
                        const Gap(8),
-                       Text('$currency${subscription.amount.toStringAsFixed(2)} / ${subscription.repeat.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                       Text('${DateFormat.yMMMd().format(subscription.startDate)} - ${subscription.repeat.name}', style: TextStyle(color: Theme.of(context).colorScheme.outline)),
                        const Gap(24),
                        Row(
                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -51,14 +52,14 @@ class SubscriptionDetailsPage extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text('Total Paid', style: TextStyle(fontSize: 12)),
-                                Text('$currency${totalPaid.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                Text('$currency${(linkedTxs.length * subscription.amount).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               ],
                             ),
                              Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 const Text('Last Payment', style: TextStyle(fontSize: 12)),
-                                Text(lastPayment != null ? DateFormat.yMMMd().format(lastPayment) : 'Never', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                Text(linkedTxs.isNotEmpty ? DateFormat.yMMMd().format(linkedTxs.map((t) => t.date).reduce((a, b) => a.isAfter(b) ? a : b)) : 'Never', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               ],
                             ),
                          ],
@@ -105,7 +106,9 @@ class SubscriptionDetailsPage extends ConsumerWidget {
                     child: ListTile(
                        leading: Icon(statusIcon, color: statusColor),
                        title: Text(DateFormat.yMMMd().format(h.date)),
-                       subtitle: Text(statusText, style: TextStyle(color: statusColor, fontSize: 12)),
+                       subtitle: h.txId != null 
+                           ? const Text('Manual Entry', style: TextStyle(fontSize: 12)) // Or show Linked Transaction Details?
+                           : Text(statusText, style: TextStyle(color: statusColor, fontSize: 12)),
                        trailing: h.status == _PaymentStatus.missed || h.status == _PaymentStatus.due
                          ? FilledButton.tonal(
                              child: const Text('Pay Now'),
@@ -118,11 +121,18 @@ class SubscriptionDetailsPage extends ConsumerWidget {
                                     'categoryId': subscription.categoryId,
                                     'accountId': subscription.accountId,
                                     'subscriptionId': subscription.id,
+                                    'date': h.date, // Pre-fill correct date
                                  };
                                  context.push('/add-transaction', extra: defaults);
                              },
                            )
-                         : null,
+                         : (h.txId != null ? IconButton(
+                             icon: const Icon(Icons.info_outline),
+                             onPressed: () async {
+                                final t = linkedTxs.firstWhere((t) => t.id == h.txId);
+                                context.push('/transaction-details', extra: t);
+                             },
+                           ) : null),
                     ),
                   );
                }),
@@ -141,31 +151,39 @@ class SubscriptionDetailsPage extends ConsumerWidget {
       // Get transactions linked to this subscription
       final linkedTxs = allTransactions.where((t) => t.subscriptionId == s.id).toList();
       
-      // Determine range: StartDate -> Today + 6 Months (Projection)
-      // Limit past to maybe 2 years or start date
-      
       final today = DateTime.now();
       final todayDate = DateTime(today.year, today.month, today.day);
       
       DateTime current = s.startDate;
-      final limit = todayDate.add(const Duration(days: 180)); // 6 months future
+      final limit = todayDate.add(const Duration(days: 365)); // 1 Year Future Cap or until Repeat ends?
       
       // Safety break
       int loops = 0;
       
+      // We also need to account for "Extra" payments? 
+      // Current logic: We generate EXPECTED dates and try to match regular payment.
+      
       while (current.isBefore(limit) && loops < 500) {
          _PaymentStatus status;
+         int? txId;
          
-         // 1. Check if ANY transaction matches this specific date (approx match?)
-         // Ideally subscription matches are loose on date? OR strict?
-         // If we use 'Pay Now' it sets the date.
-         // Let's check if there is a transaction roughly in the same period?
-         // Simpler: Check if there is a linked transaction with close date (+/- 3 days for daily? Month matches for monthly?)
+         // Find match
+         // For Monthly: Match any transaction in the same Month/Year? 
+         // Issue: If I pay twice in Jan, one might count for Jan, one for Feb? 
+         // Complex logic. Simple approach: Find strict match first, then loose?
          
-         final match = linkedTxs.where((t) => _isMatch(s.repeat, current, t.date));
+         // Update: Match is FIRST UNUSED linked transaction that matches criteria?
+         // But we iterate dates.
+         // Let's find ANY linked tx that falls in the "Period".
+         // Period defined by repeat.
          
-         if (match.isNotEmpty) {
+         final matchIndex = linkedTxs.indexWhere((t) => _isMatch(s.repeat, current, t.date));
+         
+         if (matchIndex != -1) {
             status = _PaymentStatus.paid;
+            txId = linkedTxs[matchIndex].id;
+            // Ideally remove from pool so we don't double count? 
+            // BUT simpler: `_isMatch` should correspond to unique slots.
          } else {
             if (current.isBefore(todayDate)) {
                status = _PaymentStatus.missed;
@@ -176,7 +194,7 @@ class SubscriptionDetailsPage extends ConsumerWidget {
             }
          }
          
-         items.add(_HistoryItem(current, status));
+         items.add(_HistoryItem(current, status, txId));
 
          current = _calculateNextDate(current, s.repeat);
          loops++;
@@ -187,11 +205,6 @@ class SubscriptionDetailsPage extends ConsumerWidget {
   }
 
   bool _isMatch(SubscriptionRepeat repeat, DateTime expected, DateTime actual) {
-      // Logic to determine if a transaction belongs to this expected date
-      // Monthly: Same Month & Year?
-      // Daily: Same Day?
-      // Weekly: Same Week?
-      
       final d1 = DateTime(expected.year, expected.month, expected.day);
       final d2 = DateTime(actual.year, actual.month, actual.day);
       
@@ -223,5 +236,6 @@ enum _PaymentStatus { paid, missed, due, future }
 class _HistoryItem {
   final DateTime date;
   final _PaymentStatus status;
-  _HistoryItem(this.date, this.status);
+  final int? txId;
+  _HistoryItem(this.date, this.status, [this.txId]);
 }

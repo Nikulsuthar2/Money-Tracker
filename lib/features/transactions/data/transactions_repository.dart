@@ -124,6 +124,18 @@ class TransactionsRepository {
        final original = await _isar.transactions.get(originalTransactionId);
        if (original != null) {
          original.isRefunded = false;
+         if (original.subTransactions != null) {
+            // Need to create new list or iterate? Isar embedded objects are mutable via the parent.
+            // But we might need to re-assign the list if modifying elements doesn't trigger. 
+            // Isar usually handles embedded modification if we put the parent.
+            final updatedSplits = original.subTransactions!.map((s) {
+               // s.isRefunded = false; // direct modify might not work if 's' is read-only view?
+               // Safest to copy or modify
+               s.isRefunded = false;
+               return s;
+            }).toList();
+            original.subTransactions = updatedSplits;
+         }
          await _isar.transactions.put(original); 
        }
     });
@@ -190,5 +202,12 @@ class TransactionsRepository {
       'expense': totalOut,
       'reimbursed': reimbursed,
     };
+  }
+
+  Future<List<Transaction>> getRefundTransactions(Id originalId) async {
+    return await _isar.transactions
+        .filter()
+        .relatedTransactionIdEqualTo(originalId)
+        .findAll();
   }
 }
