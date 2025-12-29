@@ -6,6 +6,11 @@ import 'package:intl/intl.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
+import 'package:money_manager/features/ledger/data/party_repository.dart';
+import 'package:money_manager/features/ledger/application/ledger_providers.dart';
+import 'package:money_manager/features/ledger/application/party_providers.dart';
+import 'package:money_manager/features/ledger/domain/ledger_entry.dart';
+import 'package:money_manager/features/ledger/domain/party.dart';
 
 class TransactionDetailsPage extends ConsumerWidget {
   const TransactionDetailsPage({super.key, required this.transaction});
@@ -121,33 +126,23 @@ class TransactionDetailsPage extends ConsumerWidget {
                        final to = accounts.where((a) => a.id == t.toAccountId).firstOrNull;
                        
                        Widget valWidget;
+                       // Always show Account Chip logic
                        if (t.type == TransactionType.transfer) {
                           valWidget = Wrap(
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                               Chip(
-                                 label: Text(from?.name ?? 'Unknown', style: const TextStyle(fontSize: 12)), 
-                                 padding: const EdgeInsets.all(4), 
-                                 visualDensity: VisualDensity.compact,
-                                 avatar: const Icon(Icons.account_balance_wallet, size: 14),
-                               ),
+                               _AccountChip(account: from),
                                const Padding(
                                  padding: EdgeInsets.symmetric(horizontal: 4),
                                  child: Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
                                ),
-                               Chip(
-                                 label: Text(to?.name ?? 'Unknown', style: const TextStyle(fontSize: 12)), 
-                                 padding: const EdgeInsets.all(4), 
-                                 visualDensity: VisualDensity.compact,
-                                 avatar: const Icon(Icons.account_balance_wallet, size: 14),
-                               ),
+                               _AccountChip(account: to),
                             ],
                           );
                        } else {
-                         String acctStr = 'Unknown';
-                         if (t.type == TransactionType.income && to != null) acctStr = to.name;
-                         else if (t.type == TransactionType.expense && from != null) acctStr = from.name;
-                         valWidget = Text(acctStr, style: const TextStyle(fontSize: 16));
+                         // Income/Expense
+                         final account = t.type == TransactionType.income ? to : from;
+                         valWidget = _AccountChip(account: account);
                        }
                        
                        return _DetailRow(icon: Icons.account_balance_wallet, label: 'Account', customValue: valWidget);
@@ -211,79 +206,57 @@ class TransactionDetailsPage extends ConsumerWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: t.subTransactions!.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
+                separatorBuilder: (context, index) => const Gap(8),
                 itemBuilder: (context, index) {
                   final split = t.subTransactions![index];
-                  // Using dynamic lookup because isRefunded might not be in the viewed class definition but is in the object
-                  // Assuming isRefunded field exists on SubTransaction
                   final isRefunded = split.isRefunded; 
                   
-                  return ListTile(
-                    leading: Icon(split.isMine ? Icons.person : Icons.person_outline, color: split.isMine ? Colors.green : Colors.grey),
-                    title: Text(split.note?.isNotEmpty == true ? split.note! : 'Item ${index + 1}'),
-                    subtitle: split.isMine ? const Text('My Expense', style: TextStyle(fontSize: 12, color: Colors.green)) 
-                                           : const Text('Not My Expense', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                         Text('\$${split.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                         const Gap(12),
-                         if (isRefunded)
-                            const IconButton(icon:Icon(Icons.check_circle, color: Colors.green), onPressed: null)
-                         else 
-                            IconButton(
-                              icon: const Icon(Icons.circle_outlined, color: Colors.grey),
-                              tooltip: 'Mark as Refunded',
-                              onPressed: () async {
-                                 // Refund this specific item workflow
-                                 final amount = split.amount;
-                                 final note = 'Refund: ${split.note ?? "Item"}';
-                                 
-                                 if (context.mounted) {
-                                  final result = await context.push('/add-transaction', extra: {
-                                    'type': TransactionType.income,
-                                    'amount': amount,
-                                    'note': note,
-                                    'categoryId': t.categoryId, // Fallback
-                                    'accountId': t.fromAccountId, // Refund to where it came from? Or Ask? 
-                                    // Usually refund goes to an account. Let's pre-fill with "To" account = "From" of expense
-                                    'accountId': t.fromAccountId,
-                                    'relatedTransactionId': t.id,
-                                  });
-                                  
-                                  if (result == true) {
-                                     // Update split status
-                                     t.subTransactions![index].isRefunded = true;
-                                     
-                                     // Check if all refunded
-                                     final allRefunded = t.subTransactions!.every((s) => s.isRefunded);
-                                     if (allRefunded) t.isRefunded = true;
-                                     
-                                     await ref.read(transactionsRepositoryProvider).updateTransaction(t);
-                                     
-                                     if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item Refunded')));
-                                        // Force rebuild? Widget ref updates should trigger if we watch... but we are in ConsumerWidget build not watching stream of this specific transaction?
-                                        // We passed `transaction` as params. We might need to pop/push or use stateful widget to refresh.
-                                        // OR, relying on GoRouter to refresh if the parent page watches.
-                                        // But here we are IN the page. `transaction` is final.
-                                        // We need to trigger a refresh.
-                                        // Ideally TransactionDetailsPage should WATCH the transaction by ID.
-                                        // Short term fix: Navigator.pushReplacement or setState if stateful.
-                                        // Since it's ConsumerWidget, we can't setState.
-                                        // We will rely on returning to previous page or we should convert to ConsumerStateful.
-                                        // Converting to ConsumerStateful is best but expensive in edits.
-                                        // Alternative: `context.role`? No.
-                                        // Let's just hope user backs out or we trigger a reload.
-                                        // BETTER: context.pushReplacement(self)
-                                        context.pushReplacement('/transaction-details', extra: t);
-                                     }
-                                  }
-                                 }
-                              },
-                            )
-                      ],
-                    ),
+                  return FutureBuilder<Party?>(
+                    future: split.partyId != null 
+                        ? ref.read(partyRepositoryProvider).getAllParties().then((list) => list.where((p) => p.id == split.partyId).firstOrNull)
+                        : Future.value(null),
+                    builder: (context, snapshot) {
+                        final partyName = snapshot.data?.name;
+                        
+                        return Container(
+                           padding: const EdgeInsets.all(12),
+                           decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(16),
+                           ),
+                           child: Row(
+                             children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: split.isMine ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                                  child: Icon(split.isMine ? Icons.person : Icons.group, size: 16, color: split.isMine ? Colors.green : Colors.orange),
+                                ),
+                                const Gap(12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(split.note?.isNotEmpty == true ? split.note! : (partyName != null ? 'Split with $partyName' : 'Split Item'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      Text(
+                                        split.isMine ? 'My Share' : (partyName != null ? 'Assigned to: $partyName' : 'Not My Expense'), 
+                                        style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text('\$${split.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                if (isRefunded)
+                                   const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check_circle, size: 16, color: Colors.green))
+                                else if (!split.isMine)
+                                   // Legacy Refund Button (Reduced/Hidden mostly, but keeping for backward compat if needed)
+                                   // User said "What is the use...?" so we should minimize it.
+                                   // Let's just show a small grey dot if not refunded, but no big button unless requested.
+                                   // Actually, let's keep it minimal.
+                                   const SizedBox.shrink()
+                             ],
+                           ),
+                        );
+                    }
                   );
                 },
               ),
@@ -499,6 +472,44 @@ class TransactionDetailsPage extends ConsumerWidget {
                 )
               ],
             ),
+          // Ledger Entries Section
+          if (t.hasLedgerEntries) ...[
+             const Gap(24),
+             Text('Ledger Entries', style: theme.textTheme.titleMedium),
+             const Gap(8),
+             FutureBuilder<List<LedgerEntry>>(
+                future: ref.read(transactionsRepositoryProvider).getLedgerEntries(t.id),
+                builder: (context, snapshot) {
+                   if (!snapshot.hasData) return const SizedBox.shrink();
+                   final entries = snapshot.data!;
+                   if (entries.isEmpty) return const Text('No entries found (Sync error?)');
+                   
+                   return Column(
+                     children: entries.map((e) => Card(
+                       elevation: 0,
+                       color: theme.colorScheme.surfaceContainer.withOpacity(0.5),
+                       margin: const EdgeInsets.only(bottom: 8),
+                       child: ListTile(
+                         leading: const Icon(Icons.book, color: Colors.purple),
+                         title: FutureBuilder<Party?>(
+                            future: ref.read(partyRepositoryProvider).getAllParties().then((l) => l.where((p) => p.id == e.partyId).firstOrNull),
+                            builder: (c, s) => Text(s.data?.name ?? 'Party #${e.partyId}'),
+                         ),
+                         subtitle: Text(e.note ?? e.nature.name.toUpperCase()),
+                         trailing: Text(
+                            '${e.nature == LedgerNature.receivable ? "+" : "-"} \$${e.amount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: e.nature == LedgerNature.receivable ? Colors.green : Colors.red,
+                              fontWeight: FontWeight.bold
+                            )
+                         ),
+                       ),
+                     )).toList(),
+                   );
+                }
+             ),
+          ],
+
           const Gap(40),
         ],
       ),
@@ -530,6 +541,32 @@ class _DetailRow extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountChip extends StatelessWidget {
+  const _AccountChip({required this.account});
+  final dynamic account; // Account?
+
+  @override
+  Widget build(BuildContext context) {
+    if (account == null) return const Text('Unknown');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.account_balance_wallet, size: 14),
+          const Gap(8),
+          Text(account.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         ],
       ),
     );

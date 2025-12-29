@@ -41,6 +41,9 @@ class Transaction {
 
   @Index()
   int? relatedTransactionId;
+
+  // Ledger V2 Compatibility
+  bool hasLedgerEntries = false;
 }
 
 @embedded
@@ -53,6 +56,9 @@ class SubTransaction {
 
   // Is this split my personal expense?
   bool isMine = true;
+
+  // Link to a Party (for Ledger)
+  int? partyId;
 
   bool isRefunded = false;
 }

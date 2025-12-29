@@ -22,6 +22,7 @@ class AccountDetailsPage extends ConsumerStatefulWidget {
 
 class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
   int _transactionFilterIndex = 0; // 0: All, 1: Income, 2: Expense
+  int _dateFilterIndex = 0; // 0: All Time, 1: This Month, 2: This Year
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +38,12 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
           IconButton(
             tooltip: 'Add Transaction',
             icon: const Icon(Icons.add),
-            onPressed: () => context.push('/add-transaction', extra: Transaction()..toAccountId=account.id..fromAccountId=account.id), // Pre-select account? logic needs refinement in AddPage
+            onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id}), 
           ),
           IconButton(
             tooltip: 'Transfer',
             icon: const Icon(Icons.swap_horiz),
-            onPressed: () => context.push('/add-transaction', extra: Transaction()..type=TransactionType.transfer..fromAccountId=account.id),
+            onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.transfer}),
           ),
            IconButton(
              tooltip: 'Manage Reserved',
@@ -115,10 +116,38 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
           ).toList();
 
           accountTransactions.sort((a, b) => b.date.compareTo(a.date)); // Descending
+          
+          List<Transaction> timeFilteredTransactions = accountTransactions;
+          final now = DateTime.now();
+          if (_dateFilterIndex == 1) { // Month
+             timeFilteredTransactions = accountTransactions.where((t) => t.date.year == now.year && t.date.month == now.month).toList();
+          } else if (_dateFilterIndex == 2) { // Year
+             timeFilteredTransactions = accountTransactions.where((t) => t.date.year == now.year).toList();
+          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+               // Time Filter
+               SizedBox(
+                 width: double.infinity,
+                 child: SegmentedButton<int>(
+                    segments: const [
+                       ButtonSegment(value: 0, label: Text('All Time')),
+                       ButtonSegment(value: 1, label: Text('This Month')),
+                       ButtonSegment(value: 2, label: Text('This Year')),
+                    ],
+                    selected: {_dateFilterIndex},
+                    onSelectionChanged: (Set<int> newSelection) {
+                       setState(() {
+                          _dateFilterIndex = newSelection.first;
+                       });
+                    },
+                    showSelectedIcon: false,
+                 ),
+               ),
+               const Gap(16),
+
               // Main Stats Card
               Card(
                 color: theme.colorScheme.primaryContainer,
@@ -146,9 +175,9 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
                         child: 
                       Row(
                         children: [
-                           Expanded(child: _StatColumn(label: 'Total In', amount: _calculateTotalIncome(account, accountTransactions), color: Colors.teal.shade800, currency: currency)),
+                           Expanded(child: _StatColumn(label: 'Total In', amount: _calculateTotalIncome(account, timeFilteredTransactions), color: Colors.teal.shade800, currency: currency)),
                            Container(width: 1, height: 40, color: theme.colorScheme.onPrimaryContainer.withOpacity(0.2)),
-                           Expanded(child: _StatColumn(label: 'Total Out', amount: _calculateTotalExpense(account, accountTransactions), color: Colors.red.shade800, currency: currency)),
+                           Expanded(child: _StatColumn(label: 'Total Out', amount: _calculateTotalExpense(account, timeFilteredTransactions), color: Colors.red.shade800, currency: currency)),
                         ], 
                       ),),
                       const Gap(16),
@@ -162,16 +191,16 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
                         ),
                         child: Row(
                         children: [
-                           Expanded(child: _StatColumn(label: 'Net Income', amount: _calculateAdjustedIncome(account, accountTransactions), color: Colors.teal, isBold: true, currency: currency)),
+                           Expanded(child: _StatColumn(label: 'Net Income', amount: _calculateAdjustedIncome(account, timeFilteredTransactions), color: Colors.teal, isBold: true, currency: currency)),
                            Container(width: 1, height: 40, color: theme.colorScheme.onSurface.withOpacity(0.2)),
-                           Expanded(child: _StatColumn(label: 'Net Spend', amount: _calculateNetCost(account, accountTransactions), color: Colors.red, isBold: true, currency: currency)),
+                           Expanded(child: _StatColumn(label: 'Net Spend', amount: _calculateNetCost(account, timeFilteredTransactions), color: Colors.red, isBold: true, currency: currency)),
                         ],
                         ),
                       ),
                       const Gap(16),
                       
                       // Line 4: Reimbursed
-                      if (_calculateReimbursements(account, accountTransactions) > 0)
+                      if (_calculateReimbursements(account, timeFilteredTransactions) > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -183,7 +212,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
                           children: [
                             Icon(Icons.undo, size: 12, color: theme.colorScheme.onSurface),
                             const Gap(8),
-                            Text('Reimbursed: $currency${_calculateReimbursements(account, accountTransactions).toStringAsFixed(2)}',
+                            Text('Reimbursed: $currency${_calculateReimbursements(account, timeFilteredTransactions).toStringAsFixed(2)}',
                                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface)), 
                           ],
                         ),
@@ -224,7 +253,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
                                           children: [
                                              const Text('Spendable', style: TextStyle(fontSize: 12, color: Colors.grey)),
                                              Text(
-                                                '$currency${spendable.toStringAsFixed(2)}',
+                                                '$currency${(spendable < 0 ? 0.0 : spendable).toStringAsFixed(2)}',
                                                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
                                              ),
                                           ],
@@ -306,7 +335,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
                    children: [
                       const Text('Analysis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       const Gap(16),
-                      AccountChart(transactions: accountTransactions, accountId: account.id, currency: currency),
+                      AccountChart(transactions: timeFilteredTransactions, accountId: account.id, currency: currency),
                    ],
                  ),
               ),
@@ -338,14 +367,13 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
                 ],
               ),
               const Gap(8),
-              
               Builder(
                 builder: (context) {
-                   List<dynamic> filtered = accountTransactions;
+                   List<dynamic> filtered = timeFilteredTransactions;
                    if (_transactionFilterIndex == 1) {
-                      filtered = accountTransactions.where((t) => t.type == TransactionType.income).toList();
+                      filtered = filtered.where((t) => t.type == TransactionType.income).toList();
                    } else if (_transactionFilterIndex == 2) {
-                      filtered = accountTransactions.where((t) => t.type == TransactionType.expense).toList();
+                      filtered = filtered.where((t) => t.type == TransactionType.expense).toList();
                    }
                    
                    if (filtered.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No transactions found')));
@@ -444,6 +472,8 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
        if (t.skipFromStats) continue;
        if (t.type == TransactionType.income && t.toAccountId == account.id) {
          income += t.amount;
+       } else if (t.type == TransactionType.transfer && t.toAccountId == account.id) {
+         income += t.amount;
        }
      }
      return income;
@@ -454,6 +484,8 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
      for (final t in transactions) {
        if (t.skipFromStats) continue;
        if (t.type == TransactionType.expense && t.fromAccountId == account.id) {
+         expense += t.amount;
+       } else if (t.type == TransactionType.transfer && t.fromAccountId == account.id) {
          expense += t.amount;
        }
      }

@@ -2,6 +2,7 @@ import 'package:isar/isar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/core/database/isar_service.dart';
+import 'package:money_manager/features/ledger/domain/ledger_entry.dart';
 
 final transactionsRepositoryProvider = Provider<TransactionsRepository>((ref) {
   return TransactionsRepository(IsarService.isar);
@@ -34,7 +35,50 @@ class TransactionsRepository {
 
   Future<void> addTransaction(Transaction transaction) async {
     await _isar.writeTxn(() async {
-      await _isar.transactions.put(transaction);
+      final id = await _isar.transactions.put(transaction);
+      transaction.id = id; // Ensure ID is set for linking
+      
+      // Ledger Logic: Generate Entries from Splits
+      if (transaction.subTransactions != null) {
+          final ledgerEntries = <LedgerEntry>[];
+          
+          for (final split in transaction.subTransactions!) {
+             if (split.partyId != null) {
+                 // Determine Nature
+                 // Case T1: Expense, I Paid (Implicit in this flow), Split is for Friend.
+                 // Friend Owes Me -> Receivable.
+                 
+                 LedgerNature? nature;
+                 String note = split.note ?? 'Split Share';
+                 
+                 if (transaction.type == TransactionType.expense) {
+                     if (!split.isMine) {
+                        nature = LedgerNature.receivable;
+                        note = 'Owed to Me for ${transaction.title}';
+                     }
+                 }
+                 // TODO: Handle Income/Settlement cases later
+                 
+                 if (nature != null) {
+                    ledgerEntries.add(LedgerEntry()
+                       ..transactionId = id
+                       ..partyId = split.partyId!
+                       ..amount = split.amount
+                       ..nature = nature
+                       ..date = transaction.date
+                       ..note = note
+                       ..categoryId = split.categoryId
+                    );
+                 }
+             }
+          }
+          
+          if (ledgerEntries.isNotEmpty) {
+             await _isar.ledgerEntrys.putAll(ledgerEntries);
+             transaction.hasLedgerEntries = true;
+             await _isar.transactions.put(transaction); // Update flag
+          }
+      }
     });
   }
 
@@ -208,6 +252,13 @@ class TransactionsRepository {
     return await _isar.transactions
         .filter()
         .relatedTransactionIdEqualTo(originalId)
+        .findAll();
+  }
+  
+  Future<List<LedgerEntry>> getLedgerEntries(Id transactionId) async {
+    return await _isar.ledgerEntrys
+        .filter()
+        .transactionIdEqualTo(transactionId)
         .findAll();
   }
 }

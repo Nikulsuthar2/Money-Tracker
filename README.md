@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![App Icon](https://github.com/nikul/money_tracker/raw/main/assets/icon/walletwin.png)
+![App Icon](https://github.com/Nikulsuthar2/Money-Tracker/assets/icon/walletwin.png)
 
 **A professional, privacy-focused financial manager built with Flutter.**  
 *Track expenses, manage budgets, and analyze your wealth with a premium Material 3 experience.*

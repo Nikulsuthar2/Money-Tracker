@@ -193,11 +193,11 @@ class _AccountChartState extends State<AccountChart> {
     int count = 7;
     Duration interval = const Duration(days: 1);
     
-    if (_period == 'Weekly') {
+    if (_period == 'Month') {
       count = 5;
       interval = const Duration(days: 7);
-    } else if (_period == 'Monthly') {
-      count = 6;
+    } else if (_period == 'Year') {
+      count = 12;
       interval = const Duration(days: 30);
     }
 
@@ -210,19 +210,14 @@ class _AccountChartState extends State<AccountChart> {
           width: double.infinity,
           child: SegmentedButton<String>(
             segments: const [
-              ButtonSegment(value: 'Daily', label: Text('Daily')),
-              ButtonSegment(value: 'Weekly', label: Text('Weekly')),
-              ButtonSegment(value: 'Monthly', label: Text('Monthly')),
+              ButtonSegment(value: 'Week', label: Text('Week')),
+              ButtonSegment(value: 'Month', label: Text('Month')),
+              ButtonSegment(value: 'Year', label: Text('Year')),
             ], 
-            selected: {_period == 'Week' ? 'Daily' : _period}, // Mismatch mapping: Week->Daily
+            selected: {_period}, 
             onSelectionChanged: (Set<String> newSelection) {
               setState(() {
-                final val = newSelection.first;
-                if (val == 'Daily') {
-                  _period = 'Week'; // Keep internal var or rename? renaming better but keeping var for now
-                } else {
-                  _period = val;
-                }
+                _period = newSelection.first;
               });
             },
             style: ButtonStyle(

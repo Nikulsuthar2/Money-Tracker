@@ -17,6 +17,11 @@ import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/transactions/presentation/all_transactions_table_page.dart';
 import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/accounts/presentation/account_details_page.dart';
+import 'package:money_manager/features/ledger/presentation/pages/parties_page.dart';
+import 'package:money_manager/features/ledger/presentation/pages/add_party_page.dart';
+import 'package:money_manager/features/ledger/presentation/pages/add_ledger_transaction_page.dart';
+import 'package:money_manager/features/ledger/domain/party.dart';
+import 'package:money_manager/features/ledger/presentation/pages/party_details_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -48,6 +53,17 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          
+          // Index 2: People
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/parties',
+                builder: (context, state) => const PartiesPage(),
+              ),
+            ],
+          ),
+
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -126,6 +142,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/subscriptions',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SubscriptionsPage(),
+      ),
+
+      GoRoute(
+        path: '/add-party',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final party = state.extra as Party?;
+          return AddPartyPage(partyToEdit: party);
+        },
+      ),
+      GoRoute(
+        path: '/add-ledger-transaction',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AddLedgerTransactionPage(),
+      ),
+      GoRoute(
+        path: '/party-details',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final party = state.extra as Party;
+          return PartyDetailsPage(party: party);
+        },
       ),
     ],
   );

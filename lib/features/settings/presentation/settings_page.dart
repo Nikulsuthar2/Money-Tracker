@@ -34,6 +34,13 @@ class SettingsPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/categories'),
           ),
+          ListTile(
+            leading: const Icon(Icons.people),
+            title: const Text('People & Merchants'),
+            subtitle: const Text('Manage payers and payees'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/parties'),
+          ),
           
           ListTile(
             leading: const Icon(Icons.monetization_on),

@@ -37,59 +37,64 @@ const TransactionSchema = CollectionSchema(
       name: r'fromAccountId',
       type: IsarType.long,
     ),
-    r'hasTime': PropertySchema(
+    r'hasLedgerEntries': PropertySchema(
       id: 4,
+      name: r'hasLedgerEntries',
+      type: IsarType.bool,
+    ),
+    r'hasTime': PropertySchema(
+      id: 5,
       name: r'hasTime',
       type: IsarType.bool,
     ),
     r'isRecurring': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'isRecurring',
       type: IsarType.bool,
     ),
     r'isRefunded': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'isRefunded',
       type: IsarType.bool,
     ),
     r'note': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'note',
       type: IsarType.string,
     ),
     r'relatedTransactionId': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'relatedTransactionId',
       type: IsarType.long,
     ),
     r'skipFromStats': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'skipFromStats',
       type: IsarType.bool,
     ),
     r'subTransactions': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'subTransactions',
       type: IsarType.objectList,
       target: r'SubTransaction',
     ),
     r'subscriptionId': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'subscriptionId',
       type: IsarType.long,
     ),
     r'title': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'title',
       type: IsarType.string,
     ),
     r'toAccountId': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'toAccountId',
       type: IsarType.long,
     ),
     r'type': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'type',
       type: IsarType.string,
       enumMap: _TransactiontypeEnumValueMap,
@@ -221,22 +226,23 @@ void _transactionSerialize(
   writer.writeLong(offsets[1], object.categoryId);
   writer.writeDateTime(offsets[2], object.date);
   writer.writeLong(offsets[3], object.fromAccountId);
-  writer.writeBool(offsets[4], object.hasTime);
-  writer.writeBool(offsets[5], object.isRecurring);
-  writer.writeBool(offsets[6], object.isRefunded);
-  writer.writeString(offsets[7], object.note);
-  writer.writeLong(offsets[8], object.relatedTransactionId);
-  writer.writeBool(offsets[9], object.skipFromStats);
+  writer.writeBool(offsets[4], object.hasLedgerEntries);
+  writer.writeBool(offsets[5], object.hasTime);
+  writer.writeBool(offsets[6], object.isRecurring);
+  writer.writeBool(offsets[7], object.isRefunded);
+  writer.writeString(offsets[8], object.note);
+  writer.writeLong(offsets[9], object.relatedTransactionId);
+  writer.writeBool(offsets[10], object.skipFromStats);
   writer.writeObjectList<SubTransaction>(
-    offsets[10],
+    offsets[11],
     allOffsets,
     SubTransactionSchema.serialize,
     object.subTransactions,
   );
-  writer.writeLong(offsets[11], object.subscriptionId);
-  writer.writeString(offsets[12], object.title);
-  writer.writeLong(offsets[13], object.toAccountId);
-  writer.writeString(offsets[14], object.type.name);
+  writer.writeLong(offsets[12], object.subscriptionId);
+  writer.writeString(offsets[13], object.title);
+  writer.writeLong(offsets[14], object.toAccountId);
+  writer.writeString(offsets[15], object.type.name);
 }
 
 Transaction _transactionDeserialize(
@@ -250,24 +256,25 @@ Transaction _transactionDeserialize(
   object.categoryId = reader.readLongOrNull(offsets[1]);
   object.date = reader.readDateTime(offsets[2]);
   object.fromAccountId = reader.readLongOrNull(offsets[3]);
-  object.hasTime = reader.readBool(offsets[4]);
+  object.hasLedgerEntries = reader.readBool(offsets[4]);
+  object.hasTime = reader.readBool(offsets[5]);
   object.id = id;
-  object.isRecurring = reader.readBool(offsets[5]);
-  object.isRefunded = reader.readBool(offsets[6]);
-  object.note = reader.readStringOrNull(offsets[7]);
-  object.relatedTransactionId = reader.readLongOrNull(offsets[8]);
-  object.skipFromStats = reader.readBool(offsets[9]);
+  object.isRecurring = reader.readBool(offsets[6]);
+  object.isRefunded = reader.readBool(offsets[7]);
+  object.note = reader.readStringOrNull(offsets[8]);
+  object.relatedTransactionId = reader.readLongOrNull(offsets[9]);
+  object.skipFromStats = reader.readBool(offsets[10]);
   object.subTransactions = reader.readObjectList<SubTransaction>(
-    offsets[10],
+    offsets[11],
     SubTransactionSchema.deserialize,
     allOffsets,
     SubTransaction(),
   );
-  object.subscriptionId = reader.readLongOrNull(offsets[11]);
-  object.title = reader.readStringOrNull(offsets[12]);
-  object.toAccountId = reader.readLongOrNull(offsets[13]);
+  object.subscriptionId = reader.readLongOrNull(offsets[12]);
+  object.title = reader.readStringOrNull(offsets[13]);
+  object.toAccountId = reader.readLongOrNull(offsets[14]);
   object.type =
-      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[14])] ??
+      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[15])] ??
           TransactionType.income;
   return object;
 }
@@ -294,25 +301,27 @@ P _transactionDeserializeProp<P>(
     case 6:
       return (reader.readBool(offset)) as P;
     case 7:
-      return (reader.readStringOrNull(offset)) as P;
-    case 8:
-      return (reader.readLongOrNull(offset)) as P;
-    case 9:
       return (reader.readBool(offset)) as P;
+    case 8:
+      return (reader.readStringOrNull(offset)) as P;
+    case 9:
+      return (reader.readLongOrNull(offset)) as P;
     case 10:
+      return (reader.readBool(offset)) as P;
+    case 11:
       return (reader.readObjectList<SubTransaction>(
         offset,
         SubTransactionSchema.deserialize,
         allOffsets,
         SubTransaction(),
       )) as P;
-    case 11:
-      return (reader.readLongOrNull(offset)) as P;
     case 12:
-      return (reader.readStringOrNull(offset)) as P;
-    case 13:
       return (reader.readLongOrNull(offset)) as P;
+    case 13:
+      return (reader.readStringOrNull(offset)) as P;
     case 14:
+      return (reader.readLongOrNull(offset)) as P;
+    case 15:
       return (_TransactiontypeValueEnumMap[reader.readStringOrNull(offset)] ??
           TransactionType.income) as P;
     default:
@@ -1274,6 +1283,16 @@ extension TransactionQueryFilter
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      hasLedgerEntriesEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'hasLedgerEntries',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterFilterCondition> hasTimeEqualTo(
       bool value) {
     return QueryBuilder.apply(this, (query) {
@@ -2189,6 +2208,20 @@ extension TransactionQuerySortBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      sortByHasLedgerEntries() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasLedgerEntries', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      sortByHasLedgerEntriesDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasLedgerEntries', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByHasTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'hasTime', Sort.asc);
@@ -2365,6 +2398,20 @@ extension TransactionQuerySortThenBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      thenByHasLedgerEntries() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasLedgerEntries', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy>
+      thenByHasLedgerEntriesDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'hasLedgerEntries', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByHasTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'hasTime', Sort.asc);
@@ -2528,6 +2575,13 @@ extension TransactionQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QDistinct>
+      distinctByHasLedgerEntries() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'hasLedgerEntries');
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QDistinct> distinctByHasTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'hasTime');
@@ -2622,6 +2676,12 @@ extension TransactionQueryProperty
   QueryBuilder<Transaction, int?, QQueryOperations> fromAccountIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'fromAccountId');
+    });
+  }
+
+  QueryBuilder<Transaction, bool, QQueryOperations> hasLedgerEntriesProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'hasLedgerEntries');
     });
   }
 
@@ -2729,6 +2789,11 @@ const SubTransactionSchema = Schema(
       id: 4,
       name: r'note',
       type: IsarType.string,
+    ),
+    r'partyId': PropertySchema(
+      id: 5,
+      name: r'partyId',
+      type: IsarType.long,
     )
   },
   estimateSize: _subTransactionEstimateSize,
@@ -2763,6 +2828,7 @@ void _subTransactionSerialize(
   writer.writeBool(offsets[2], object.isMine);
   writer.writeBool(offsets[3], object.isRefunded);
   writer.writeString(offsets[4], object.note);
+  writer.writeLong(offsets[5], object.partyId);
 }
 
 SubTransaction _subTransactionDeserialize(
@@ -2777,6 +2843,7 @@ SubTransaction _subTransactionDeserialize(
   object.isMine = reader.readBool(offsets[2]);
   object.isRefunded = reader.readBool(offsets[3]);
   object.note = reader.readStringOrNull(offsets[4]);
+  object.partyId = reader.readLongOrNull(offsets[5]);
   return object;
 }
 
@@ -2797,6 +2864,8 @@ P _subTransactionDeserializeProp<P>(
       return (reader.readBool(offset)) as P;
     case 4:
       return (reader.readStringOrNull(offset)) as P;
+    case 5:
+      return (reader.readLongOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -3114,6 +3183,80 @@ extension SubTransactionQueryFilter
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'note',
         value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SubTransaction, SubTransaction, QAfterFilterCondition>
+      partyIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'partyId',
+      ));
+    });
+  }
+
+  QueryBuilder<SubTransaction, SubTransaction, QAfterFilterCondition>
+      partyIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'partyId',
+      ));
+    });
+  }
+
+  QueryBuilder<SubTransaction, SubTransaction, QAfterFilterCondition>
+      partyIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'partyId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SubTransaction, SubTransaction, QAfterFilterCondition>
+      partyIdGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'partyId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SubTransaction, SubTransaction, QAfterFilterCondition>
+      partyIdLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'partyId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SubTransaction, SubTransaction, QAfterFilterCondition>
+      partyIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'partyId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
       ));
     });
   }

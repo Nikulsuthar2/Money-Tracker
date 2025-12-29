@@ -153,8 +153,21 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
+        actions: [
+           IconButton(
+             onPressed: () => context.push('/settings'),
+             icon: const Icon(Icons.settings),
+           ),
+        ],
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+           ref.invalidate(accountsWithBalanceProvider);
+           ref.invalidate(transactionsStreamProvider);
+           ref.invalidate(recentTransactionsProvider);
+           await Future.delayed(const Duration(milliseconds: 300));
+        },
+        child: ListView(
         padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80), 
         children: [
           // Total Balance Card
@@ -508,7 +521,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     children: (txs..sort((a, b) {
                       final dateComp = b.date.compareTo(a.date);
                       if (dateComp != 0) return dateComp;
-                      // Secondary sort: ID Descending (Newest first)
                       return b.id.compareTo(a.id);
                     })).map((t) {
                        final accountId = t.type == TransactionType.income ? t.toAccountId : t.fromAccountId;
@@ -531,9 +543,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ),
         ],
       ),
-
+      ),
     );
   }
+
+
   Widget _buildToggleOption(String text, bool isSelected, VoidCallback onTap) {
       return GestureDetector(
          onTap: onTap,

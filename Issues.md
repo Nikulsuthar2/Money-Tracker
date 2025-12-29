@@ -1,28 +1,11 @@
-# 🐛 Issues & Enhancements
+# Issues
 
-## 📱 UI & Responsive Design
-- [ ] **Desktop Responsiveness**: Improve layout adaptability for larger screens (Windows/Web).
-- [ ] **Navigation Cleanup**: The "+ FAB" appears redundantly in both the Sidebar and Bottom Navigation. It should only appear where contextually appropriate.
-- [ ] **Analytics UI**: Fix alignment issues within the "Net Result Card" on the Analytics Page.
+- When i open an account or wallet it gives or show this error "IsarError: Unkown property 'id'"
+- when i click + add transaction in account details page's appbar it gives this error lateinitializationError: Field 'date' has not been initialized and same error in transfer button click on appbar of account details page.
+also in same error isarError: Unkown property 'id' in most of the pages.
 
-## 📊 Charts & Data Visualization
-- [ ] **Graph Variety (Analytics)**: Implement different chart types (Bar, Line, Pie) across the main Analytics section.
-- [ ] **Graph Variety (Account Details)**: Add Bar, Line, and Pie charts to the Account Details analysis section.
-- [ ] **Dynamic Graph Filtering**: In Account Details, graphs should update dynamically based on the History segmented button (All vs Income vs Expense).
+and also i checked ledger statment but i don't know how its going to use and maintain which account is used if paid by me or how much part is mine and others well i can't say anything right now beacause most of pages not working 
 
-## 💸 Transactions & Logic
-- [ ] **Sorting Order**: Transactions are not sorting strictly by date. Newest transactions must stack on top (Date Descending), ignoring time differences if they cause disorder.
-- [ ] **Split Transaction UI**: Group split transaction items into a distinct "Card" section in the Transaction Details page for better isolation.
-- [ ] **Fund Allocation UI**: Improve the visual design of the Fund Allocation section in the "Add Account" page.
-- [ ] **Budget Logic Bug**: Users receive a "Funds Exceeded" warning even when sufficient Spendable balance is available for normal expenses.
-
-## 🔄 Refunds & Recouping
-- [ ] **Partial Refund Logic**: The "Get Back" feature is broken; it offers a full refund even after a partial refund has already been recorded.
-- [ ] **Refund Mode Context**: The "Refund Mode" banner/state only triggers via the main "Get Back" button, not when initiating a refund from an individual split item.
-- [ ] **UI Bug**: "Refunded" and "Undo" buttons are incorrectly visible on all expense transactions.
-
-## 📅 Subscriptions
-- [ ] **Subscription Logic**: 
-    - Fix duplicate payout prompts (asking for same payment multiple times).
-    - Implement auto-creation for past-due start dates: The app should automatically generate past transactions up to the current date without requiring user confirmation for each one.
-- [ ] **Subscription Details**: Remove "Refunded" and "Undo" buttons from Subscription-generated transaction details.
+also i hate that + add transaction button in bottom navigation bar i previously told you i want material ui components everywhere possible and in bottom navigation i want standard material ui 3 bottom navigation bar
+and for desktop size it should shoul a side bar with hamurger 3 line icon to expand and collapse it .
+please improve this app and make it more user friendly and easy to use.
