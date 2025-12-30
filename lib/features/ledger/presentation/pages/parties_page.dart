@@ -24,6 +24,11 @@ class _PartiesPageState extends ConsumerState<PartiesPage> {
         title: const Text('People & Merchants'),
         actions: [
            IconButton(
+             tooltip: 'Global Ledger',
+             icon: const Icon(Icons.menu_book), // Changed to book/ledger icon
+             onPressed: () => context.push('/global-ledger'),
+           ),
+           IconButton(
              tooltip: 'New Ledger Entry (V2)',
              icon: const Icon(Icons.receipt_long),
              onPressed: () => context.push('/add-ledger-transaction'),
@@ -51,9 +56,7 @@ class _PartiesPageState extends ConsumerState<PartiesPage> {
           }
           return RefreshIndicator(
             onRefresh: () async {
-               // Refresh parties list
                ref.invalidate(partiesStreamProvider);
-               // Refresh balances (rebuild FutureBuilders)
                setState(() {});
                await Future.delayed(const Duration(milliseconds: 500));
             },
@@ -100,6 +103,9 @@ class _PartiesPageState extends ConsumerState<PartiesPage> {
                   onTap: () {
                      context.push('/party-details', extra: party);
                   },
+                  onLongPress: isMe ? null : () {
+                     _showEditPartyDialog(context, party);
+                  },
                 );
               },
             ),
@@ -112,6 +118,31 @@ class _PartiesPageState extends ConsumerState<PartiesPage> {
         onPressed: () => context.push('/add-party'),
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  Future<void> _showEditPartyDialog(BuildContext context, Party party) async {
+    final controller = TextEditingController(text: party.name);
+    await showDialog(
+      context: context, 
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Name'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () async {
+             if (controller.text.trim().isNotEmpty) {
+                final updated = party..name = controller.text.trim();
+                await ref.read(partyRepositoryProvider).updateParty(updated);
+                if (context.mounted) Navigator.pop(context);
+             }
+          }, child: const Text('Save')),
+        ],
+      )
     );
   }
 }

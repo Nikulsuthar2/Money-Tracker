@@ -57,44 +57,50 @@ const TransactionSchema = CollectionSchema(
       name: r'isRefunded',
       type: IsarType.bool,
     ),
-    r'note': PropertySchema(
+    r'mode': PropertySchema(
       id: 8,
+      name: r'mode',
+      type: IsarType.string,
+      enumMap: _TransactionmodeEnumValueMap,
+    ),
+    r'note': PropertySchema(
+      id: 9,
       name: r'note',
       type: IsarType.string,
     ),
     r'relatedTransactionId': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'relatedTransactionId',
       type: IsarType.long,
     ),
     r'skipFromStats': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'skipFromStats',
       type: IsarType.bool,
     ),
     r'subTransactions': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'subTransactions',
       type: IsarType.objectList,
       target: r'SubTransaction',
     ),
     r'subscriptionId': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'subscriptionId',
       type: IsarType.long,
     ),
     r'title': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'title',
       type: IsarType.string,
     ),
     r'toAccountId': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'toAccountId',
       type: IsarType.long,
     ),
     r'type': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'type',
       type: IsarType.string,
       enumMap: _TransactiontypeEnumValueMap,
@@ -186,6 +192,7 @@ int _transactionEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  bytesCount += 3 + object.mode.name.length * 3;
   {
     final value = object.note;
     if (value != null) {
@@ -230,19 +237,20 @@ void _transactionSerialize(
   writer.writeBool(offsets[5], object.hasTime);
   writer.writeBool(offsets[6], object.isRecurring);
   writer.writeBool(offsets[7], object.isRefunded);
-  writer.writeString(offsets[8], object.note);
-  writer.writeLong(offsets[9], object.relatedTransactionId);
-  writer.writeBool(offsets[10], object.skipFromStats);
+  writer.writeString(offsets[8], object.mode.name);
+  writer.writeString(offsets[9], object.note);
+  writer.writeLong(offsets[10], object.relatedTransactionId);
+  writer.writeBool(offsets[11], object.skipFromStats);
   writer.writeObjectList<SubTransaction>(
-    offsets[11],
+    offsets[12],
     allOffsets,
     SubTransactionSchema.serialize,
     object.subTransactions,
   );
-  writer.writeLong(offsets[12], object.subscriptionId);
-  writer.writeString(offsets[13], object.title);
-  writer.writeLong(offsets[14], object.toAccountId);
-  writer.writeString(offsets[15], object.type.name);
+  writer.writeLong(offsets[13], object.subscriptionId);
+  writer.writeString(offsets[14], object.title);
+  writer.writeLong(offsets[15], object.toAccountId);
+  writer.writeString(offsets[16], object.type.name);
 }
 
 Transaction _transactionDeserialize(
@@ -261,20 +269,23 @@ Transaction _transactionDeserialize(
   object.id = id;
   object.isRecurring = reader.readBool(offsets[6]);
   object.isRefunded = reader.readBool(offsets[7]);
-  object.note = reader.readStringOrNull(offsets[8]);
-  object.relatedTransactionId = reader.readLongOrNull(offsets[9]);
-  object.skipFromStats = reader.readBool(offsets[10]);
+  object.mode =
+      _TransactionmodeValueEnumMap[reader.readStringOrNull(offsets[8])] ??
+          TransactionMode.regular;
+  object.note = reader.readStringOrNull(offsets[9]);
+  object.relatedTransactionId = reader.readLongOrNull(offsets[10]);
+  object.skipFromStats = reader.readBool(offsets[11]);
   object.subTransactions = reader.readObjectList<SubTransaction>(
-    offsets[11],
+    offsets[12],
     SubTransactionSchema.deserialize,
     allOffsets,
     SubTransaction(),
   );
-  object.subscriptionId = reader.readLongOrNull(offsets[12]);
-  object.title = reader.readStringOrNull(offsets[13]);
-  object.toAccountId = reader.readLongOrNull(offsets[14]);
+  object.subscriptionId = reader.readLongOrNull(offsets[13]);
+  object.title = reader.readStringOrNull(offsets[14]);
+  object.toAccountId = reader.readLongOrNull(offsets[15]);
   object.type =
-      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[15])] ??
+      _TransactiontypeValueEnumMap[reader.readStringOrNull(offsets[16])] ??
           TransactionType.income;
   return object;
 }
@@ -303,25 +314,28 @@ P _transactionDeserializeProp<P>(
     case 7:
       return (reader.readBool(offset)) as P;
     case 8:
-      return (reader.readStringOrNull(offset)) as P;
+      return (_TransactionmodeValueEnumMap[reader.readStringOrNull(offset)] ??
+          TransactionMode.regular) as P;
     case 9:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 10:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 11:
+      return (reader.readBool(offset)) as P;
+    case 12:
       return (reader.readObjectList<SubTransaction>(
         offset,
         SubTransactionSchema.deserialize,
         allOffsets,
         SubTransaction(),
       )) as P;
-    case 12:
-      return (reader.readLongOrNull(offset)) as P;
     case 13:
-      return (reader.readStringOrNull(offset)) as P;
-    case 14:
       return (reader.readLongOrNull(offset)) as P;
+    case 14:
+      return (reader.readStringOrNull(offset)) as P;
     case 15:
+      return (reader.readLongOrNull(offset)) as P;
+    case 16:
       return (_TransactiontypeValueEnumMap[reader.readStringOrNull(offset)] ??
           TransactionType.income) as P;
     default:
@@ -329,6 +343,14 @@ P _transactionDeserializeProp<P>(
   }
 }
 
+const _TransactionmodeEnumValueMap = {
+  r'regular': r'regular',
+  r'settlement': r'settlement',
+};
+const _TransactionmodeValueEnumMap = {
+  r'regular': TransactionMode.regular,
+  r'settlement': TransactionMode.settlement,
+};
 const _TransactiontypeEnumValueMap = {
   r'income': r'income',
   r'expense': r'expense',
@@ -1376,6 +1398,137 @@ extension TransactionQueryFilter
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> modeEqualTo(
+    TransactionMode value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'mode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> modeGreaterThan(
+    TransactionMode value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'mode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> modeLessThan(
+    TransactionMode value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'mode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> modeBetween(
+    TransactionMode lower,
+    TransactionMode upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'mode',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> modeStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'mode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> modeEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'mode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> modeContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'mode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> modeMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'mode',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition> modeIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'mode',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterFilterCondition>
+      modeIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'mode',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterFilterCondition> noteIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -2258,6 +2411,18 @@ extension TransactionQuerySortBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'mode', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByModeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'mode', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> sortByNote() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'note', Sort.asc);
@@ -2460,6 +2625,18 @@ extension TransactionQuerySortThenBy
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'mode', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByModeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'mode', Sort.desc);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QAfterSortBy> thenByNote() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'note', Sort.asc);
@@ -2600,6 +2777,13 @@ extension TransactionQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Transaction, Transaction, QDistinct> distinctByMode(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'mode', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Transaction, Transaction, QDistinct> distinctByNote(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2700,6 +2884,12 @@ extension TransactionQueryProperty
   QueryBuilder<Transaction, bool, QQueryOperations> isRefundedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isRefunded');
+    });
+  }
+
+  QueryBuilder<Transaction, TransactionMode, QQueryOperations> modeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'mode');
     });
   }
 

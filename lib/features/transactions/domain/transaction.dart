@@ -9,7 +9,16 @@ class Transaction {
   double amount = 0.0;
 
   @Enumerated(EnumType.name)
-  late TransactionType type;
+  late TransactionType type; // Keeping for backward compatibility & high-level cat? Or should Mode replace Type?
+  // User Prompt: "Transaction must be either Split Mode or Ledger Mode".
+  // Realistically: 
+  // - Expense (Split Mode) -> Type: expense
+  // - Settlement (Ledger Mode) -> Type: expense OR income (depending on direction)
+  // - Income -> Type: income
+  // Let's keep Type for Accounting (Income/Expense/Transfer) and use Mode for "Behavior" (Standard/Split vs Settlement).
+  
+  @Enumerated(EnumType.name)
+  TransactionMode mode = TransactionMode.regular; // default
 
   @Index()
   int? fromAccountId;
@@ -67,4 +76,9 @@ enum TransactionType {
   income,
   expense,
   transfer
+}
+
+enum TransactionMode {
+  regular, // Standard Income/Expense (can have splits if Expense)
+  settlement, // Debt Resolution (No splits, specific Ledger logic)
 }

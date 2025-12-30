@@ -3,8 +3,7 @@
     <application
         android:label="Money Tracker"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon"
-        android:roundIcon="@mipmap/ic_launcher_round">
+        android:icon="@mipmap/ic_launcher">
         <activity
             android:name="com.moneymanager.money_manager.MainActivity"
             android:exported="true"

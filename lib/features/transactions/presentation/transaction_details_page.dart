@@ -11,6 +11,11 @@ import 'package:money_manager/features/ledger/application/ledger_providers.dart'
 import 'package:money_manager/features/ledger/application/party_providers.dart';
 import 'package:money_manager/features/ledger/domain/ledger_entry.dart';
 import 'package:money_manager/features/ledger/domain/party.dart';
+import 'package:money_manager/features/categories/domain/category.dart';
+import 'package:money_manager/features/categories/data/categories_repository.dart';
+import 'package:money_manager/core/utils/currency_formatter.dart';
+import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:money_manager/features/ledger/presentation/widgets/ledger_entry_compact_tile.dart';
 
 class TransactionDetailsPage extends ConsumerWidget {
   const TransactionDetailsPage({super.key, required this.transaction});
@@ -92,13 +97,18 @@ class TransactionDetailsPage extends ConsumerWidget {
                   ),
                 ),
                 const Gap(8),
-                Text(
-                  '\$${t.amount.toStringAsFixed(2)}',
-                  style: theme.textTheme.displayMedium?.copyWith(
-                    color: color, 
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1,
-                  ),
+                Consumer(
+                  builder: (context, ref, _) {
+                     final symbol = ref.watch(currencyProvider);
+                     return Text(
+                       CurrencyFormatter.format(t.amount, symbol: symbol),
+                       style: theme.textTheme.displayMedium?.copyWith(
+                         color: color, 
+                         fontWeight: FontWeight.w900,
+                         letterSpacing: -1,
+                       ),
+                     );
+                  }
                 ),
                 if (t.title?.isNotEmpty == true) ...[
                   const Gap(4),
@@ -111,6 +121,9 @@ class TransactionDetailsPage extends ConsumerWidget {
 
           // Details Card
           Card(
+            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -137,6 +150,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                                  child: Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
                                ),
                                _AccountChip(account: to),
+                               const Gap(8),
                             ],
                           );
                        } else {
@@ -145,13 +159,107 @@ class TransactionDetailsPage extends ConsumerWidget {
                          valWidget = _AccountChip(account: account);
                        }
                        
-                       return _DetailRow(icon: Icons.account_balance_wallet, label: 'Account', customValue: valWidget);
-                    }
-                  ),
-                ],
-              ),
+                  return Column(
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                        _DetailRow(icon: Icons.account_balance_wallet, label: 'Account', customValue: valWidget),
+                        
+                        const Divider(),
+
+                        // Category / Transfer / Split Chips
+                        if (t.type == TransactionType.transfer)
+                           _DetailRow(
+                              icon: Icons.swap_horiz,
+                              label: 'Category',
+                              customValue: _Chip(icon: Icons.compare_arrows, label: 'Self Transfer', color: theme.colorScheme.outline),
+                           )
+                        else if (t.subTransactions != null && t.subTransactions!.isNotEmpty)
+                           FutureBuilder<List<Category>>(
+                              future: ref.read(categoriesRepositoryProvider).getAllCategories(),
+                              builder: (context, snapshot) {
+                                 final allCats = snapshot.data ?? [];
+                                 // Get unique category IDs from splits
+                                 final splitCatIds = t.subTransactions!
+                                    .map((s) => s.categoryId)
+                                    .whereType<int>()
+                                    .toSet();
+                                 
+                                 if (splitCatIds.isEmpty) return const SizedBox.shrink();
+
+                                 return Padding(
+                                   padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                   child: Column(
+                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                     children: [
+                                        Row(
+                                          children: [
+                                            Icon(Icons.category, size: 20, color: theme.colorScheme.secondary),
+                                            const Gap(16),
+                                            Text('Categories', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
+                                          ],
+                                        ),
+                                        const Gap(8),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: splitCatIds.map((id) {
+                                             final cat = allCats.where((c) => c.id == id).firstOrNull;
+                                             if (cat == null) return const SizedBox.shrink();
+                                             return _Chip(
+                                                icon: IconData(cat.icon, fontFamily: 'MaterialIcons'), 
+                                                label: cat.name,
+                                                color: theme.colorScheme.primary.withOpacity(0.7)
+                                             );
+                                          }).toList(),
+                                        ),
+                                     ],
+                                   ),
+                                 );
+                              }
+                           )
+                        else
+                           // Single Category
+                           FutureBuilder<Category?>(
+                             future: t.categoryId != null 
+                                ? ref.read(categoriesRepositoryProvider).getCategory(t.categoryId!) 
+                                : Future.value(null),
+                             builder: (context, snapshot) {
+                                final cat = snapshot.data;
+                                // If Category is null, check if it's a Settlement
+                                if (cat == null) {
+                                   if (t.mode == TransactionMode.settlement) {
+                                      return _DetailRow(
+                                         icon: Icons.handshake,
+                                         label: 'Category',
+                                         customValue: _Chip(
+                                            icon: Icons.handshake,
+                                            label: 'Settlement',
+                                            color: Colors.blue,
+                                         )
+                                      );
+                                   }
+                                   return const SizedBox.shrink();
+                                }
+                                
+                                return _DetailRow(
+                                  icon: Icons.category, 
+                                  label: 'Category', 
+                                  customValue: _Chip(
+                                     icon: IconData(cat.icon, fontFamily: 'MaterialIcons'), 
+                                     label: cat.name,
+                                     color: theme.colorScheme.primary, 
+                                  )
+                                );
+                             }
+                           ),
+                     ],
+                  );
+               }
             ),
-          ),
+          ],
+        ),
+      ),
+    ),
           
           if (t.note?.isNotEmpty == true) ...[
             const Gap(16),
@@ -202,64 +310,121 @@ class TransactionDetailsPage extends ConsumerWidget {
           if (t.subTransactions != null && t.subTransactions!.isNotEmpty) ...[
             Text('Split Details', style: theme.textTheme.titleMedium),
             const Gap(8),
-            ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: t.subTransactions!.length,
-                separatorBuilder: (context, index) => const Gap(8),
-                itemBuilder: (context, index) {
-                  final split = t.subTransactions![index];
-                  final isRefunded = split.isRefunded; 
-                  
-                  return FutureBuilder<Party?>(
-                    future: split.partyId != null 
-                        ? ref.read(partyRepositoryProvider).getAllParties().then((list) => list.where((p) => p.id == split.partyId).firstOrNull)
-                        : Future.value(null),
-                    builder: (context, snapshot) {
-                        final partyName = snapshot.data?.name;
-                        
-                        return Container(
-                           padding: const EdgeInsets.all(12),
-                           decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(16),
-                           ),
-                           child: Row(
-                             children: [
-                                CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: split.isMine ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
-                                  child: Icon(split.isMine ? Icons.person : Icons.group, size: 16, color: split.isMine ? Colors.green : Colors.orange),
-                                ),
-                                const Gap(12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(split.note?.isNotEmpty == true ? split.note! : (partyName != null ? 'Split with $partyName' : 'Split Item'), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      Text(
-                                        split.isMine ? 'My Share' : (partyName != null ? 'Assigned to: $partyName' : 'Not My Expense'), 
-                                        style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Text('\$${split.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                if (isRefunded)
-                                   const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check_circle, size: 16, color: Colors.green))
-                                else if (!split.isMine)
-                                   // Legacy Refund Button (Reduced/Hidden mostly, but keeping for backward compat if needed)
-                                   // User said "What is the use...?" so we should minimize it.
-                                   // Let's just show a small grey dot if not refunded, but no big button unless requested.
-                                   // Actually, let's keep it minimal.
-                                   const SizedBox.shrink()
-                             ],
-                           ),
-                        );
-                    }
-                  );
-                },
-              ),
+            Card(
+              clipBehavior: Clip.hardEdge,
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: t.subTransactions!.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 16, endIndent: 16),
+                  itemBuilder: (context, index) {
+                    final split = t.subTransactions![index];
+                    final isRefunded = split.isRefunded; 
+                    
+                      return FutureBuilder<Category?>(
+                        future: split.categoryId != null 
+                           ? ref.read(categoriesRepositoryProvider).getCategory(split.categoryId!)
+                           : Future.value(null),
+                        builder: (context, catSnapshot) {
+                           final category = catSnapshot.data;
+
+                           // Determine Icon / Label
+                           // If Category is null, check if it's settlement or just "No Category"
+                           // We generally treat party-splits without category as "Settlement" or "Split"
+                           // User asked: "in split details it should display settlement icon not any general category icon" if settlement.
+                           
+                           final isSettlement = split.categoryId == null; // Simple heuristic if no other flag
+                           final displayIcon = category != null 
+                               ? IconData(category.icon, fontFamily: 'MaterialIcons') 
+                               : (isSettlement ? Icons.handshake : Icons.category);
+                           
+                           final iconColor = category != null ? theme.colorScheme.primary : (isSettlement ? Colors.blue : Colors.grey);
+                           final title = category?.name ?? (isSettlement ? 'Settlement' : 'Uncategorized');
+
+                           return FutureBuilder<Party?>(
+                             future: split.partyId != null 
+                                 ? ref.read(partyRepositoryProvider).getAllParties().then((list) => list.where((p) => p.id == split.partyId).firstOrNull)
+                                 : Future.value(null),
+                             builder: (context, snapshot) {
+                                 final partyName = snapshot.data?.name;
+                                 
+                                 return Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    child: Row(
+                                      children: [
+                                         // Leading Icon (Category or Settlement)
+                                         Container(
+                                           width: 40, height: 40,
+                                           decoration: BoxDecoration(
+                                             color: iconColor.withOpacity(0.1),
+                                             borderRadius: BorderRadius.circular(12),
+                                           ),
+                                           child: Icon(displayIcon, color: iconColor, size: 20),
+                                         ),
+                                         const Gap(16),
+                                         
+                                         // Content
+                                         Expanded(
+                                           child: Column(
+                                             crossAxisAlignment: CrossAxisAlignment.start,
+                                             children: [
+                                                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                                
+                                                // Subtitle: Person Name + Note (bullet separated)
+                                                if (partyName != null || (split.note?.isNotEmpty == true))
+                                                  Row(
+                                                    children: [
+                                                       if (partyName != null) ...[
+                                                          Icon(Icons.person, size: 12, color: theme.colorScheme.onSurfaceVariant),
+                                                          const Gap(4),
+                                                          Text(partyName, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+                                                       ],
+                                                       
+                                                       if (partyName != null && (split.note?.isNotEmpty == true)) ...[
+                                                          const Gap(6),
+                                                          Text('•', style: TextStyle(fontSize: 10, color: theme.colorScheme.outline)),
+                                                          const Gap(6),
+                                                       ],
+
+                                                       if (split.note?.isNotEmpty == true)
+                                                          Expanded(child: Text(split.note!, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant), overflow: TextOverflow.ellipsis)),
+                                                    ],
+                                                  )
+                                                else 
+                                                  Text(split.isMine ? 'My Share' : 'Their Share', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+                                             ],
+                                           ),
+                                         ),
+                                         
+                                         // Amount (Formatted)
+                                         Consumer(
+                                           builder: (context, ref, _) {
+                                              return Column(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                children: [
+                                                  Text(
+                                                     CurrencyFormatter.format(split.amount, symbol: ref.read(currencyProvider)), 
+                                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)
+                                                  ),
+                                                  if (isRefunded)
+                                                    const Padding(padding: EdgeInsets.only(top: 2), child: Icon(Icons.check_circle, size: 12, color: Colors.green))
+                                                ],
+                                              );
+                                           }
+                                         )
+                                      ],
+                                    ),
+                                 );
+                             }
+                           );
+                        }
+                      );
+                  },
+                ),
+            ),
           ],
           
           const Gap(32),
@@ -289,189 +454,24 @@ class TransactionDetailsPage extends ConsumerWidget {
              }
           ),
 
-          // Only show Main Refund button if NOT all splits are refunded (and not wholly refunded) AND NOT A SUBSCRIPTION
-          if (!t.isRefunded && (t.subTransactions == null || t.subTransactions!.any((s) => !s.isRefunded)) && t.subscriptionId == null && t.type != TransactionType.transfer)
-          OutlinedButton.icon(
-            key: const ValueKey('refund_btn'),
-            onPressed: () async {
-              
-              double amount = t.amount;
-              String notePref = 'Refund: ';
-              bool isSplitRepayment = false; // Flag to determine text logic
-              
-              // Split Handling
-              if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
-                 final notRefunded = t.subTransactions!.where((s) => !s.isRefunded).toList();
-                 final notMineAndNotRefunded = notRefunded.where((s) => !s.isMine).toList();
-                 
-                 final List<SimpleDialogOption> options = [
-                    SimpleDialogOption(
-                      onPressed: () => Navigator.pop(context, 'full'),
-                      child: const Padding(padding: EdgeInsets.all(16), child: Text('Full Refund (Merchant)', style: TextStyle(fontSize: 16))),
-                    ),
-                 ];
-                 
-                 if (notMineAndNotRefunded.isNotEmpty) {
-                     options.add(SimpleDialogOption(
-                       onPressed: () => Navigator.pop(context, 'split'),
-                       child: const Padding(padding: EdgeInsets.all(16), child: Text('Split Repayment (Friend)', style: TextStyle(fontSize: 16))),
-                     ));
-                 }
-                 
-                 final choice = await showDialog<String>(context: context, builder: (c) => SimpleDialog(
-                    title: const Text('Refund Type'),
-                    children: options,
-                 ));
-                 
-                 if (choice == null) return;
-                 
-                 if (choice == 'split') {
-                    isSplitRepayment = true;
-                    // Select splits to repay
-                    final selectedSplits = await showDialog<List<dynamic>>(
-                       context: context,
-                       builder: (context) {
-                          final List<dynamic> selected = List.from(notMineAndNotRefunded);
-                          return StatefulBuilder(builder: (context, setState) {
-                             return AlertDialog(
-                                title: const Text('Select Items to Repay'),
-                                content: SingleChildScrollView(
-                                   child: Column(
-                                      children: notMineAndNotRefunded.map((s) {
-                                         return CheckboxListTile(
-                                            title: Text(s.note?.isNotEmpty == true ? s.note! : 'Item'),
-                                            subtitle: Text('\$${s.amount.toStringAsFixed(2)}'),
-                                            value: selected.contains(s),
-                                            onChanged: (v) => setState(() => v == true ? selected.add(s) : selected.remove(s)),
-                                         );
-                                      }).toList()
-                                   )
-                                ),
-                                actions: [
-                                   TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                                   FilledButton(onPressed: () => Navigator.pop(context, selected), child: const Text('Confirm')),
-                                ]
-                             );
-                          });
-                       }
-                    );
-                    
-                    if (selectedSplits == null || selectedSplits.isEmpty) return;
-
-                    // Calculate amount that is NOT mine (i.e. what friends owe me)
-                    amount = selectedSplits.fold(0.0, (sum, s) => sum + (s.amount as double));
-                    final notes = selectedSplits.map((s) => s.note).where((n) => n != null && n.toString().isNotEmpty).join(', ');
-                    notePref = 'Repayment${notes.isNotEmpty ? " ($notes)" : ""}: ';
-                 }
-              }
-
-              TransactionType newType;
-              if (t.type == TransactionType.expense) {
-                newType = TransactionType.income;
-              } else if (t.type == TransactionType.income) newType = TransactionType.expense;
-              else newType = TransactionType.transfer; 
-
-              int? accountId;
-              if (t.type == TransactionType.expense) accountId = t.fromAccountId;
-              if (t.type == TransactionType.income) accountId = t.toAccountId;
-              
-              if (context.mounted) {
-                final result = await context.push('/add-transaction', extra: {
-                  'type': newType,
-                  'amount': amount,
-                  'note': '$notePref${t.note ?? ''}',
-                  'categoryId': t.categoryId,
-                  'accountId': accountId, 
-                  'relatedTransactionId': t.id, // Linking back
-                  'isRefundMode': true, // Locks UI
-                });
-                
-                if (result == true) {
-                   if (notePref.startsWith('Repayment')) {
-                      // It was a repayment. Mark "Not Mine" splits as refunded if we made a repayment.
-                      // Ideally we mark only selected, but we simplified logic. 
-                      // We will mark all remaining unrefunded not-mine splits as refunded for this iteration 
-                      // to ensure the button hides next time if exhausted.
-                       if (t.subTransactions != null) {
-                        for (var s in t.subTransactions!) {
-                           if (!s.isMine && !s.isRefunded) {
-                              s.isRefunded = true; 
-                           }
-                        }
-                      }
-                      
-                      if (t.subTransactions!.every((s) => s.isRefunded)) {
-                         t.isRefunded = true;
-                      }
-                   } else {
-                      // Full refund
-                      t.isRefunded = true;
-                   }
-                   
-                   await ref.read(transactionsRepositoryProvider).updateTransaction(t);
-                   if (context.mounted) {
-                     // Force replace to refresh UI since we modified 't' in place but UI is stale
-                     context.pushReplacement('/transaction-details', extra: t);
-                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Refund Recorded')));
-                   }
-                }
-              }
-            },
-            icon: const Icon(Icons.undo),
-            // Dynamic Label
-            label: Builder(
-              builder: (context) {
-                 if (t.type == TransactionType.expense) {
-                    if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
-                       final hasNotMine = t.subTransactions!.any((s) => !s.isMine && !s.isRefunded);
-                       if (!hasNotMine) {
-                          // Only my expense left (or all others refunded)
-                          return const Text('Get Your Portion (Refund)'); 
-                       }
-                    }
-                    return const Text('Got Back (Refund)');
-                 }
-                 return Text(t.type == TransactionType.expense ? 'Got Back (Refund)' : (t.type == TransactionType.income ? 'Repay (Refund)' : 'Reverse Transaction'));
-              }
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              foregroundColor: theme.colorScheme.primary,
-            ),
-          ) else if (t.type != TransactionType.transfer) // Refined check for badge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Chip(
-                  label: Text('Refunded', style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.greenAccent : Colors.green.shade900)),
-                  avatar: const Icon(Icons.check_circle, color: Colors.green),
-                  backgroundColor: theme.brightness == Brightness.dark ? Colors.green.withOpacity(0.2) : Colors.green.shade100,
-                  side: BorderSide.none,
-                ),
-                const Gap(12),
-                TextButton.icon(
-                  onPressed: () {
-                     showDialog(context: context, builder: (d) => AlertDialog(
-                        title: const Text('Undo Refund?'),
-                        content: const Text('This will delete the repayment transaction and revert this transaction status.'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
-                          TextButton(onPressed: () async {
-                              await ref.read(transactionsRepositoryProvider).revertRefundForOriginal(t.id);
-                              if (context.mounted) {
-                                Navigator.pop(d);
-                                Navigator.pop(context); // Refresh page
-                              }
-                          }, child: const Text('Undo Refund', style: TextStyle(color: Colors.red))),
-                        ],
-                     ));
-                  },
-                  icon: const Icon(Icons.undo, size: 16),
-                  label: const Text('Undo'),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                )
-              ],
-            ),
+          // Mode Badge
+          if (t.mode == TransactionMode.settlement)
+             Center(
+               child: Chip(
+                 label: const Text('Settlement Transaction'),
+                 avatar: const Icon(Icons.handshake, size: 16),
+                 backgroundColor: theme.colorScheme.primaryContainer,
+               ),
+             ),
+             
+          // Refund/Skip Badge (New Toggle)
+          if (t.skipFromStats && t.type == TransactionType.income)
+             Center(
+               child: Chip(
+                 label: const Text('Refund (Skipped from Stats)'),
+                 avatar: const Icon(Icons.replay, size: 16),
+               ),
+             ),
           // Ledger Entries Section
           if (t.hasLedgerEntries) ...[
              const Gap(24),
@@ -497,9 +497,15 @@ class TransactionDetailsPage extends ConsumerWidget {
                          ),
                          subtitle: Text(e.note ?? e.nature.name.toUpperCase()),
                          trailing: Text(
-                            '${e.nature == LedgerNature.receivable ? "+" : "-"} \$${e.amount.toStringAsFixed(2)}',
+                            // OWE = Positive (They Owe Me). PAID = Negative (I paid them) or Positive (They paid me)?
+                            // Ledger Entry amount logic:
+                            // OWE: Always + (if I paid expense).
+                            // PAID: Logic in Repo says: Expense(I paid) -> Negative Amount. Income(They paid) -> Positive Amount.
+                            // So we can just trust the signed amount.
+                            // Positive = Green (Receivable / Received). Negative = Red (Payable / Paid out).
+                            '\$${e.amount.abs().toStringAsFixed(2)}',
                             style: TextStyle(
-                              color: e.nature == LedgerNature.receivable ? Colors.green : Colors.red,
+                              color: e.amount > 0 ? Colors.green : Colors.red,
                               fontWeight: FontWeight.bold
                             )
                          ),
@@ -567,6 +573,33 @@ class _AccountChip extends StatelessWidget {
           const Icon(Icons.account_balance_wallet, size: 14),
           const Gap(8),
           Text(account.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.icon, required this.label, this.color});
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color ?? Theme.of(context).iconTheme.color),
+          const Gap(8),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         ],
       ),
     );

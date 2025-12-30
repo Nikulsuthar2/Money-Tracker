@@ -45,9 +45,18 @@ class LedgerEntry {
 }
 
 enum LedgerNature {
-  expense,     // My real cost
-  receivable,  // Someone owes me
-  payable,     // I owe someone
-  settlement,  // Reduces outstanding balance
-  internal     // Buckets / Reserved
+  owe,     // Creates Obligation (I owe them, or They owe me). Direction decided by Amount sign or Party?
+           // Convention: 
+           // If Party is "Friend":
+           // - Positive Amount + OWE = Friend Owes Me?
+           // - Negative Amount + OWE = I Owe Friend?
+           // Let's follow Prompt: "P1 OWE ME 100"
+           // Entry stores: Party=P1, Nature=OWE, Amount=100. (Positive = They owe me).
+           // If I owe P1? Party=P1, Nature=OWE, Amount=-100.
+  
+  paid,    // Resolves Obligation (Settlement).
+           // If Party=P1, Nature=PAID, Amount=100 (They paid me).
+           // If Party=P1, Nature=PAID, Amount=-100 (I paid them).
+           
+  internal // For Buckets / Reserved (Non-Ledger / Self)
 }

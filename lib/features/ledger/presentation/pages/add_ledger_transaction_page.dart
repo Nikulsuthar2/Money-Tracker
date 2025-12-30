@@ -119,14 +119,16 @@ class _AddLedgerTransactionPageState extends ConsumerState<AddLedgerTransactionP
           
           final shareAmount = double.tryParse(_shareControllers[consumerId]?.text ?? '0') ?? 0;
 
-          // A. Expense Recording
-          entries.add(LedgerEntry()
-            ..partyId = consumerId
-            ..nature = LedgerNature.expense
-            ..amount = shareAmount
-            ..date = date
-            ..note = '$description (Share)'
-          );
+          // A. Expense Recording (Optional / Internal)
+          // We don't strictly need 'expense' nature anymore for debt tracking.
+          // But if we want to log it?
+          // entries.add(LedgerEntry()
+          //   ..partyId = consumerId
+          //   ..nature = LedgerNature.internal 
+          //   ..amount = shareAmount
+          //   ..date = date
+          //   ..note = '$description (Share)'
+          // );
           
           // B. Debt/Asset Recording
           if (consumerId != _paidBy!.id) {
@@ -134,17 +136,23 @@ class _AddLedgerTransactionPageState extends ConsumerState<AddLedgerTransactionP
                  // I Paid -> Friend Owes Me (Receivable)
                  entries.add(LedgerEntry()
                     ..partyId = consumerId
-                    ..nature = LedgerNature.receivable
+                    ..nature = LedgerNature.owe
                     ..amount = shareAmount
                     ..date = date
                     ..note = 'Owed to Me for $description'
                  );
               } else if (isConsumerMe) {
-                 // Friend Paid -> I Owe Friend (Payable)
+                 // Friend Paid -> I Owe Friend (Payable) -> Friend has Receivable?
+                 // Wait, strict rule: OWE = Creating Debt.
+                 // Friend Paid. I consumed. I owe Friend.
+                 // Entry should be for Friend Party?
+                 // If I view Friend's Ledger:
+                 // Amount should be -100? (I Owe).
+                 
                  entries.add(LedgerEntry()
                     ..partyId = _paidBy!.id
-                    ..nature = LedgerNature.payable
-                    ..amount = shareAmount
+                    ..nature = LedgerNature.owe
+                    ..amount = -shareAmount // Negative OWE = I Owe Them
                     ..date = date
                     ..note = 'Owed to ${_paidBy!.name} for $description'
                  );

@@ -65,11 +65,18 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
   final _customBucketAmountController = TextEditingController();
 
   late TabController _tabController;
+  
+  // Settlement State
+  int? _settlementPartyId;
+  bool _settlementIPaid = true; // true = I Paid (Expense), false = They Paid (Income)
+  
+  // Experimental Inline Settlement
+  bool _inlineSettlementMode = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this); // Income, Expense, Transfer, Settlement
     
     Transaction? transactionToEdit;
     Map<String, dynamic>? defaults;
@@ -150,21 +157,11 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         if (defaults != null && defaults.containsKey('subscriptionId')) {
            _subscriptionId = defaults['subscriptionId'];
         }
-        
-        // Refund Mode check
-        if (defaults != null && defaults['isRefundMode'] == true) {
-           _isRefundMode = true;
-           _type = TransactionType.income;
-           _tabController.index = 0;
-        }
     }
     
-    // Lock logic if refund mode
-    if (_isRefundMode) {
-       _type = TransactionType.income;
-       _tabController.index = 0;
-    }
-
+    // Lock logic if refund mode (Legacy support or just removing?)
+    // User plan said remove refund mode. I will ignore _isRefundMode flags or convert them to standard income.
+    
     _tabController.addListener(() {
        // Sync tab index with Transaction Type
        if (_tabController.indexIsChanging) {
@@ -172,8 +169,16 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
            if (_tabController.index == 0) _type = TransactionType.income;
            if (_tabController.index == 1) _type = TransactionType.expense;
            if (_tabController.index == 2) _type = TransactionType.transfer;
-           // Reset split if switching to transfer
-           if (_type == TransactionType.transfer) {
+           if (_tabController.index == 3) {
+              // Settlement Mode
+              // Defaults to Expense (Me paying someone) or Income (They paying me)?
+              // We'll decide type based on user input in the Settlement UI.
+              // For now default to Expense (I pay).
+              _type = TransactionType.expense; 
+           }
+           
+           // Reset split if switching to transfer or settlement
+           if (_type == TransactionType.transfer || _tabController.index == 3) {
               _isSplit = false;
               _splits.clear();
            }
@@ -222,11 +227,11 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
           return;
         }
         
-        // Category Validation
-        if (!_isSplit && (_type == TransactionType.income || _type == TransactionType.expense) && _selectedCategoryId == null) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a category')));
-          return;
-        }
+        // Category Validation - Removed to allow "None"
+        // if (!_isSplit && (_type == TransactionType.income || _type == TransactionType.expense) && _selectedCategoryId == null) {
+        //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a category')));
+        //   return;
+        // }
 
         final amount = double.tryParse(_amountController.text) ?? 0.0;
 
@@ -330,17 +335,35 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         transaction
           ..amount = amount
           ..type = _type
+          ..mode = (_tabController.index == 3 || _inlineSettlementMode) ? TransactionMode.settlement : TransactionMode.regular
           ..date = _hasTime ? _date : DateTime(_date.year, _date.month, _date.day) // Strip time if no time
           ..title = _titleController.text 
           ..note = _noteController.text
-          ..categoryId = _isSplit ? null : _selectedCategoryId
+          ..categoryId = _isSplit || _tabController.index == 3 || _inlineSettlementMode ? null : _selectedCategoryId // Settlement/Split have no main category? Or Settlement defaults?
           ..skipFromStats = _skipFromStats
           ..hasTime = _hasTime
           ..relatedTransactionId = _relatedTransactionId
           ..subscriptionId = _subscriptionId;
        
-        // Assign Splits
-        if (_isSplit) {
+        // Assign Splits or Settlement Party
+        if (_tabController.index == 3 || _inlineSettlementMode) {
+           // Settlement Mode
+           if (_settlementPartyId == null) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a party to settle with')));
+              return;
+           }
+           // Create a single subtransaction to carry the Party ID
+           transaction.subTransactions = [
+              SubTransaction()
+                ..amount = amount
+                ..partyId = _settlementPartyId
+                ..isMine = _type == TransactionType.expense // If Expense (I paid), isMine=true?
+                ..note = 'Settlement'
+           ];
+           // Settlement usually has no category, or a system "Debt" category?
+           // We'll leave categoryId null for now.
+        }
+        else if (_isSplit) {
           transaction.subTransactions = _splits.map((s) => SubTransaction()
             ..amount = double.parse(s.amountController.text)
             ..note = s.noteController.text
@@ -512,6 +535,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
             Tab(text: 'Income'),
             Tab(text: 'Expense'),
             Tab(text: 'Transfer'),
+            Tab(text: 'Settlement'),
           ],
         ),
       ),
@@ -519,24 +543,51 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         key: _formKey,
         child: ListView(
           children: [
-             if (_isRefundMode) 
-                MaterialBanner(
-                  content: const Text('Refund Mode Active', style: TextStyle(fontWeight: FontWeight.bold)),
-                  leading: const Icon(Icons.info, color: Colors.blue),
-                  backgroundColor: Colors.blue.withOpacity(0.1),
-                  actions: [
-                     TextButton(
-                       onPressed: () {
-                         setState(() {
-                            _isRefundMode = false;
-                            // Reset type if needed or keep fields?
-                            // User said "go back to normal add transaction mode"
-                         });
-                       }, 
-                       child: const Text('Exit Mode')
-                     ),
-                  ],
+             // Settlement Mode UI
+             if (_tabController.index == 3) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  child: Column(
+                    children: [
+                      const Text('Settlement Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text('Track debt payments directly. No splits.', style: TextStyle(color: Colors.grey)),
+                      const Gap(16),
+                      // Direction Toggle
+                      Row(
+                         children: [
+                            Expanded(child: ChoiceChip(
+                              label: const Text('I Paid (They Owe Less)'),
+                              selected: _settlementIPaid,
+                              onSelected: (v) => setState(() { _settlementIPaid = true; _type = TransactionType.expense; }),
+                              avatar: const Icon(Icons.arrow_upward, size: 16, color: Colors.red),
+                            )),
+                            const Gap(8),
+                            Expanded(child: ChoiceChip(
+                              label: const Text('They Paid (I Owe Less)'),
+                              selected: !_settlementIPaid,
+                              onSelected: (v) => setState(() { _settlementIPaid = false; _type = TransactionType.income; }),
+                              avatar: const Icon(Icons.arrow_downward, size: 16, color: Colors.green),
+                            )),
+                         ],
+                      ),
+                      const Gap(16),
+                      // Party Selector
+                      partiesAsync.when(
+                        data: (parties) => DropdownButtonFormField<int>(
+                             value: _settlementPartyId,
+                             decoration: inputDecoration.copyWith(labelText: 'Select Party', prefixIcon: const Icon(Icons.person)),
+                             items: parties.where((p) => !p.isMe()).map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                             onChanged: (v) => setState(() => _settlementPartyId = v),
+                        ),
+                        loading: () => const LinearProgressIndicator(),
+                        error: (_,__) => const Text('Error loading parties'),
+                      ),
+                    ],
+                  ),
                 ),
+                const Gap(8),
+             ],
                 
              Padding(
                padding: const EdgeInsets.all(16),
@@ -574,6 +625,29 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
               textCapitalization: TextCapitalization.sentences,
             ),
             const Gap(16),
+
+            // Inline Settlement Switch (Experimental)
+            if (_tabController.index != 2 && _tabController.index != 3 && !_isRefundMode) ...[
+               SwitchListTile(
+                 title: const Text('Settlement Transaction', style: TextStyle(fontWeight: FontWeight.bold)),
+                 subtitle: const Text('Link this to a person (Ledger) instead of a category'),
+                 value: _inlineSettlementMode,
+                 onChanged: (val) {
+                    setState(() {
+                       _inlineSettlementMode = val;
+                       if (val) {
+                          _isSplit = false;
+                          _splits.clear();
+                       }
+                    });
+                 },
+                 secondary: const Icon(Icons.handshake),
+                 dense: true,
+                 contentPadding: EdgeInsets.zero,
+                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+               ),
+               const Gap(16),
+            ],
 
             // Date & Time Picker
             Row(
@@ -651,6 +725,24 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
             ),
             const Gap(16),
             
+            const Gap(16),
+            
+            // Party Selector (Inline Settlement)
+            if (_inlineSettlementMode && _tabController.index != 3)
+                 partiesAsync.when(
+                    data: (parties) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: DropdownButtonFormField<int>(
+                           value: _settlementPartyId,
+                           decoration: inputDecoration.copyWith(labelText: 'Select Party', prefixIcon: const Icon(Icons.person)),
+                           items: parties.where((p) => !p.isMe()).map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                           onChanged: (v) => setState(() => _settlementPartyId = v),
+                      ),
+                    ),
+                    loading: () => const LinearProgressIndicator(),
+                    error: (_,__) => const Text('Error loading parties'),
+                 ),
+
             // Account Selection (From)
             StreamBuilder<List<Account>>(
               stream: ref.read(accountsRepositoryProvider).watchActiveAccounts(),
@@ -695,8 +787,8 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
             
             const Gap(16),
 
-            // Category Selection (Normal Mode)
-            if (_type != TransactionType.transfer && !_isSplit) 
+            // Category Selection (Normal Mode AND Not Inline Settlement)
+            if (_type != TransactionType.transfer && !_isSplit && !_inlineSettlementMode) 
               categoriesAsync.when(
                 data: (categories) {
                      // specific validation to prevent crash if pre-filled category (e.g. from Refund) doesn't exist in this type list
@@ -711,21 +803,24 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                         ? _selectedCategoryId 
                         : null;
 
-                     return DropdownButtonFormField<int>(
+                     return DropdownButtonFormField<int?>(
                        initialValue: effectiveCategoryId,
                         decoration: inputDecoration.copyWith(
                          labelText: 'Category',
                        ),
-                       items: categories.map((c) => DropdownMenuItem(
-                         value: c.id,
-                         child: Row(
-                           children: [
-                             Icon(IconData(c.icon, fontFamily: 'MaterialIcons')), 
-                             const Gap(8),
-                             Text(c.name),
-                           ],
-                         ),
-                       )).toList(),
+                       items: [
+                         const DropdownMenuItem(value: null, child: Text('None')),
+                         ...categories.map((c) => DropdownMenuItem(
+                           value: c.id,
+                           child: Row(
+                             children: [
+                               Icon(IconData(c.icon, fontFamily: 'MaterialIcons')), 
+                               const Gap(8),
+                               Text(c.name),
+                             ],
+                           ),
+                         ))
+                       ].toList(),
                        onChanged: (v) => setState(() => _selectedCategoryId = v),
                      );
                 },
@@ -778,8 +873,22 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                  ),
                  const Gap(16),
              ],
+             
+             // Refund Toggle for Income
+             if (_tabController.index == 0) ...[
+                const Gap(8),
+                SwitchListTile(
+                   title: const Text('Mark as Refund'),
+                   subtitle: const Text('Exclude from Net Income stats'),
+                   value: _skipFromStats,
+                   onChanged: (v) => setState(() => _skipFromStats = v),
+                   secondary: const Icon(Icons.replay),
+                   contentPadding: EdgeInsets.zero,
+                ),
+                const Gap(8),
+             ],
 
-             if (_type != TransactionType.transfer) ...[
+             if (_type != TransactionType.transfer && _tabController.index != 3) ...[
                 const Gap(8),
                 Row(
                   children: [
@@ -815,13 +924,16 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                                Row(
                                  children: [
                                     Expanded(
-                                      child: DropdownButtonFormField<int>(
+                                      child: DropdownButtonFormField<int?>(
                                         initialValue: _splits[i].categoryId,
                                         decoration: const InputDecoration(labelText: 'Category', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
-                                        items: categories.map((c) => DropdownMenuItem(
-                                           value: c.id,
-                                           child: Text(c.name),
-                                        )).toList(),
+                                        items: [
+                                           const DropdownMenuItem(value: null, child: Text('None')),
+                                           ...categories.map((c) => DropdownMenuItem(
+                                             value: c.id,
+                                             child: Text(c.name),
+                                           ))
+                                        ].toList(),
                                         onChanged: (v) => setState(() => _splits[i].categoryId = v),
                                       ),
                                    ),

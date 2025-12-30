@@ -29,7 +29,7 @@ final accountsWithBalanceProvider = StreamProvider.autoDispose<List<AccountStats
      final accounts = await accountsRepo.getAllAccounts();
      final List<AccountStats> list = [];
      for (final account in accounts) {
-       final stats = await transactionsRepo.getAccountStats(account.id, account.openingBalance);
+       final stats = await transactionsRepo.getAccountMonthlyStats(account.id, account.openingBalance, DateTime.now());
        final balance = stats['balance'] ?? 0;
        final income = stats['income'] ?? 0;
        final expense = stats['expense'] ?? 0;

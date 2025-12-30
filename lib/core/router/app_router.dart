@@ -22,6 +22,7 @@ import 'package:money_manager/features/ledger/presentation/pages/add_party_page.
 import 'package:money_manager/features/ledger/presentation/pages/add_ledger_transaction_page.dart';
 import 'package:money_manager/features/ledger/domain/party.dart';
 import 'package:money_manager/features/ledger/presentation/pages/party_details_page.dart';
+import 'package:money_manager/features/ledger/presentation/global_ledger_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -164,6 +165,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           final party = state.extra as Party;
           return PartyDetailsPage(party: party);
         },
+      ),
+      GoRoute(
+        path: '/global-ledger',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const GlobalLedgerPage(),
       ),
     ],
   );

@@ -165,7 +165,7 @@ LedgerEntry _ledgerEntryDeserialize(
   object.id = id;
   object.nature =
       _LedgerEntrynatureValueEnumMap[reader.readStringOrNull(offsets[3])] ??
-          LedgerNature.expense;
+          LedgerNature.owe;
   object.note = reader.readStringOrNull(offsets[4]);
   object.partyId = reader.readLong(offsets[5]);
   object.transactionId = reader.readLongOrNull(offsets[6]);
@@ -187,7 +187,7 @@ P _ledgerEntryDeserializeProp<P>(
       return (reader.readDateTime(offset)) as P;
     case 3:
       return (_LedgerEntrynatureValueEnumMap[reader.readStringOrNull(offset)] ??
-          LedgerNature.expense) as P;
+          LedgerNature.owe) as P;
     case 4:
       return (reader.readStringOrNull(offset)) as P;
     case 5:
@@ -200,17 +200,13 @@ P _ledgerEntryDeserializeProp<P>(
 }
 
 const _LedgerEntrynatureEnumValueMap = {
-  r'expense': r'expense',
-  r'receivable': r'receivable',
-  r'payable': r'payable',
-  r'settlement': r'settlement',
+  r'owe': r'owe',
+  r'paid': r'paid',
   r'internal': r'internal',
 };
 const _LedgerEntrynatureValueEnumMap = {
-  r'expense': LedgerNature.expense,
-  r'receivable': LedgerNature.receivable,
-  r'payable': LedgerNature.payable,
-  r'settlement': LedgerNature.settlement,
+  r'owe': LedgerNature.owe,
+  r'paid': LedgerNature.paid,
   r'internal': LedgerNature.internal,
 };
 

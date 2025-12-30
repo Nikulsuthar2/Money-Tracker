@@ -42,6 +42,14 @@ class CategoriesRepository {
     });
   }
 
+  Future<Category?> getCategory(Id id) async {
+    return _isar.categorys.get(id);
+  }
+
+  Future<List<Category>> getAllCategories() async {
+    return _isar.categorys.where().findAll();
+  }
+
   Future<void> seedDefaultCategories() async {
     final count = await _isar.categorys.count();
     if (count == 0) {

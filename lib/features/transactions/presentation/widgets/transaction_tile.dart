@@ -36,7 +36,12 @@ class TransactionTile extends ConsumerWidget {
             : Colors.blue;
 
     IconData icon;
-    if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
+    // Check if it's a "Shared" split (involves other parties)
+    // User wants to hide split icon if it's just "my share" (category splits only).
+    // Assuming "my share" means subtransactions with NO party assigned (partyId is null).
+    final isSharedSplit = t.subTransactions != null && t.subTransactions!.any((s) => s.partyId != null);
+
+    if (isSharedSplit) {
       icon = Icons.call_split;
     } else if (category != null) {
       icon = IconData(category!.icon, fontFamily: 'MaterialIcons');

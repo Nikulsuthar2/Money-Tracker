@@ -38,37 +38,55 @@ class TransactionsRepository {
       final id = await _isar.transactions.put(transaction);
       transaction.id = id; // Ensure ID is set for linking
       
-      // Ledger Logic: Generate Entries from Splits
-      if (transaction.subTransactions != null) {
+      // Ledger Logic: Generate Entries based on strict Mode
+      if (transaction.subTransactions != null && transaction.subTransactions!.isNotEmpty) {
           final ledgerEntries = <LedgerEntry>[];
           
-          for (final split in transaction.subTransactions!) {
+          // Case 1: Settlement Mode (Strict PAID)
+          if (transaction.mode == TransactionMode.settlement) {
+             final split = transaction.subTransactions!.first; // Settlement uses single split for carrier
              if (split.partyId != null) {
-                 // Determine Nature
-                 // Case T1: Expense, I Paid (Implicit in this flow), Split is for Friend.
-                 // Friend Owes Me -> Receivable.
-                 
-                 LedgerNature? nature;
-                 String note = split.note ?? 'Split Share';
-                 
-                 if (transaction.type == TransactionType.expense) {
-                     if (!split.isMine) {
-                        nature = LedgerNature.receivable;
-                        note = 'Owed to Me for ${transaction.title}';
-                     }
-                 }
-                 // TODO: Handle Income/Settlement cases later
-                 
-                 if (nature != null) {
-                    ledgerEntries.add(LedgerEntry()
-                       ..transactionId = id
-                       ..partyId = split.partyId!
-                       ..amount = split.amount
-                       ..nature = nature
-                       ..date = transaction.date
-                       ..note = note
-                       ..categoryId = split.categoryId
-                    );
+                // Determine Sign
+                // Income = They Paid Me = POSITIVE PAID (Reduces OWE)
+                // Expense = I Paid Them = NEGATIVE PAID (Reduces NEGATIVE OWE... wait)
+                // If I have +100 OWE (They owe me). They Pay Me (+100). Bal = 100 - 100 = 0.
+                
+                // If I have -100 OWE (I owe them). I Pay Them (Expense 100).
+                // Ledger Entry should be NEGATIVE?
+                // Bal = OWE(-100) - PAID(-100) = -100 + 100 = 0.
+                
+                double amount = split.amount;
+                if (transaction.type == TransactionType.expense) {
+                   amount = -amount;
+                }
+                
+                ledgerEntries.add(LedgerEntry()
+                   ..transactionId = id
+                   ..partyId = split.partyId!
+                   ..amount = amount
+                   ..nature = LedgerNature.paid
+                   ..date = transaction.date
+                   ..note = 'Settlement: ${transaction.title ?? (amount > 0 ? "Received" : "Paid")}'
+                );
+             }
+          }
+          
+          // Case 2: Regular Mode (Expense Splits -> OWE)
+          else if (transaction.mode == TransactionMode.regular && transaction.type == TransactionType.expense) {
+             // "I Paid" flow (Standard)
+             // Splits assigned to others = They OWE Me.
+             for (final split in transaction.subTransactions!) {
+                 if (split.partyId != null && !split.isMine) {
+                     // They Owe Me -> Positive
+                     ledgerEntries.add(LedgerEntry()
+                        ..transactionId = id
+                        ..partyId = split.partyId!
+                        ..amount = split.amount
+                        ..nature = LedgerNature.owe
+                        ..date = transaction.date
+                        ..note = split.note ?? 'Shared Expense: ${transaction.title}'
+                        ..categoryId = split.categoryId
+                     );
                  }
              }
           }
@@ -245,6 +263,120 @@ class TransactionsRepository {
       'income': totalIn,
       'expense': totalOut,
       'reimbursed': reimbursed,
+    };
+  }
+
+  Future<Map<String, double>> getAccountMonthlyStats(Id accountId, double openingBalance, DateTime month) async {
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 1);
+
+    // 1. Calculate All-Time Balance (Same as before)
+    final allTimeIncome = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.income)
+        .and()
+        .toAccountIdEqualTo(accountId)
+        .amountProperty()
+        .sum();
+        
+    final allTimeExpense = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.expense)
+        .and()
+        .fromAccountIdEqualTo(accountId)
+        .amountProperty()
+        .sum();
+    
+    final allTimeTransferOut = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.transfer)
+        .and()
+        .fromAccountIdEqualTo(accountId)
+        .amountProperty()
+        .sum();
+        
+    final allTimeTransferIn = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.transfer)
+        .and()
+        .toAccountIdEqualTo(accountId)
+        .amountProperty()
+        .sum();
+
+    final totalBalance = openingBalance + allTimeIncome - allTimeExpense - allTimeTransferOut + allTimeTransferIn;
+
+    // 2. Calculate MONTHLY Income/Expense
+    final monthlyIncome = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.income)
+        .and()
+        .toAccountIdEqualTo(accountId)
+        .and()
+        .dateBetween(start, end)
+        .amountProperty()
+        .sum();
+        
+    final monthlyExpense = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.expense)
+        .and()
+        .fromAccountIdEqualTo(accountId)
+        .and()
+        .dateBetween(start, end)
+        .amountProperty()
+        .sum();
+
+    final monthlyTransferIn = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.transfer)
+        .and()
+        .toAccountIdEqualTo(accountId)
+        .and()
+        .dateBetween(start, end)
+        .amountProperty()
+        .sum();
+        
+    final monthlyTransferOut = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.transfer)
+        .and()
+        .fromAccountIdEqualTo(accountId)
+        .and()
+        .dateBetween(start, end)
+        .amountProperty()
+        .sum();
+
+    // Reimbursed (Monthly)
+    final monthlyReimbursed = await _isar.transactions
+        .filter()
+        .skipFromStatsEqualTo(false)
+        .typeEqualTo(TransactionType.income)
+        .and()
+        .toAccountIdEqualTo(accountId)
+        .and()
+        .relatedTransactionIdIsNotNull()
+        .and()
+        .dateBetween(start, end)
+        .amountProperty()
+        .sum();
+
+    // Combined Monthly Totals
+    final totalMonthlyIn = monthlyIncome + monthlyTransferIn;
+    final totalMonthlyOut = monthlyExpense + monthlyTransferOut;
+
+    return {
+      'balance': totalBalance,
+      'income': totalMonthlyIn,
+      'expense': totalMonthlyOut,
+      'reimbursed': monthlyReimbursed,
     };
   }
 
