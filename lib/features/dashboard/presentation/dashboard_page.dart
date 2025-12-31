@@ -153,12 +153,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
-        actions: [
-           IconButton(
-             onPressed: () => context.push('/settings'),
-             icon: const Icon(Icons.settings),
-           ),
-        ],
+        actions: const [],
       ),
       body: RefreshIndicator(
         onRefresh: () async {

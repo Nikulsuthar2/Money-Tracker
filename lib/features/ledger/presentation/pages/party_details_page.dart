@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -12,26 +13,41 @@ import 'package:money_manager/core/utils/currency_formatter.dart';
 import 'package:money_manager/features/ledger/presentation/widgets/ledger_entry_compact_tile.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
 
-class PartyDetailsPage extends ConsumerWidget {
+class PartyDetailsPage extends ConsumerStatefulWidget {
   const PartyDetailsPage({super.key, required this.party});
 
   final Party party;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PartyDetailsPage> createState() => _PartyDetailsPageState();
+}
+
+class _PartyDetailsPageState extends ConsumerState<PartyDetailsPage> {
+  
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ledgerService = ref.watch(ledgerServiceProvider);
     final currencySymbol = ref.watch(currencyProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(party.name),
+        title: Text(widget.party.name),
         actions: [
-           // Quick Filter or Options?
+           if (!Platform.isAndroid)
+             IconButton(
+               icon: const Icon(Icons.refresh), 
+               onPressed: () => setState((){}) // Trigger Rebuild Future
+             ),
         ],
       ),
-      body: FutureBuilder<List<LedgerEntry>>(
-        future: ledgerService.getLedgerEntriesForParty(party.id),
+      body: RefreshIndicator(
+        onRefresh: () async {
+           setState(() {});
+           await Future.delayed(const Duration(milliseconds: 300));
+        },
+        child: FutureBuilder<List<LedgerEntry>>(
+        future: ledgerService.getLedgerEntriesForParty(widget.party.id),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -41,7 +57,14 @@ class PartyDetailsPage extends ConsumerWidget {
           }
 
           final entries = snapshot.data ?? [];
-          entries.sort((a, b) => b.date.compareTo(a.date));
+          entries.sort((a, b) {
+             final orderA = a.sortOrder ?? double.maxFinite;
+             final orderB = b.sortOrder ?? double.maxFinite;
+             // Sort by order ASC, then Date DESC
+             final res = orderA.compareTo(orderB);
+             if (res != 0) return res;
+             return b.date.compareTo(a.date);
+          });
 
           return Column(
             children: [
@@ -55,7 +78,7 @@ class PartyDetailsPage extends ConsumerWidget {
                       Text('Outstanding Balance', style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.secondary)),
                       const Gap(8),
                       FutureBuilder<double>(
-                        future: ledgerService.getOutstandingBalance(party.id),
+                        future: ledgerService.getOutstandingBalance(widget.party.id),
                         builder: (c, s) {
                            final bal = s.data ?? 0.0;
                            final isPositive = bal >= 0; 
@@ -100,32 +123,47 @@ class PartyDetailsPage extends ConsumerWidget {
                Expanded(
                  child: entries.isEmpty 
                    ? const Center(child: Text('No history found'))
-                   : ListView.separated(
-                       itemCount: entries.length,
-                       separatorBuilder: (c, i) => Divider(height: 1, indent: 16, endIndent: 16, color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
-                       itemBuilder: (context, index) {
-                          final entry = entries[index];
-                          
-                          return LedgerEntryCompactTile(
-                            entry: entry, 
-                            currencySymbol: currencySymbol,
-                          );
-                       },
-                   ),
+                   : ReorderableListView.builder(
+                             itemCount: entries.length,
+                             onReorder: (oldIndex, newIndex) {
+                                if (oldIndex < newIndex) {
+                                  newIndex -= 1;
+                                }
+                                final item = entries.removeAt(oldIndex);
+                                entries.insert(newIndex, item);
+                                
+                                // Update Sort Order
+                                for (int i = 0; i < entries.length; i++) {
+                                   entries[i].sortOrder = i.toDouble();
+                                }
+                                // Save
+                                ref.read(ledgerServiceProvider).updateLedgerEntries(entries);
+                             },
+                             itemBuilder: (context, index) {
+                                final entry = entries[index];
+                                return ListTile(
+                                   key: ValueKey(entry.id),
+                                   contentPadding: EdgeInsets.zero,
+                                   title: LedgerEntryCompactTile(entry: entry, currencySymbol: currencySymbol),
+                                   trailing: ReorderableDragStartListener(
+                                      index: index,
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Icon(Icons.drag_handle, color: Colors.grey),
+                                      ),
+                                   ),
+                                );
+                             },
+                          ),
                ),
             ],
           );
         }
       ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
            // We'll just open AddTransaction in Settlement mode.
-           // Since we can't easily pass map params without updating router/page, 
-           // let's just show a simple snackbar or open page generics for now till that is fixed?
-           // Or assume user will select party.
-           // Ideally update AddTransactionPage to accept 'extra' map? 
-           // User Request: "Settle Up Button: Clarify usage"
-           // Let's make it clear it's manual for now.
            context.push('/add-transaction'); 
         },
         label: const Text('Add Transaction / Settle'),

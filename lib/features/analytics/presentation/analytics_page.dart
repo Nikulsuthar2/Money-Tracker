@@ -110,7 +110,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                   child: Container(
                      margin: const EdgeInsets.symmetric(vertical: 8),
                      constraints: const BoxConstraints(maxWidth: 300),
-                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                      decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(50),
@@ -182,11 +182,10 @@ class _NetResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Accounting: Income - Expense (Ignore transfers)
+    // Accounting
     double accIncome = 0;
     double accExpense = 0;
-    
-    // Cash Flow: Total In - Total Out (Include transfers)
+    // Cash Flow
     double cashIn = 0;
     double cashOut = 0;
 
@@ -205,10 +204,9 @@ class _NetResultCard extends StatelessWidget {
     }
 
     final accNet = accIncome - accExpense;
-    final cashNet = cashIn - cashOut; // Usually 0 if internal transfers, but useful if tracking flow
+    // final cashNet = cashIn - cashOut; // Redundant if same as accNet? Yes, but CashIn/Out diff
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Define exact colors for dark/light mode
     final tealColor = isDark ? Colors.tealAccent : Colors.teal;
     final redColor = isDark ? Colors.redAccent.shade100 : Colors.red;
 
@@ -216,55 +214,41 @@ class _NetResultCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                       Text('Net Result (Accounting)', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                       const Gap(4),
-                       Text('${accNet >= 0 ? "+" : ""}$currency${accNet.abs().toStringAsFixed(2)}', 
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: accNet >= 0 ? tealColor : redColor)),
-                    ],
-                  ),
-                ),
-                Container(width: 1, height: 40, color: Theme.of(context).colorScheme.outlineVariant),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                       Text('Net Cash Flow (Total)', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                       const Gap(4),
-                       Text('${cashNet >= 0 ? "+" : ""}$currency${cashNet.abs().toStringAsFixed(2)}', 
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: cashNet >= 0 ? tealColor : redColor)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const Gap(16),
-            const Divider(),
-            const Gap(16),
-            // Breakdown
-            Row(
+             const Text('Net Result', style: TextStyle(fontSize: 14, color: Colors.grey)),
+             const Gap(8),
+             Text('${accNet >= 0 ? "+" : ""}$currency${accNet.abs().toStringAsFixed(2)}', 
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: accNet >= 0 ? tealColor : redColor)),
+             
+             const Gap(24),
+             const Divider(),
+             const Gap(16),
+             
+             // Restore 4 Stats
+             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                 _StatCell(label: 'Actual Income', amount: accIncome, color: tealColor, currency: currency),
-                 _StatCell(label: 'Actual Expense', amount: accExpense, color: redColor, currency: currency),
-              ],
-            ),
-            const Gap(12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                 _StatCell(label: 'Total In', amount: cashIn, color: tealColor.withOpacity(0.7), currency: currency, isSmall: true),
-                 _StatCell(label: 'Total Out', amount: cashOut, color: redColor.withOpacity(0.7), currency: currency, isSmall: true),
-              ],
-            ),
+               children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _StatCell(label: 'Actual Income', amount: accIncome, color: tealColor, currency: currency),
+                     const Gap(12),
+                    _StatCell(label: 'Total In', amount: cashIn, color: tealColor.withOpacity(0.7), currency: currency, isSmall: true),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _StatCell(label: 'Actual Expense', amount: accExpense, color: redColor, currency: currency),
+                    const Gap(12),
+                    _StatCell(label: 'Total Out', amount: cashOut, color: redColor.withOpacity(0.7), currency: currency, isSmall: true),
+                  ],
+                ),
+                
+                ],
+             ),
           ],
         ),
       ),
@@ -432,9 +416,11 @@ class _CategoriesView extends ConsumerWidget {
     final expenseMap = <int, double>{};
 
     for(var t in transactions) {
-       if (t.categoryId == null) continue;
-       if (t.type == TransactionType.income) incomeMap[t.categoryId!] = (incomeMap[t.categoryId!] ?? 0) + t.amount;
-       if (t.type == TransactionType.expense) expenseMap[t.categoryId!] = (expenseMap[t.categoryId!] ?? 0) + t.amount;
+       // if (t.categoryId == null) continue; // Don't skip uncategorized
+       final catId = t.categoryId ?? -1; // Use -1 for Uncategorized
+       
+       if (t.type == TransactionType.income) incomeMap[catId] = (incomeMap[catId] ?? 0) + t.amount;
+       if (t.type == TransactionType.expense) expenseMap[catId] = (expenseMap[catId] ?? 0) + t.amount;
     }
 
     return Column(
@@ -480,9 +466,12 @@ class _PieChartSection extends ConsumerWidget {
                      child: PieChart(
                        PieChartData(
                          sections: sortedEntries.map((e) {
-                            final cat = catMap[e.key];
-                            final color = cat != null ? Color(cat.color) : Colors.grey;
+                            final isUncategorized = e.key == -1;
+                            final cat = isUncategorized ? null : catMap[e.key];
+                            
+                            final color = isUncategorized ? Colors.grey.shade400 : (cat != null ? Color(cat.color) : Colors.grey);
                             final pct = (e.value / total * 100);
+                            
                             return PieChartSectionData(
                               value: e.value,
                               title: pct > 5 ? '${pct.toStringAsFixed(0)}%' : '',
@@ -499,14 +488,18 @@ class _PieChartSection extends ConsumerWidget {
                    const Gap(16),
                    // Legend
                    ...sortedEntries.take(5).map((e) {
-                       final cat = catMap[e.key];
+                       final isUncategorized = e.key == -1;
+                       final cat = isUncategorized ? null : catMap[e.key];
+                       final color = isUncategorized ? Colors.grey.shade400 : (cat != null ? Color(cat.color) : Colors.grey);
+                       final name = isUncategorized ? 'Uncategorized' : (cat?.name ?? 'Unknown');
+
                        return Padding(
                          padding: const EdgeInsets.symmetric(vertical: 4),
                          child: Row(
                            children: [
-                             Container(width: 12, height: 12, decoration: BoxDecoration(color: cat != null ? Color(cat.color) : Colors.grey, shape: BoxShape.circle)),
+                             Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                              const Gap(8),
-                             Expanded(child: Text(cat?.name ?? 'Unknown', style: const TextStyle(fontSize: 14))),
+                             Expanded(child: Text(name, style: const TextStyle(fontSize: 14))),
                              Text('$currency${e.value.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                            ],
                          ),

@@ -32,6 +32,10 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
     Colors.blueAccent, Colors.lightBlueAccent, Colors.cyanAccent, Colors.tealAccent,
     Colors.greenAccent, Colors.limeAccent, Colors.amberAccent, Colors.orangeAccent,
     Colors.deepOrangeAccent,
+    // Shades
+    Colors.red.shade900, Colors.green.shade900, Colors.blue.shade900, Colors.purple.shade900,
+    Colors.orange.shade900, Colors.teal.shade900, Colors.grey.shade800,
+    Colors.pink.shade100, Colors.blue.shade100, Colors.green.shade100, Colors.orange.shade100, 
   ];
 
   final List<IconData> _icons = [
@@ -66,6 +70,14 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
     // Travel
     Icons.map, Icons.public, Icons.language, Icons.camera_alt, Icons.photo_camera,
     Icons.hotel, Icons.beach_access, Icons.park,
+    // Subscriptions & Services (New)
+    Icons.subscriptions, Icons.video_library, Icons.live_tv, Icons.ondemand_video,
+    Icons.cloud, Icons.vpn_key, Icons.storage, Icons.settings_remote,
+    // Medical (Expanded)
+    Icons.medical_services, Icons.bloodtype, Icons.masks, Icons.vaccines,
+    // Others
+    Icons.emoji_events, Icons.extension, Icons.palette, Icons.brush,
+    Icons.auto_stories, Icons.psychology, Icons.volunteer_activism,
   ];
 
   @override

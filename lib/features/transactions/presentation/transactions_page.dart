@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -46,10 +47,25 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
             tooltip: 'Table View',
             onPressed: () => context.push('/transactions-table'),
           ),
+          if (!Platform.isAndroid)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+              onPressed: () {
+                 ref.invalidate(transactionsStreamProvider);
+                 ref.invalidate(accountsWithBalanceProvider);
+              },
+            ),
         ],
       ),
-      body: transactionsAsync.when(
-        data: (transactions) {
+      body: RefreshIndicator(
+        onRefresh: () async {
+           ref.invalidate(transactionsStreamProvider);
+           ref.invalidate(accountsWithBalanceProvider);
+           await Future.delayed(const Duration(milliseconds: 300));
+        },
+        child: transactionsAsync.when(
+          data: (transactions) {
           if (transactions.isEmpty) {
             return const Center(child: Text('No transactions yet'));
           }
@@ -189,7 +205,13 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error: $e')),
       ),
+      ),
 
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/add-transaction'),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Transaction'),
+      ),
     );
   }
 }

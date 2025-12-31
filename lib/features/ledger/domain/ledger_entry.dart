@@ -42,6 +42,9 @@ class LedgerEntry {
   
   @Index()
   late DateTime date; // For querying ledger history independently of transactions
+  
+  // For manual rearrangement
+  double? sortOrder;
 }
 
 enum LedgerNature {

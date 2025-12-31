@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:isar/isar.dart';
@@ -58,8 +59,19 @@ class SubscriptionsPage extends ConsumerWidget {
     final currency = ref.watch(currencyProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Subscriptions')),
-      body: subsAsync.when(
+      appBar: AppBar(
+        title: const Text('Subscriptions'),
+        actions: [
+           if (!Platform.isAndroid)
+             IconButton(icon: const Icon(Icons.refresh), onPressed: () => ref.invalidate(subscriptionsStreamProvider)),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(subscriptionsStreamProvider);
+          await Future.delayed(const Duration(milliseconds: 300));
+        },
+        child: subsAsync.when(
         data: (subs) {
           if (subs.isEmpty) return const Center(child: Text('No subscriptions'));
           return ListView.separated(
@@ -74,7 +86,32 @@ class SubscriptionsPage extends ConsumerWidget {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => SubscriptionDetailsPage(subscription: s)));
                    },
                    title: Text(s.name),
-                   subtitle: Text('${s.repeat.name} • Next: ${DateFormat.yMMMd().format(s.startDate)}'), // Simple logic
+                   subtitle: Builder(
+                      builder: (context) {
+                         // Calculate Next Date
+                         DateTime next = s.startDate;
+                         final now = DateTime.now();
+                         final today = DateTime(now.year, now.month, now.day);
+                         
+                         // If start date is future, that's the next.
+                         if (next.isBefore(today)) {
+                            while (next.isBefore(today)) {
+                               switch (s.repeat) {
+                                  case SubscriptionRepeat.daily: next = next.add(const Duration(days: 1)); break;
+                                  case SubscriptionRepeat.weekly: next = next.add(const Duration(days: 7)); break;
+                                  case SubscriptionRepeat.monthly: next = DateTime(next.year, next.month + 1, next.day); break;
+                                  case SubscriptionRepeat.yearly: next = DateTime(next.year + 1, next.month, next.day); break;
+                               }
+                            }
+                         }
+                         
+                         Color dateColor = Theme.of(context).colorScheme.outline;
+                         if (next.isAtSameMomentAs(today)) dateColor = Colors.orange;
+                         if (next.isBefore(now)) dateColor = Colors.red; // Should not happen with loop above unless time matters
+                         
+                         return Text('${s.repeat.name} • Next: ${DateFormat.yMMMd().format(next)}', style: TextStyle(color: dateColor));
+                      }
+                   ),
                    trailing: Row(
                      mainAxisSize: MainAxisSize.min,
                      children: [
@@ -133,6 +170,7 @@ class SubscriptionsPage extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e,s) => Center(child: Text('Error: $e')),
+      ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {

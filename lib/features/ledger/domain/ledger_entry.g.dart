@@ -48,8 +48,13 @@ const LedgerEntrySchema = CollectionSchema(
       name: r'partyId',
       type: IsarType.long,
     ),
-    r'transactionId': PropertySchema(
+    r'sortOrder': PropertySchema(
       id: 6,
+      name: r'sortOrder',
+      type: IsarType.double,
+    ),
+    r'transactionId': PropertySchema(
+      id: 7,
       name: r'transactionId',
       type: IsarType.long,
     )
@@ -149,7 +154,8 @@ void _ledgerEntrySerialize(
   writer.writeString(offsets[3], object.nature.name);
   writer.writeString(offsets[4], object.note);
   writer.writeLong(offsets[5], object.partyId);
-  writer.writeLong(offsets[6], object.transactionId);
+  writer.writeDouble(offsets[6], object.sortOrder);
+  writer.writeLong(offsets[7], object.transactionId);
 }
 
 LedgerEntry _ledgerEntryDeserialize(
@@ -168,7 +174,8 @@ LedgerEntry _ledgerEntryDeserialize(
           LedgerNature.owe;
   object.note = reader.readStringOrNull(offsets[4]);
   object.partyId = reader.readLong(offsets[5]);
-  object.transactionId = reader.readLongOrNull(offsets[6]);
+  object.sortOrder = reader.readDoubleOrNull(offsets[6]);
+  object.transactionId = reader.readLongOrNull(offsets[7]);
   return object;
 }
 
@@ -193,6 +200,8 @@ P _ledgerEntryDeserializeProp<P>(
     case 5:
       return (reader.readLong(offset)) as P;
     case 6:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 7:
       return (reader.readLongOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1322,6 +1331,90 @@ extension LedgerEntryQueryFilter
   }
 
   QueryBuilder<LedgerEntry, LedgerEntry, QAfterFilterCondition>
+      sortOrderIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'sortOrder',
+      ));
+    });
+  }
+
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterFilterCondition>
+      sortOrderIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'sortOrder',
+      ));
+    });
+  }
+
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterFilterCondition>
+      sortOrderEqualTo(
+    double? value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'sortOrder',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterFilterCondition>
+      sortOrderGreaterThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'sortOrder',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterFilterCondition>
+      sortOrderLessThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'sortOrder',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterFilterCondition>
+      sortOrderBetween(
+    double? lower,
+    double? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'sortOrder',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterFilterCondition>
       transactionIdIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -1476,6 +1569,18 @@ extension LedgerEntryQuerySortBy
     });
   }
 
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterSortBy> sortBySortOrder() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sortOrder', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterSortBy> sortBySortOrderDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sortOrder', Sort.desc);
+    });
+  }
+
   QueryBuilder<LedgerEntry, LedgerEntry, QAfterSortBy> sortByTransactionId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'transactionId', Sort.asc);
@@ -1576,6 +1681,18 @@ extension LedgerEntryQuerySortThenBy
     });
   }
 
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterSortBy> thenBySortOrder() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sortOrder', Sort.asc);
+    });
+  }
+
+  QueryBuilder<LedgerEntry, LedgerEntry, QAfterSortBy> thenBySortOrderDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sortOrder', Sort.desc);
+    });
+  }
+
   QueryBuilder<LedgerEntry, LedgerEntry, QAfterSortBy> thenByTransactionId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'transactionId', Sort.asc);
@@ -1630,6 +1747,12 @@ extension LedgerEntryQueryWhereDistinct
     });
   }
 
+  QueryBuilder<LedgerEntry, LedgerEntry, QDistinct> distinctBySortOrder() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sortOrder');
+    });
+  }
+
   QueryBuilder<LedgerEntry, LedgerEntry, QDistinct> distinctByTransactionId() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'transactionId');
@@ -1678,6 +1801,12 @@ extension LedgerEntryQueryProperty
   QueryBuilder<LedgerEntry, int, QQueryOperations> partyIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'partyId');
+    });
+  }
+
+  QueryBuilder<LedgerEntry, double?, QQueryOperations> sortOrderProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sortOrder');
     });
   }
 

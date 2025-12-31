@@ -199,11 +199,11 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                        // Calendar Swiper (Visible if Month/Year)
                          if (_period != 'All')
                          Container(
-                           margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                           padding: const EdgeInsets.symmetric(vertical: 4),
+                           margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(16),
+                              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                              borderRadius: BorderRadius.circular(50),
                            ),
                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -243,7 +243,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.surface.withOpacity(0.3),
+                                  color: theme.colorScheme.surface.withOpacity(0.5),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.3)),
                                 ),

@@ -121,7 +121,7 @@ class TransactionDetailsPage extends ConsumerWidget {
 
           // Details Card
           Card(
-            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
             elevation: 0,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
@@ -184,36 +184,53 @@ class TransactionDetailsPage extends ConsumerWidget {
                                     .whereType<int>()
                                     .toSet();
                                  
-                                 if (splitCatIds.isEmpty) return const SizedBox.shrink();
+                                 // If no categories found in splits
+                                 if (splitCatIds.isEmpty) {
+                                     // Check if it's a Settlement
+                                     if (t.mode == TransactionMode.settlement || t.hasLedgerEntries) {
+                                         return _DetailRow(
+                                            icon: Icons.handshake,
+                                            label: 'Category',
+                                            customValue: _Chip(
+                                                icon: Icons.handshake,
+                                                label: 'Settlement',
+                                                color: Colors.blue,
+                                            )
+                                         );
+                                     }
+                                     return const SizedBox.shrink(); 
+                                 }
 
                                  return Padding(
                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                   child: Column(
-                                     crossAxisAlignment: CrossAxisAlignment.start,
-                                     children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.category, size: 20, color: theme.colorScheme.secondary),
-                                            const Gap(16),
-                                            Text('Categories', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
-                                          ],
-                                        ),
-                                        const Gap(8),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: splitCatIds.map((id) {
-                                             final cat = allCats.where((c) => c.id == id).firstOrNull;
-                                             if (cat == null) return const SizedBox.shrink();
-                                             return _Chip(
-                                                icon: IconData(cat.icon, fontFamily: 'MaterialIcons'), 
-                                                label: cat.name,
-                                                color: theme.colorScheme.primary.withOpacity(0.7)
-                                             );
-                                          }).toList(),
-                                        ),
-                                     ],
-                                   ),
+                                   child: Row(
+                                        children: [
+                                          Icon(Icons.category, size: 20, color: theme.colorScheme.secondary),
+                                          const Gap(16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text('Categories', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
+                                                const Gap(8),
+                                                Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 8,
+                                                  children: splitCatIds.map((id) {
+                                                    final cat = allCats.where((c) => c.id == id).firstOrNull;
+                                                    if (cat == null) return const SizedBox.shrink();
+                                                    return _Chip(
+                                                        icon: IconData(cat.icon, fontFamily: 'MaterialIcons'), 
+                                                        label: cat.name,
+                                                        color: theme.colorScheme.primary.withOpacity(0.7)
+                                                    );
+                                                  }).toList(),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                  );
                               }
                            )
@@ -227,7 +244,8 @@ class TransactionDetailsPage extends ConsumerWidget {
                                 final cat = snapshot.data;
                                 // If Category is null, check if it's a Settlement
                                 if (cat == null) {
-                                   if (t.mode == TransactionMode.settlement) {
+                                   // If no category, check if it's a Settlement or has Ledger Entries (implies settlement/loan)
+                                   if (t.mode == TransactionMode.settlement || t.hasLedgerEntries) {
                                       return _DetailRow(
                                          icon: Icons.handshake,
                                          label: 'Category',
@@ -238,7 +256,16 @@ class TransactionDetailsPage extends ConsumerWidget {
                                          )
                                       );
                                    }
-                                   return const SizedBox.shrink();
+                                   // Fallback for purely Uncategorized
+                                   return _DetailRow(
+                                      icon: Icons.category_outlined,
+                                      label: 'Category',
+                                      customValue: _Chip(
+                                          icon: Icons.help_outline,
+                                          label: 'Uncategorized',
+                                          color: Colors.grey,
+                                      )
+                                   );
                                 }
                                 
                                 return _DetailRow(
@@ -264,7 +291,7 @@ class TransactionDetailsPage extends ConsumerWidget {
           if (t.note?.isNotEmpty == true) ...[
             const Gap(16),
              Card(
-               color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+               color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                child: Padding(
                  padding: const EdgeInsets.all(16.0),
                  child: Column(
@@ -312,7 +339,7 @@ class TransactionDetailsPage extends ConsumerWidget {
             const Gap(8),
             Card(
               clipBehavior: Clip.hardEdge,
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: ListView.separated(
@@ -352,7 +379,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                                  final partyName = snapshot.data?.name;
                                  
                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
                                     child: Row(
                                       children: [
                                          // Leading Icon (Category or Settlement)
@@ -485,31 +512,9 @@ class TransactionDetailsPage extends ConsumerWidget {
                    if (entries.isEmpty) return const Text('No entries found (Sync error?)');
                    
                    return Column(
-                     children: entries.map((e) => Card(
-                       elevation: 0,
-                       color: theme.colorScheme.surfaceContainer.withOpacity(0.5),
-                       margin: const EdgeInsets.only(bottom: 8),
-                       child: ListTile(
-                         leading: const Icon(Icons.book, color: Colors.purple),
-                         title: FutureBuilder<Party?>(
-                            future: ref.read(partyRepositoryProvider).getAllParties().then((l) => l.where((p) => p.id == e.partyId).firstOrNull),
-                            builder: (c, s) => Text(s.data?.name ?? 'Party #${e.partyId}'),
-                         ),
-                         subtitle: Text(e.note ?? e.nature.name.toUpperCase()),
-                         trailing: Text(
-                            // OWE = Positive (They Owe Me). PAID = Negative (I paid them) or Positive (They paid me)?
-                            // Ledger Entry amount logic:
-                            // OWE: Always + (if I paid expense).
-                            // PAID: Logic in Repo says: Expense(I paid) -> Negative Amount. Income(They paid) -> Positive Amount.
-                            // So we can just trust the signed amount.
-                            // Positive = Green (Receivable / Received). Negative = Red (Payable / Paid out).
-                            '\$${e.amount.abs().toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: e.amount > 0 ? Colors.green : Colors.red,
-                              fontWeight: FontWeight.bold
-                            )
-                         ),
-                       ),
+                     children: entries.map((e) => LedgerEntryCompactTile(
+                        entry: e, 
+                        currencySymbol: ref.watch(currencyProvider),
                      )).toList(),
                    );
                 }
@@ -543,6 +548,7 @@ class _DetailRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline)),
+                if (customValue != null) const Gap(8),
                 customValue ?? Text(value ?? '', style: const TextStyle(fontSize: 16)),
               ],
             ),

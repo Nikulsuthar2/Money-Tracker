@@ -81,27 +81,22 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
             // 0 -> 0 (Home)
             // 1 -> 1 (History)
             // 2 (People) -> 3 (UI Index)
-            // 3 (Analysis) -> Hidden on Mobile? Or accessible via simple way?
-            // Let's disable Analysis on Mobile Bottom Bar for clutter reduction as per user's "People" focus, OR just make it 5 items without Add?
-            // User wanted "Add" in center.
-            // Items: Home, History, Add, People, Settings.
-            
-            selectedIndex: _getMobileSelectedIndex(widget.navigationShell.currentIndex),
-            onDestinationSelected: (index) {
-               if (index == 2) {
-                 context.push('/add-transaction');
-               } else {
-                 final realIndex = _getShellIndexFromMobile(index);
-                 if (realIndex != -1) _onTap(realIndex);
-               }
-            },
+            // Mobile Bottom Bar
+            // Shell Index Mapping:
+            // 0: Home -> 0
+            // 1: History -> 1
+            // 2: People -> 2
+            // 3: Analytics -> 3
+            // 4: Settings -> 4
+            selectedIndex: widget.navigationShell.currentIndex,
+            onDestinationSelected: (index) => _onTap(index),
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             destinations: const [
                NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Home'),
                NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'History'),
-               NavigationDestination(icon: Icon(Icons.add_circle_outline), selectedIcon: Icon(Icons.add_circle), label: 'Add'),
                NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'People'),
                NavigationDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: 'Analytics'),
+               NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
             ],
           ),
         );
@@ -109,22 +104,9 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
     );
   }
 
-  int _getMobileSelectedIndex(int shellIndex) {
-    if (shellIndex == 0) return 0; // Home
-    if (shellIndex == 1) return 1; // History
-    if (shellIndex == 2) return 3; // People (Shell 2) -> UI 3
-    if (shellIndex == 3) return 4; // Analysis (Shell 3) -> UI 4
-    // Settings (Shell 4) is now hidden from BottomBar, accessible via Home AppBar?
-    return 0; 
-  }
-  
-  int _getShellIndexFromMobile(int uiIndex) {
-    if (uiIndex == 0) return 0;
-    if (uiIndex == 1) return 1;
-    if (uiIndex == 3) return 2; // People is index 2 in Shell
-    if (uiIndex == 4) return 3; // Analysis is index 3 in Shell
-    return -1;
-  }
+  // No longer needed as mapping is 1:1
+  // int _getMobileSelectedIndex(int shellIndex) ...
+  // int _getShellIndexFromMobile(int uiIndex) ...
 
   void _onTap(int index) {
      widget.navigationShell.goBranch(

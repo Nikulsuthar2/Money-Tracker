@@ -18,6 +18,7 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _balanceController;
+  late TextEditingController _reservedLimitController;
   AccountType _type = AccountType.wallet;
   int _color = 0xFF2196F3;
   int _icon = 57522; // wallet
@@ -33,6 +34,7 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
     final account = widget.accountToEdit;
     _nameController = TextEditingController(text: account?.name ?? '');
     _balanceController = TextEditingController(text: account?.openingBalance.toString() ?? '0.0');
+    _reservedLimitController = TextEditingController(text: account?.reservedLimit.toString() ?? '0.0');
     if (account != null) {
       _type = account.type;
       _color = account.color;
@@ -72,6 +74,7 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
   void dispose() {
     _nameController.dispose();
     _balanceController.dispose();
+    _reservedLimitController.dispose();
     super.dispose();
   }
 
@@ -79,12 +82,14 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
     if (_formKey.currentState!.validate()) {
       final name = _nameController.text.trim();
       final balance = double.tryParse(_balanceController.text) ?? 0.0;
+      final reservedLimit = double.tryParse(_reservedLimitController.text) ?? 0.0;
       
       final account = widget.accountToEdit ?? Account();
       account
         ..name = name
         ..type = _type
         ..openingBalance = balance
+        ..reservedLimit = reservedLimit
         ..color = _color
         ..color = _color
         ..icon = _icon // Semicolon here
@@ -138,6 +143,16 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
               decoration: inputDecoration.copyWith(labelText: 'Opening Balance'),
               keyboardType: TextInputType.number,
               validator: (v) => double.tryParse(v ?? '') == null ? 'Invalid number' : null,
+            ),
+            const Gap(16),
+            TextFormField(
+              controller: _reservedLimitController,
+              decoration: inputDecoration.copyWith(
+                 labelText: 'Reserved Amount Limit',
+                 helperText: 'Max amount to keep reserved in this account',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Invalid number' : null,
             ),
             const Gap(24),
             

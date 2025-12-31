@@ -14,6 +14,7 @@ import 'package:money_manager/core/providers/currency_provider.dart';
 import 'package:money_manager/core/providers/savings_provider.dart';
 import 'package:money_manager/features/ledger/domain/party.dart';
 import 'package:money_manager/features/ledger/application/party_providers.dart';
+import 'package:money_manager/core/utils/math_evaluator.dart';
 
 class AddTransactionPage extends ConsumerStatefulWidget {
   const AddTransactionPage({super.key, this.extra});
@@ -529,6 +530,13 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.extra is Transaction ? 'Edit Transaction' : (_isRefundMode ? 'Refund Transaction' : 'Add Transaction')),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.check),
+            tooltip: 'Save',
+            onPressed: _save,
+          ),
+        ],
         bottom: _isRefundMode ? null : TabBar(
           controller: _tabController,
           tabs: const [
@@ -604,12 +612,36 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                        // Visual cue that it's disabled/fixed
                        fillColor: _isRefundMode ? Theme.of(context).disabledColor.withOpacity(0.05) : null,
                        filled: _isRefundMode,
+                       suffixIcon: IconButton(
+                          icon: const Icon(Icons.calculate_outlined), 
+                          onPressed: () {
+                             if (_amountController.text.isNotEmpty) {
+                                final val = MathEvaluator.evaluate(_amountController.text);
+                                if (val != null) {
+                                   _amountController.text = val.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+                                }
+                             }
+                          },
+                          tooltip: 'Calculate Expression',
+                       ), 
                      ),
-                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                     keyboardType: TextInputType.text, // Changed to text to allow math symbols
                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                     onFieldSubmitted: (v) {
+                        final val = MathEvaluator.evaluate(v);
+                        if (val != null) {
+                            _amountController.text = val.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+                        }
+                     },
+                     onTapOutside: (_) {
+                        final val = MathEvaluator.evaluate(_amountController.text);
+                        if (val != null) {
+                            _amountController.text = val.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+                        }
+                     },
                      validator: (v) {
                        if (v == null || v.isEmpty) return 'Required';
-                       if (double.tryParse(v) == null) return 'Invalid';
+                       if (MathEvaluator.evaluate(v) == null) return 'Invalid Amount';
                        return null;
                      },
                    ),

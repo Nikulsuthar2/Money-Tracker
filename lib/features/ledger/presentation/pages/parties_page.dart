@@ -29,7 +29,7 @@ class _PartiesPageState extends ConsumerState<PartiesPage> {
              onPressed: () => context.push('/global-ledger'),
            ),
            IconButton(
-             tooltip: 'New Ledger Entry (V2)',
+             tooltip: 'New Ledger Entry',
              icon: const Icon(Icons.receipt_long),
              onPressed: () => context.push('/add-ledger-transaction'),
            ),
@@ -101,7 +101,11 @@ class _PartiesPageState extends ConsumerState<PartiesPage> {
                         }
                     ),
                   onTap: () {
-                     context.push('/party-details', extra: party);
+                     if (isMe) {
+                        context.push('/global-ledger');
+                     } else {
+                        context.push('/party-details', extra: party);
+                     }
                   },
                   onLongPress: isMe ? null : () {
                      _showEditPartyDialog(context, party);

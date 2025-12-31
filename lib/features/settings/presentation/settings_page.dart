@@ -34,6 +34,13 @@ class SettingsPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/categories'),
           ),
+          ListTile(
+            leading: const Icon(Icons.subscriptions),
+            title: const Text('Subscriptions'),
+            subtitle: const Text('Manage recurring payments'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/subscriptions'),
+          ),
 
           
           ListTile(

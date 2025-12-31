@@ -10,6 +10,7 @@ import 'package:gap/gap.dart';
 
 import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
+import 'package:money_manager/core/utils/math_evaluator.dart';
 
 class AddLedgerTransactionPage extends ConsumerStatefulWidget {
   const AddLedgerTransactionPage({super.key});
@@ -47,7 +48,7 @@ class _AddLedgerTransactionPageState extends ConsumerState<AddLedgerTransactionP
 
   void _distributeEqualShares() {
     if (_selectedPartyIds.isEmpty) return;
-    final total = double.tryParse(_amountController.text) ?? 0.0;
+    final total = MathEvaluator.evaluate(_amountController.text) ?? 0.0;
     final share = total / _selectedPartyIds.length;
     
     for (var id in _selectedPartyIds) {
@@ -93,7 +94,7 @@ class _AddLedgerTransactionPageState extends ConsumerState<AddLedgerTransactionP
           return;
        }
 
-       final amount = double.tryParse(_amountController.text) ?? 0.0;
+       final amount = MathEvaluator.evaluate(_amountController.text) ?? 0.0;
        
        // Verify Custom Split Sum
        if (_splitType == 'Custom') {
@@ -160,23 +161,13 @@ class _AddLedgerTransactionPageState extends ConsumerState<AddLedgerTransactionP
           }
        }
        
-       // 3. Create Physical Transaction (If I paid)
-       model.Transaction? transaction;
-       if (_paidBy!.isMe()) {
-          transaction = model.Transaction()
-             ..amount = amount
-             ..type = model.TransactionType.expense
-             ..date = date
-             ..title = description
-             ..note = 'Ledger V2 Transaction'
-             ..hasLedgerEntries = true
-             ..fromAccountId = _selectedAccount?.id; 
-       }
+       // 3. Create Physical Transaction (Removed - User wants Ledger Only)
+       // model.Transaction? transaction;
        
        // 4. Save
        try {
            final ledgerService = ref.read(ledgerServiceProvider);
-           await ledgerService.recordEconomicEvent(entries: entries, transaction: transaction);
+           await ledgerService.recordEconomicEvent(entries: entries, transaction: null);
            
            if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved!')));
@@ -197,7 +188,7 @@ class _AddLedgerTransactionPageState extends ConsumerState<AddLedgerTransactionP
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('New Expense (V2)')),
+      appBar: AppBar(title: const Text('New Ledger Entry')),
       body: partiesAsync.when(
         data: (parties) {
              if (parties.isEmpty) return const Center(child: Text('Add Parties first!'));
@@ -219,17 +210,29 @@ class _AddLedgerTransactionPageState extends ConsumerState<AddLedgerTransactionP
                         children: [
                           const Text('Amount', style: TextStyle(fontSize: 16)),
                           const Gap(8),
-                          TextFormField(
-                             controller: _amountController,
-                             textAlign: TextAlign.center,
-                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                             style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
-                             decoration: const InputDecoration(
-                               border: InputBorder.none,
-                               hintText: '0.00',
-                             ),
-                             validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          ),
+                             TextFormField(
+                                 controller: _amountController,
+                                 textAlign: TextAlign.center,
+                                 keyboardType: TextInputType.text,
+                                 style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                                 decoration: const InputDecoration(
+                                   border: InputBorder.none,
+                                   hintText: '0.00',
+                                 ),
+                                 onFieldSubmitted: (v) {
+                                    final val = MathEvaluator.evaluate(v);
+                                    if (val != null) {
+                                        _amountController.text = val.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+                                    }
+                                 },
+                                 onTapOutside: (_) {
+                                    final val = MathEvaluator.evaluate(_amountController.text);
+                                    if (val != null) {
+                                        _amountController.text = val.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+                                    }
+                                 },
+                                 validator: (v) => MathEvaluator.evaluate(v ?? '') == null ? 'Invalid' : null,
+                              ),
                         ],
                       ),
                     ),

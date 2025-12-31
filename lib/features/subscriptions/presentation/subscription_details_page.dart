@@ -43,27 +43,36 @@ class SubscriptionDetailsPage extends ConsumerWidget {
                      children: [
                        Text(subscription.name, style: Theme.of(context).textTheme.headlineSmall),
                        const Gap(8),
-                       Text('${DateFormat.yMMMd().format(subscription.startDate)} - ${subscription.repeat.name}', style: TextStyle(color: Theme.of(context).colorScheme.outline)),
+                       Text('${DateFormat.yMMMd().format(subscription.startDate)} - ${subscription.repeat.name} • $currency${subscription.amount.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).colorScheme.outline, fontWeight: FontWeight.bold)),
                        const Gap(24),
-                       Row(
-                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                         children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Total Paid', style: TextStyle(fontSize: 12)),
-                                Text('$currency${(linkedTxs.length * subscription.amount).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              ],
-                            ),
-                             Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                const Text('Last Payment', style: TextStyle(fontSize: 12)),
-                                Text(linkedTxs.isNotEmpty ? DateFormat.yMMMd().format(linkedTxs.map((t) => t.date).reduce((a, b) => a.isAfter(b) ? a : b)) : 'Never', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              ],
-                            ),
-                         ],
-                       )
+                         Row(
+                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                           children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Paid', style: TextStyle(fontSize: 12)),
+                                  Text('$currency${totalPaid.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const Text('Missed', style: TextStyle(fontSize: 12)),
+                                  // Show Count AND Amount
+                                  Text('${history.where((t) => t.status == _PaymentStatus.missed).length} ($currency${(history.where((t) => t.status == _PaymentStatus.missed).length * subscription.amount).toStringAsFixed(0)})', 
+                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red)),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text('Last Payment', style: TextStyle(fontSize: 12)),
+                                  Text(lastPayment != null ? DateFormat.yMMMd().format(lastPayment) : 'Never', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                ],
+                              ),
+                           ],
+                         )
                      ],
                    ),
                  ),
@@ -155,54 +164,55 @@ class SubscriptionDetailsPage extends ConsumerWidget {
       final todayDate = DateTime(today.year, today.month, today.day);
       
       DateTime current = s.startDate;
-      final limit = todayDate.add(const Duration(days: 365)); // 1 Year Future Cap or until Repeat ends?
-      
-      // Safety break
-      int loops = 0;
-      
-      // We also need to account for "Extra" payments? 
-      // Current logic: We generate EXPECTED dates and try to match regular payment.
-      
-      while (current.isBefore(limit) && loops < 500) {
-         _PaymentStatus status;
-         int? txId;
-         
-         // Find match
-         // For Monthly: Match any transaction in the same Month/Year? 
-         // Issue: If I pay twice in Jan, one might count for Jan, one for Feb? 
-         // Complex logic. Simple approach: Find strict match first, then loose?
-         
-         // Update: Match is FIRST UNUSED linked transaction that matches criteria?
-         // But we iterate dates.
-         // Let's find ANY linked tx that falls in the "Period".
-         // Period defined by repeat.
-         
-         final matchIndex = linkedTxs.indexWhere((t) => _isMatch(s.repeat, current, t.date));
-         
-         if (matchIndex != -1) {
-            status = _PaymentStatus.paid;
-            txId = linkedTxs[matchIndex].id;
-            // Ideally remove from pool so we don't double count? 
-            // BUT simpler: `_isMatch` should correspond to unique slots.
-         } else {
-            if (current.isBefore(todayDate)) {
-               status = _PaymentStatus.missed;
-            } else if (current.isAtSameMomentAs(todayDate)) {
-               status = _PaymentStatus.due;
-            } else {
-               status = _PaymentStatus.future;
-            }
-         }
-         
-         items.add(_HistoryItem(current, status, txId));
+       final limit = todayDate.add(const Duration(days: 365 * 5)); // Allow longer lookback/lookahead
+       
+       int loops = 0;
+       bool foundNextUpcoming = false;
 
-         current = _calculateNextDate(current, s.repeat);
-         loops++;
-      }
-      
-      // Reverse order (newest first)
-      return items.reversed.toList();
-  }
+       // Start from StartDate, loop effectively until we find the Next Upcoming
+       while (loops < 1000) {
+          _PaymentStatus status;
+          int? txId;
+          
+          final matchIndex = linkedTxs.indexWhere((t) => _isMatch(s.repeat, current, t.date));
+          
+          if (matchIndex != -1) {
+             status = _PaymentStatus.paid;
+             txId = linkedTxs[matchIndex].id;
+          } else {
+             if (current.isBefore(todayDate)) {
+                status = _PaymentStatus.missed;
+             } else if (current.isAtSameMomentAs(todayDate)) {
+                status = _PaymentStatus.due;
+             } else {
+                status = _PaymentStatus.future;
+             }
+          }
+          
+          // Logic:
+          // We want ALL history.
+          // We want ONLY ONE "Next/Future" item.
+          
+          if (status == _PaymentStatus.future) {
+             if (!foundNextUpcoming) {
+                // This is the first future item -> The "Next Payment"
+                items.add(_HistoryItem(current, status, txId));
+                foundNextUpcoming = true;
+             }
+             // Stop generating further future items
+             break;
+          } else {
+             // Past (Paid, Missed) or Due
+             items.add(_HistoryItem(current, status, txId));
+          }
+
+          current = _calculateNextDate(current, s.repeat);
+          loops++;
+       }
+       
+       // Reverse order (Upcoming first, then newest history)
+       return items.reversed.toList();
+   }
 
   bool _isMatch(SubscriptionRepeat repeat, DateTime expected, DateTime actual) {
       final d1 = DateTime(expected.year, expected.month, expected.day);

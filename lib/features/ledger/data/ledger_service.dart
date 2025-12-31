@@ -104,6 +104,29 @@ class LedgerService {
   // 4. Watch All Entries (For Global Page)
   Stream<List<LedgerEntry>> watchAllLedgerEntries() async* {
     final isar = await _isarService.db;
-    yield* isar.ledgerEntrys.where().sortByDateDesc().watch(fireImmediately: true);
+    yield* isar.ledgerEntrys.where().sortBySortOrder().thenByDateDesc().watch(fireImmediately: true);
+  }
+
+
+  Future<void> updateLedgerEntry(LedgerEntry entry) async {
+    final isar = await _isarService.db;
+    await isar.writeTxn(() async {
+      await isar.ledgerEntrys.put(entry);
+    });
+  }
+
+  Future<void> updateLedgerEntries(List<LedgerEntry> entries) async {
+    final isar = await _isarService.db;
+    await isar.writeTxn(() async {
+      await isar.ledgerEntrys.putAll(entries);
+    });
+  }
+
+
+  Future<void> deleteLedgerEntry(int id) async {
+    final isar = await _isarService.db;
+    await isar.writeTxn(() async {
+      await isar.ledgerEntrys.delete(id);
+    });
   }
 }
