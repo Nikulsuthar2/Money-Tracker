@@ -54,3 +54,4 @@ final accountsWithBalanceProvider = StreamProvider.autoDispose<List<AccountStats
      yield list;
   }
 });
+

@@ -99,7 +99,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
       _skipFromStats = t.skipFromStats;
       _skipFromStats = t.skipFromStats;
       _hasTime = t.hasTime;
-      _subscriptionId = t.subscriptionId;
+      _hasTime = t.hasTime;
 
       // Load splits
       if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
@@ -155,9 +155,6 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
        if (defaults != null && defaults.containsKey('relatedTransactionId')) {
           _relatedTransactionId = defaults['relatedTransactionId'];
        }
-        if (defaults != null && defaults.containsKey('subscriptionId')) {
-           _subscriptionId = defaults['subscriptionId'];
-        }
     }
     
     // Lock logic if refund mode (Legacy support or just removing?)
@@ -343,8 +340,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
           ..categoryId = _isSplit || _tabController.index == 3 || _inlineSettlementMode ? null : _selectedCategoryId // Settlement/Split have no main category? Or Settlement defaults?
           ..skipFromStats = _skipFromStats
           ..hasTime = _hasTime
-          ..relatedTransactionId = _relatedTransactionId
-          ..subscriptionId = _subscriptionId;
+          ..relatedTransactionId = _relatedTransactionId;
        
         // Assign Splits or Settlement Party
         if (_tabController.index == 3 || _inlineSettlementMode) {
@@ -1006,7 +1002,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                                                 decoration: const InputDecoration(labelText: 'Assign To', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                                                 items: [
                                                    const DropdownMenuItem(value: null, child: Text('Me (My Expense)')),
-                                                   ...parties.where((p) => p.type != PartyType.self).map((p) => DropdownMenuItem(
+                                                   ...parties.where((p) => !p.isMe()).map((p) => DropdownMenuItem(
                                                       value: p.id,
                                                       child: Text(p.name),
                                                    )),
@@ -1101,3 +1097,4 @@ class SubTransactionInput {
     noteController.dispose();
   }
 }
+

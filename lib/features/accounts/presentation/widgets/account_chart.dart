@@ -423,3 +423,4 @@ class _Badge extends StatelessWidget {
     );
   }
 }
+

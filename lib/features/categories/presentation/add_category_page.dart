@@ -250,3 +250,4 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
     );
   }
 }
+

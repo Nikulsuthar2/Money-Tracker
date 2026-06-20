@@ -85,3 +85,4 @@ class SecurityNotifier extends StateNotifier<SecurityState> {
     }
   }
 }
+

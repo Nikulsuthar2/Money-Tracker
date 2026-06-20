@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/settings/data/backup_service.dart';
-import 'package:money_manager/core/database/isar_service.dart';
 import 'package:money_manager/core/theme/theme_provider.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
 import 'package:money_manager/features/settings/application/security_provider.dart';
@@ -126,10 +125,9 @@ class SettingsPage extends ConsumerWidget {
                 actions: [
                   TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
                   TextButton(onPressed: () async {
-                      await IsarService.clearAll();
                       if (context.mounted) {
                         Navigator.pop(c);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All data has been reset.')));
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reset is temporarily disabled.')));
                       }
                   }, child: const Text('Delete', style: TextStyle(color: Colors.red))),
                 ],
@@ -303,3 +301,4 @@ class _SecuritySection extends ConsumerWidget {
     );
   }
 }
+

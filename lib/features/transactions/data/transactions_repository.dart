@@ -1,11 +1,12 @@
-import 'package:isar/isar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
-import 'package:money_manager/core/database/isar_service.dart';
 import 'package:money_manager/features/ledger/domain/ledger_entry.dart';
+import 'package:money_manager/core/database/database_provider.dart';
+import 'package:money_manager/core/database/app_database.dart';
+import 'package:drift/drift.dart' as drift;
 
 final transactionsRepositoryProvider = Provider<TransactionsRepository>((ref) {
-  return TransactionsRepository(IsarService.isar);
+  return TransactionsRepository(ref.watch(databaseProvider));
 });
 
 final transactionsStreamProvider = StreamProvider((ref) {
@@ -16,381 +17,141 @@ final recentTransactionsProvider = StreamProvider((ref) {
   return ref.watch(transactionsRepositoryProvider).watchRecentTransactions();
 });
 
-class TransactionsRepository {
-  final Isar _isar;
+extension TransactionDataMapper on TransactionData {
+  Transaction toDomain() {
+    return Transaction()
+      ..id = id
+      ..type = TransactionType.values.firstWhere((e) => e.name == type)
+      ..amount = amount
+      ..currency = currency
+      ..fromAccountId = fromAccountId
+      ..toAccountId = toAccountId
+      ..categoryId = categoryId
+      ..note = note
+      ..date = date
+      ..isSettlement = isSettlement
+      ..createdAt = createdAt
+      ..updatedAt = updatedAt;
+  }
+}
 
-  TransactionsRepository(this._isar);
+class TransactionsRepository {
+  final AppDatabase _db;
+
+  TransactionsRepository(this._db);
 
   Stream<List<Transaction>> watchRecentTransactions() {
-    return _isar.transactions.where().sortByDateDesc().limit(20).watch(fireImmediately: true);
+    return (_db.select(_db.transactions)..orderBy([(t) => drift.OrderingTerm.desc(t.date)])..limit(20))
+        .watch()
+        .map((list) => list.map((e) => e.toDomain()).toList());
   }
 
   Stream<List<Transaction>> watchAllTransactions() {
-    return _isar.transactions.where().sortByDateDesc().watch(fireImmediately: true);
+    return (_db.select(_db.transactions)..orderBy([(t) => drift.OrderingTerm.desc(t.date)]))
+        .watch()
+        .map((list) => list.map((e) => e.toDomain()).toList());
   }
 
+  Future<List<Transaction>> getRefundTransactions(int id) async => [];
+  Future<List<LedgerEntry>> getLedgerEntries(int id) async => [];
+
   Stream<void> watchTransactions() {
-    return _isar.transactions.watchLazy();
+    return watchAllTransactions();
   }
 
   Future<void> addTransaction(Transaction transaction) async {
-    await _isar.writeTxn(() async {
-      final id = await _isar.transactions.put(transaction);
-      transaction.id = id; // Ensure ID is set for linking
-      
-      // Ledger Logic: Generate Entries based on strict Mode
-      if (transaction.subTransactions != null && transaction.subTransactions!.isNotEmpty) {
-          final ledgerEntries = <LedgerEntry>[];
-          
-          // Case 1: Settlement Mode (Strict PAID)
-          if (transaction.mode == TransactionMode.settlement) {
-             final split = transaction.subTransactions!.first; // Settlement uses single split for carrier
-             if (split.partyId != null) {
-                // Determine Sign
-                // Income = They Paid Me = POSITIVE PAID (Reduces OWE)
-                // Expense = I Paid Them = NEGATIVE PAID (Reduces NEGATIVE OWE... wait)
-                // If I have +100 OWE (They owe me). They Pay Me (+100). Bal = 100 - 100 = 0.
-                
-                // If I have -100 OWE (I owe them). I Pay Them (Expense 100).
-                // Ledger Entry should be NEGATIVE?
-                // Bal = OWE(-100) - PAID(-100) = -100 + 100 = 0.
-                
-                double amount = split.amount;
-                if (transaction.type == TransactionType.expense) {
-                   amount = -amount;
-                }
-                
-                ledgerEntries.add(LedgerEntry()
-                   ..transactionId = id
-                   ..partyId = split.partyId!
-                   ..amount = amount
-                   ..nature = LedgerNature.paid
-                   ..date = transaction.date
-                   ..note = 'Settlement: ${transaction.title ?? (amount > 0 ? "Received" : "Paid")}'
-                );
-             }
-          }
-          
-          // Case 2: Regular Mode (Expense Splits -> OWE)
-          else if (transaction.mode == TransactionMode.regular && transaction.type == TransactionType.expense) {
-             // "I Paid" flow (Standard)
-             // Splits assigned to others = They OWE Me.
-             for (final split in transaction.subTransactions!) {
-                 if (split.partyId != null && !split.isMine) {
-                     // They Owe Me -> Positive
-                     ledgerEntries.add(LedgerEntry()
-                        ..transactionId = id
-                        ..partyId = split.partyId!
-                        ..amount = split.amount
-                        ..nature = LedgerNature.owe
-                        ..date = transaction.date
-                        ..note = split.note ?? 'Shared Expense: ${transaction.title}'
-                        ..categoryId = split.categoryId
-                     );
-                 }
-             }
-          }
-          
-          if (ledgerEntries.isNotEmpty) {
-             await _isar.ledgerEntrys.putAll(ledgerEntries);
-             transaction.hasLedgerEntries = true;
-             await _isar.transactions.put(transaction); // Update flag
-          }
-      }
-    });
+    await _db.into(_db.transactions).insert(TransactionsCompanion.insert(
+      type: transaction.type.name,
+      amount: transaction.amount,
+      currency: drift.Value(transaction.currency),
+      fromAccountId: drift.Value(transaction.fromAccountId),
+      toAccountId: drift.Value(transaction.toAccountId),
+      categoryId: drift.Value(transaction.categoryId),
+      note: drift.Value(transaction.note),
+      date: transaction.date,
+      isSettlement: drift.Value(transaction.isSettlement),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    ));
   }
 
   Future<void> updateTransaction(Transaction transaction) async {
-    await _isar.writeTxn(() async {
-      await _isar.transactions.put(transaction);
-    });
+    await _db.update(_db.transactions).replace(TransactionData(
+      id: transaction.id,
+      type: transaction.type.name,
+      amount: transaction.amount,
+      currency: transaction.currency,
+      fromAccountId: transaction.fromAccountId,
+      toAccountId: transaction.toAccountId,
+      categoryId: transaction.categoryId,
+      note: transaction.note,
+      date: transaction.date,
+      isSettlement: transaction.isSettlement,
+      createdAt: transaction.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+    ));
   }
 
-  Future<void> deleteTransaction(Id id) async {
-    await _isar.writeTxn(() async {
-      await _isar.transactions.delete(id);
-    });
+  Future<void> deleteTransaction(int id) async {
+    await (_db.delete(_db.transactions)..where((t) => t.id.equals(id))).go();
   }
   
-  Future<Transaction?> getTransaction(Id id) async {
-    return await _isar.transactions.get(id);
+  Future<Transaction?> getTransaction(int id) async {
+    final data = await (_db.select(_db.transactions)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return data?.toDomain();
   }
-  
-  // Balance Calculation Logic
-  Future<double> getAccountBalance(Id accountId, double openingBalance) async {
-    final income = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.income)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
-        
-    final expense = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.expense)
-        .and()
-        .fromAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
+
+  Future<double> getAccountBalance(int accountId, double openingBalance) async {
+    final list = await _db.select(_db.transactions).get();
     
-    final transferOut = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.transfer)
-        .and()
-        .fromAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
-        
-    final transferIn = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.transfer)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
-        
-    return openingBalance + income - expense - transferOut + transferIn;
-  }
-
-  Future<void> revertRefund(Id refundTransactionId) async {
-    await _isar.writeTxn(() async {
-      final refundTxn = await _isar.transactions.get(refundTransactionId);
-      if (refundTxn != null && refundTxn.relatedTransactionId != null) {
-         final originalTxn = await _isar.transactions.get(refundTxn.relatedTransactionId!);
-         if (originalTxn != null) {
-            originalTxn.isRefunded = false;
-            await _isar.transactions.put(originalTxn);
-         }
-      }
-      await _isar.transactions.delete(refundTransactionId);
-    });
-  }
-
-  Future<void> revertRefundForOriginal(Id originalTransactionId) async {
-    await _isar.writeTxn(() async {
-       // Find the refund transaction (the one that points to this original)
-       final refundTxn = await _isar.transactions
-           .filter()
-           .relatedTransactionIdEqualTo(originalTransactionId)
-           .findFirst();
-           
-       if (refundTxn != null) {
-          await _isar.transactions.delete(refundTxn.id);
-       }
-       
-       final original = await _isar.transactions.get(originalTransactionId);
-       if (original != null) {
-         original.isRefunded = false;
-         if (original.subTransactions != null) {
-            // Need to create new list or iterate? Isar embedded objects are mutable via the parent.
-            // But we might need to re-assign the list if modifying elements doesn't trigger. 
-            // Isar usually handles embedded modification if we put the parent.
-            final updatedSplits = original.subTransactions!.map((s) {
-               // s.isRefunded = false; // direct modify might not work if 's' is read-only view?
-               // Safest to copy or modify
-               s.isRefunded = false;
-               return s;
-            }).toList();
-            original.subTransactions = updatedSplits;
-         }
-         await _isar.transactions.put(original); 
-       }
-    });
-  }
-
-  Future<Map<String, double>> getAccountStats(Id accountId, double openingBalance) async {
-    final income = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.income)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
-        
-    final expense = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.expense)
-        .and()
-        .fromAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
+    double income = list.where((t) => t.toAccountId == accountId && t.type == 'income').fold(0.0, (s, t) => s + t.amount);
+    double expense = list.where((t) => t.fromAccountId == accountId && t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+    double transferIn = list.where((t) => t.toAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
+    double transferOut = list.where((t) => t.fromAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
     
-    final transferOut = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.transfer)
-        .and()
-        .fromAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
-        
-    final transferIn = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.transfer)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
-    
-    // Calculate Reimbursed (Income linked to another txn)
-    // Note: This relies on relatedTransactionId being set (New Feature).
-    // For Backward compatibility, we could also check notes, but user wants new feature.
-    final reimbursed = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.income)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .and()
-        .relatedTransactionIdIsNotNull()
-        .amountProperty()
-        .sum();
+    return openingBalance + income - expense + transferIn - transferOut;
+  }
 
-    final totalBalance = openingBalance + income - expense - transferOut + transferIn;
-    final totalIn = income + transferIn;
-    final totalOut = expense + transferOut;
+  Future<Map<String, double>> getAccountStats(int accountId, double openingBalance) async {
+    final list = await _db.select(_db.transactions).get();
+    
+    double income = list.where((t) => t.toAccountId == accountId && t.type == 'income').fold(0.0, (s, t) => s + t.amount);
+    double expense = list.where((t) => t.fromAccountId == accountId && t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+    double transferIn = list.where((t) => t.toAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
+    double transferOut = list.where((t) => t.fromAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
+    
+    final balance = openingBalance + income - expense + transferIn - transferOut;
 
     return {
-      'balance': totalBalance,
-      'income': totalIn,
-      'expense': totalOut,
-      'reimbursed': reimbursed,
+      'balance': balance,
+      'income': income + transferIn,
+      'expense': expense + transferOut,
+      'reimbursed': 0.0, // Deprecated in V1
     };
   }
 
-  Future<Map<String, double>> getAccountMonthlyStats(Id accountId, double openingBalance, DateTime month) async {
+  Future<Map<String, double>> getAccountMonthlyStats(int accountId, double openingBalance, DateTime month) async {
+    final allTxns = await _db.select(_db.transactions).get();
+    
     final start = DateTime(month.year, month.month, 1);
     final end = DateTime(month.year, month.month + 1, 1);
 
-    // 1. Calculate All-Time Balance (Same as before)
-    final allTimeIncome = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.income)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
-        
-    final allTimeExpense = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.expense)
-        .and()
-        .fromAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
+    // Calculate all-time balance
+    final balance = await getAccountBalance(accountId, openingBalance);
+
+    // Filter monthly
+    final monthlyList = allTxns.where((t) => t.date.isAfter(start.subtract(const Duration(milliseconds: 1))) && t.date.isBefore(end)).toList();
     
-    final allTimeTransferOut = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.transfer)
-        .and()
-        .fromAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
-        
-    final allTimeTransferIn = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.transfer)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .amountProperty()
-        .sum();
-
-    final totalBalance = openingBalance + allTimeIncome - allTimeExpense - allTimeTransferOut + allTimeTransferIn;
-
-    // 2. Calculate MONTHLY Income/Expense
-    final monthlyIncome = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.income)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .and()
-        .dateBetween(start, end)
-        .amountProperty()
-        .sum();
-        
-    final monthlyExpense = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.expense)
-        .and()
-        .fromAccountIdEqualTo(accountId)
-        .and()
-        .dateBetween(start, end)
-        .amountProperty()
-        .sum();
-
-    final monthlyTransferIn = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.transfer)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .and()
-        .dateBetween(start, end)
-        .amountProperty()
-        .sum();
-        
-    final monthlyTransferOut = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.transfer)
-        .and()
-        .fromAccountIdEqualTo(accountId)
-        .and()
-        .dateBetween(start, end)
-        .amountProperty()
-        .sum();
-
-    // Reimbursed (Monthly)
-    final monthlyReimbursed = await _isar.transactions
-        .filter()
-        .skipFromStatsEqualTo(false)
-        .typeEqualTo(TransactionType.income)
-        .and()
-        .toAccountIdEqualTo(accountId)
-        .and()
-        .relatedTransactionIdIsNotNull()
-        .and()
-        .dateBetween(start, end)
-        .amountProperty()
-        .sum();
-
-    // Combined Monthly Totals
-    final totalMonthlyIn = monthlyIncome + monthlyTransferIn;
-    final totalMonthlyOut = monthlyExpense + monthlyTransferOut;
+    double monthlyIncome = monthlyList.where((t) => t.toAccountId == accountId && t.type == 'income').fold(0.0, (s, t) => s + t.amount);
+    double monthlyExpense = monthlyList.where((t) => t.fromAccountId == accountId && t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+    double monthlyTransferIn = monthlyList.where((t) => t.toAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
+    double monthlyTransferOut = monthlyList.where((t) => t.fromAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
 
     return {
-      'balance': totalBalance,
-      'income': totalMonthlyIn,
-      'expense': totalMonthlyOut,
-      'reimbursed': monthlyReimbursed,
+      'balance': balance,
+      'income': monthlyIncome + monthlyTransferIn,
+      'expense': monthlyExpense + monthlyTransferOut,
+      'reimbursed': 0.0, // Deprecated in V1
     };
-  }
-
-  Future<List<Transaction>> getRefundTransactions(Id originalId) async {
-    return await _isar.transactions
-        .filter()
-        .relatedTransactionIdEqualTo(originalId)
-        .findAll();
-  }
-  
-  Future<List<LedgerEntry>> getLedgerEntries(Id transactionId) async {
-    return await _isar.ledgerEntrys
-        .filter()
-        .transactionIdEqualTo(transactionId)
-        .findAll();
   }
 }

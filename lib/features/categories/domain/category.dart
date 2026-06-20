@@ -1,19 +1,9 @@
-import 'package:isar/isar.dart';
-
-part 'category.g.dart';
-
-@collection
 class Category {
-  Id id = Isar.autoIncrement;
-
-  late String name;
-
-  @Enumerated(EnumType.name)
-  late CategoryType type;
-
+  int id = 0;
+  String name = '';
+  CategoryType type = CategoryType.expense;
   int color = 0xFF4CAF50;
-
-  int icon = 57522; // default icon
+  int icon = 57522;
 }
 
 enum CategoryType {

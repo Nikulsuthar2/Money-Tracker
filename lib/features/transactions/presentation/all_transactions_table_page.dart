@@ -98,3 +98,4 @@ class AllTransactionsTablePage extends ConsumerWidget {
     );
   }
 }
+

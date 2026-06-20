@@ -8,8 +8,6 @@ import 'package:money_manager/features/accounts/application/accounts_providers.d
 import 'package:gap/gap.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:money_manager/features/transactions/presentation/widgets/transaction_tile.dart';
-import 'package:money_manager/features/subscriptions/presentation/subscriptions_page.dart';
-import 'package:money_manager/features/subscriptions/domain/subscription.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/accounts/presentation/widgets/account_card.dart';
@@ -29,114 +27,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    // Delay check to allow UI to build
-    Future.microtask(() => _checkDueSubscriptions());
-  }
-
-  Future<void> _checkDueSubscriptions() async {
-    final subsStream = ref.read(subscriptionsStreamProvider.stream);
-    // Get current list (not just one update)
-    final subs = await subsStream.first;
-    
-    final today = DateTime.now();
-    final todayStart = DateTime(today.year, today.month, today.day);
-    
-    final due = subs.where((s) => s.isActive && s.startDate.isBefore(todayStart.add(const Duration(days: 1)))).toList();
-    
-    if (due.isNotEmpty && mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('${due.length} Subscriptions Due'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: due.map((s) => ListTile(
-              title: Text(s.name),
-              trailing: Text('${ref.watch(currencyProvider)}${s.amount.toStringAsFixed(2)}'),
-              dense: true,
-            )).toList(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Later'),
-            ),
-            FilledButton(
-              onPressed: () {
-                _processSubscriptions(due);
-                Navigator.pop(context);
-              },
-              child: const Text('Process & Pay'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  Future<void> _processSubscriptions(List<Subscription> dueSubs) async {
-    final transactionRepo = ref.read(transactionsRepositoryProvider);
-    final subRepo = ref.read(subscriptionsRepositoryProvider);
-    // Fetch categories to determine Income/Expense
-    final categories = await ref.read(categoriesStreamProvider.future);
-    final catMap = {for (var c in categories) c.id: c};
-    
-    int processedCount = 0;
-    final today = DateTime.now();
-    final tomorrow = DateTime(today.year, today.month, today.day).add(const Duration(days: 1));
-
-    for (final sub in dueSubs) {
-      final category = sub.categoryId != null ? catMap[sub.categoryId] : null;
-      final type = category?.type == CategoryType.income ? TransactionType.income : TransactionType.expense;
-
-      DateTime processDate = sub.startDate;
-      
-      // Allow max loop to prevent infinite loop in case of error (e.g. daily repeat from 1970)
-      int safety = 0;
-      while (processDate.isBefore(tomorrow) && safety < 1000) {
-          // 1. Create Transaction
-          final t = Transaction()
-            ..amount = sub.amount
-            ..date = processDate
-            ..type = type
-            ..categoryId = sub.categoryId
-            ..note = 'Auto-Subscription: ${sub.name}';
-          
-          if (type == TransactionType.income) {
-              t.toAccountId = sub.accountId;
-          } else {
-              t.fromAccountId = sub.accountId;
-          }
-            
-          t.subscriptionId = sub.id;
-
-          await transactionRepo.addTransaction(t);
-          processedCount++;
-
-          // 2. Calculate Next Date
-          processDate = _calculateNextDate(processDate, sub.repeat);
-          safety++;
-      }
-
-      // Update Subscription
-      sub.startDate = processDate;
-      sub.lastPaymentDate = DateTime.now();
-      
-      await subRepo.updateSubscription(sub);
-    }
-
-    if (mounted) {
-       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Processed $processedCount transactions')));
-    }
-  }
-
-  DateTime _calculateNextDate(DateTime current, SubscriptionRepeat repeat) {
-    switch (repeat) {
-      case SubscriptionRepeat.daily: return current.add(const Duration(days: 1));
-      case SubscriptionRepeat.weekly: return current.add(const Duration(days: 7));
-      case SubscriptionRepeat.monthly: return DateTime(current.year, current.month + 1, current.day);
-      case SubscriptionRepeat.yearly: return DateTime(current.year + 1, current.month, current.day);
-    }
   }
 
   @override
@@ -627,3 +517,4 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
+

@@ -514,8 +514,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                    return Column(
                      children: entries.map((e) => LedgerEntryCompactTile(
                         entry: e, 
-                        currencySymbol: ref.watch(currencyProvider),
-                     )).toList(),
+                     )).toList().cast<Widget>(),
                    );
                 }
              ),
@@ -611,3 +610,4 @@ class _Chip extends StatelessWidget {
     );
   }
 }
+

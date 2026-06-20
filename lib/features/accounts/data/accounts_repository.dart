@@ -1,56 +1,91 @@
-import 'package:isar/isar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/features/accounts/domain/account.dart';
-import 'package:money_manager/core/database/isar_service.dart';
+import 'package:money_manager/core/database/database_provider.dart';
+import 'package:money_manager/core/database/app_database.dart';
+import 'package:drift/drift.dart' as drift;
 
 final accountsRepositoryProvider = Provider<AccountsRepository>((ref) {
-  return AccountsRepository(IsarService.isar);
+  return AccountsRepository(ref.watch(databaseProvider));
 });
 
 final accountsStreamProvider = StreamProvider((ref) {
   return ref.watch(accountsRepositoryProvider).watchAllAccounts();
 });
 
-class AccountsRepository {
-  final Isar _isar;
+extension AccountDataMapper on AccountData {
+  Account toDomain() {
+    return Account()
+      ..id = id
+      ..name = name
+      ..type = AccountType.values.firstWhere((e) => e.name == type)
+      ..currency = currency
+      ..initialBalance = initialBalance
+      ..reservedBalance = reservedBalance
+      ..reservedLimit = reservedLimit
+      ..isArchived = isArchived
+      ..createdAt = createdAt
+      ..updatedAt = updatedAt;
+  }
+}
 
-  AccountsRepository(this._isar);
+class AccountsRepository {
+  final AppDatabase _db;
+
+  AccountsRepository(this._db);
 
   Future<List<Account>> getAllAccounts() async {
-    return _isar.accounts.where().findAll();
+    final list = await _db.select(_db.accounts).get();
+    return list.map((e) => e.toDomain()).toList();
   }
 
   Stream<List<Account>> watchAllAccounts() {
-    return _isar.accounts.where().watch(fireImmediately: true);
+    return _db.select(_db.accounts).watch().map((list) => list.map((e) => e.toDomain()).toList());
   }
   
   Stream<List<Account>> watchActiveAccounts() {
-    return _isar.accounts.filter().isArchivedEqualTo(false).watch(fireImmediately: true);
+    return (_db.select(_db.accounts)..where((a) => a.isArchived.equals(false)))
+        .watch()
+        .map((list) => list.map((e) => e.toDomain()).toList());
   }
 
   Future<void> addAccount(Account account) async {
-    await _isar.writeTxn(() async {
-      await _isar.accounts.put(account);
-    });
+    await _db.into(_db.accounts).insert(AccountsCompanion.insert(
+      name: account.name,
+      type: account.type.name,
+      currency: drift.Value(account.currency),
+      initialBalance: drift.Value(account.initialBalance),
+      reservedBalance: drift.Value(account.reservedBalance),
+      reservedLimit: drift.Value(account.reservedLimit),
+      isArchived: drift.Value(account.isArchived),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    ));
   }
 
   Future<void> updateAccount(Account account) async {
-    await _isar.writeTxn(() async {
-      await _isar.accounts.put(account);
-    });
+    await _db.update(_db.accounts).replace(AccountData(
+      id: account.id,
+      name: account.name,
+      type: account.type.name,
+      currency: account.currency,
+      initialBalance: account.initialBalance,
+      reservedBalance: account.reservedBalance,
+      reservedLimit: account.reservedLimit,
+      isArchived: account.isArchived,
+      createdAt: account.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+    ));
   }
 
-  Future<void> deleteAccount(Id id) async {
-    await _isar.writeTxn(() async {
-      await _isar.accounts.delete(id);
-    });
+  Future<void> deleteAccount(int id) async {
+    await (_db.delete(_db.accounts)..where((a) => a.id.equals(id))).go();
   }
   
-  Future<void> archiveAccount(Id id) async {
-    final account = await _isar.accounts.get(id);
-    if (account != null) {
-      account.isArchived = true;
-      await updateAccount(account);
+  Future<void> archiveAccount(int id) async {
+    final accountData = await (_db.select(_db.accounts)..where((a) => a.id.equals(id))).getSingleOrNull();
+    if (accountData != null) {
+      final updated = accountData.copyWith(isArchived: true, updatedAt: DateTime.now());
+      await _db.update(_db.accounts).replace(updated);
     }
   }
 }

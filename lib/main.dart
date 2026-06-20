@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/core/router/app_router.dart';
 import 'package:money_manager/core/theme/app_theme.dart';
-import 'package:money_manager/core/database/isar_service.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:money_manager/core/theme/theme_provider.dart';
 import 'package:money_manager/features/settings/application/security_provider.dart';
@@ -12,7 +11,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    await IsarService.openSchemas();
     runApp(const ProviderScope(child: MoneyManagerApp()));
   } catch (e, stackTrace) {
     debugPrint('Error initializing Isar: $e');

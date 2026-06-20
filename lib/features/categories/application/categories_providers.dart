@@ -16,3 +16,4 @@ final expenseCategoriesProvider = StreamProvider<List<Category>>((ref) {
   final repo = ref.watch(categoriesRepositoryProvider);
   return repo.watchExpenseCategories();
 });
+
