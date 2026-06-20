@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -42,15 +43,15 @@ class TransactionTile extends ConsumerWidget {
     final isSharedSplit = t.subTransactions != null && t.subTransactions!.any((s) => s.partyId != null);
 
     if (isSharedSplit) {
-      icon = Icons.call_split;
+      icon = Symbols.call_split;
     } else if (category != null) {
       icon = IconData(category!.icon, fontFamily: 'MaterialIcons');
     } else {
       icon = t.type == TransactionType.income
-        ? Icons.arrow_downward
+        ? Symbols.arrow_downward
         : t.type == TransactionType.expense
-            ? Icons.arrow_upward
-            : Icons.compare_arrows;
+            ? Symbols.arrow_upward
+            : Symbols.compare_arrows;
     }
 
     return Card(
@@ -160,4 +161,5 @@ class TransactionTile extends ConsumerWidget {
     );
   }
 }
+
 

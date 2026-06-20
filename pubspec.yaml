@@ -58,6 +58,7 @@ dependencies:
   drift: ^2.34.0
   sqlite3_flutter_libs: ^0.6.0+eol
   path: ^1.9.1
+  material_symbols_icons: ^4.2951.0
 
 dev_dependencies:
   flutter_test:
@@ -101,6 +102,9 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    - assets/banks/
+    - assets/icon/
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

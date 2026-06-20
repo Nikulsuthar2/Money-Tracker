@@ -76,17 +76,38 @@ class $AccountsTable extends Accounts
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
-  static const VerificationMeta _reservedLimitMeta = const VerificationMeta(
-    'reservedLimit',
+  static const VerificationMeta _interestRateMeta = const VerificationMeta(
+    'interestRate',
   );
   @override
-  late final GeneratedColumn<double> reservedLimit = GeneratedColumn<double>(
-    'reserved_limit',
+  late final GeneratedColumn<double> interestRate = GeneratedColumn<double>(
+    'interest_rate',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
+  @override
+  late final GeneratedColumn<int> color = GeneratedColumn<int>(
+    'color',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0xFF2196F3),
+  );
+  static const VerificationMeta _iconDataMeta = const VerificationMeta(
+    'iconData',
+  );
+  @override
+  late final GeneratedColumn<String> iconData = GeneratedColumn<String>(
+    'icon_data',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('material:57522'),
   );
   static const VerificationMeta _isArchivedMeta = const VerificationMeta(
     'isArchived',
@@ -133,7 +154,9 @@ class $AccountsTable extends Accounts
     currency,
     initialBalance,
     reservedBalance,
-    reservedLimit,
+    interestRate,
+    color,
+    iconData,
     isArchived,
     createdAt,
     updatedAt,
@@ -193,13 +216,25 @@ class $AccountsTable extends Accounts
         ),
       );
     }
-    if (data.containsKey('reserved_limit')) {
+    if (data.containsKey('interest_rate')) {
       context.handle(
-        _reservedLimitMeta,
-        reservedLimit.isAcceptableOrUnknown(
-          data['reserved_limit']!,
-          _reservedLimitMeta,
+        _interestRateMeta,
+        interestRate.isAcceptableOrUnknown(
+          data['interest_rate']!,
+          _interestRateMeta,
         ),
+      );
+    }
+    if (data.containsKey('color')) {
+      context.handle(
+        _colorMeta,
+        color.isAcceptableOrUnknown(data['color']!, _colorMeta),
+      );
+    }
+    if (data.containsKey('icon_data')) {
+      context.handle(
+        _iconDataMeta,
+        iconData.isAcceptableOrUnknown(data['icon_data']!, _iconDataMeta),
       );
     }
     if (data.containsKey('is_archived')) {
@@ -257,9 +292,17 @@ class $AccountsTable extends Accounts
         DriftSqlType.double,
         data['${effectivePrefix}reserved_balance'],
       )!,
-      reservedLimit: attachedDatabase.typeMapping.read(
+      interestRate: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
-        data['${effectivePrefix}reserved_limit'],
+        data['${effectivePrefix}interest_rate'],
+      ),
+      color: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color'],
+      )!,
+      iconData: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_data'],
       )!,
       isArchived: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
@@ -289,7 +332,9 @@ class AccountData extends DataClass implements Insertable<AccountData> {
   final String currency;
   final double initialBalance;
   final double reservedBalance;
-  final double reservedLimit;
+  final double? interestRate;
+  final int color;
+  final String iconData;
   final bool isArchived;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -300,7 +345,9 @@ class AccountData extends DataClass implements Insertable<AccountData> {
     required this.currency,
     required this.initialBalance,
     required this.reservedBalance,
-    required this.reservedLimit,
+    this.interestRate,
+    required this.color,
+    required this.iconData,
     required this.isArchived,
     required this.createdAt,
     required this.updatedAt,
@@ -314,7 +361,11 @@ class AccountData extends DataClass implements Insertable<AccountData> {
     map['currency'] = Variable<String>(currency);
     map['initial_balance'] = Variable<double>(initialBalance);
     map['reserved_balance'] = Variable<double>(reservedBalance);
-    map['reserved_limit'] = Variable<double>(reservedLimit);
+    if (!nullToAbsent || interestRate != null) {
+      map['interest_rate'] = Variable<double>(interestRate);
+    }
+    map['color'] = Variable<int>(color);
+    map['icon_data'] = Variable<String>(iconData);
     map['is_archived'] = Variable<bool>(isArchived);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -329,7 +380,11 @@ class AccountData extends DataClass implements Insertable<AccountData> {
       currency: Value(currency),
       initialBalance: Value(initialBalance),
       reservedBalance: Value(reservedBalance),
-      reservedLimit: Value(reservedLimit),
+      interestRate: interestRate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(interestRate),
+      color: Value(color),
+      iconData: Value(iconData),
       isArchived: Value(isArchived),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -348,7 +403,9 @@ class AccountData extends DataClass implements Insertable<AccountData> {
       currency: serializer.fromJson<String>(json['currency']),
       initialBalance: serializer.fromJson<double>(json['initialBalance']),
       reservedBalance: serializer.fromJson<double>(json['reservedBalance']),
-      reservedLimit: serializer.fromJson<double>(json['reservedLimit']),
+      interestRate: serializer.fromJson<double?>(json['interestRate']),
+      color: serializer.fromJson<int>(json['color']),
+      iconData: serializer.fromJson<String>(json['iconData']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -364,7 +421,9 @@ class AccountData extends DataClass implements Insertable<AccountData> {
       'currency': serializer.toJson<String>(currency),
       'initialBalance': serializer.toJson<double>(initialBalance),
       'reservedBalance': serializer.toJson<double>(reservedBalance),
-      'reservedLimit': serializer.toJson<double>(reservedLimit),
+      'interestRate': serializer.toJson<double?>(interestRate),
+      'color': serializer.toJson<int>(color),
+      'iconData': serializer.toJson<String>(iconData),
       'isArchived': serializer.toJson<bool>(isArchived),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -378,7 +437,9 @@ class AccountData extends DataClass implements Insertable<AccountData> {
     String? currency,
     double? initialBalance,
     double? reservedBalance,
-    double? reservedLimit,
+    Value<double?> interestRate = const Value.absent(),
+    int? color,
+    String? iconData,
     bool? isArchived,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -389,7 +450,9 @@ class AccountData extends DataClass implements Insertable<AccountData> {
     currency: currency ?? this.currency,
     initialBalance: initialBalance ?? this.initialBalance,
     reservedBalance: reservedBalance ?? this.reservedBalance,
-    reservedLimit: reservedLimit ?? this.reservedLimit,
+    interestRate: interestRate.present ? interestRate.value : this.interestRate,
+    color: color ?? this.color,
+    iconData: iconData ?? this.iconData,
     isArchived: isArchived ?? this.isArchived,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -406,9 +469,11 @@ class AccountData extends DataClass implements Insertable<AccountData> {
       reservedBalance: data.reservedBalance.present
           ? data.reservedBalance.value
           : this.reservedBalance,
-      reservedLimit: data.reservedLimit.present
-          ? data.reservedLimit.value
-          : this.reservedLimit,
+      interestRate: data.interestRate.present
+          ? data.interestRate.value
+          : this.interestRate,
+      color: data.color.present ? data.color.value : this.color,
+      iconData: data.iconData.present ? data.iconData.value : this.iconData,
       isArchived: data.isArchived.present
           ? data.isArchived.value
           : this.isArchived,
@@ -426,7 +491,9 @@ class AccountData extends DataClass implements Insertable<AccountData> {
           ..write('currency: $currency, ')
           ..write('initialBalance: $initialBalance, ')
           ..write('reservedBalance: $reservedBalance, ')
-          ..write('reservedLimit: $reservedLimit, ')
+          ..write('interestRate: $interestRate, ')
+          ..write('color: $color, ')
+          ..write('iconData: $iconData, ')
           ..write('isArchived: $isArchived, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -442,7 +509,9 @@ class AccountData extends DataClass implements Insertable<AccountData> {
     currency,
     initialBalance,
     reservedBalance,
-    reservedLimit,
+    interestRate,
+    color,
+    iconData,
     isArchived,
     createdAt,
     updatedAt,
@@ -457,7 +526,9 @@ class AccountData extends DataClass implements Insertable<AccountData> {
           other.currency == this.currency &&
           other.initialBalance == this.initialBalance &&
           other.reservedBalance == this.reservedBalance &&
-          other.reservedLimit == this.reservedLimit &&
+          other.interestRate == this.interestRate &&
+          other.color == this.color &&
+          other.iconData == this.iconData &&
           other.isArchived == this.isArchived &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -470,7 +541,9 @@ class AccountsCompanion extends UpdateCompanion<AccountData> {
   final Value<String> currency;
   final Value<double> initialBalance;
   final Value<double> reservedBalance;
-  final Value<double> reservedLimit;
+  final Value<double?> interestRate;
+  final Value<int> color;
+  final Value<String> iconData;
   final Value<bool> isArchived;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -481,7 +554,9 @@ class AccountsCompanion extends UpdateCompanion<AccountData> {
     this.currency = const Value.absent(),
     this.initialBalance = const Value.absent(),
     this.reservedBalance = const Value.absent(),
-    this.reservedLimit = const Value.absent(),
+    this.interestRate = const Value.absent(),
+    this.color = const Value.absent(),
+    this.iconData = const Value.absent(),
     this.isArchived = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -493,7 +568,9 @@ class AccountsCompanion extends UpdateCompanion<AccountData> {
     this.currency = const Value.absent(),
     this.initialBalance = const Value.absent(),
     this.reservedBalance = const Value.absent(),
-    this.reservedLimit = const Value.absent(),
+    this.interestRate = const Value.absent(),
+    this.color = const Value.absent(),
+    this.iconData = const Value.absent(),
     this.isArchived = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -508,7 +585,9 @@ class AccountsCompanion extends UpdateCompanion<AccountData> {
     Expression<String>? currency,
     Expression<double>? initialBalance,
     Expression<double>? reservedBalance,
-    Expression<double>? reservedLimit,
+    Expression<double>? interestRate,
+    Expression<int>? color,
+    Expression<String>? iconData,
     Expression<bool>? isArchived,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -520,7 +599,9 @@ class AccountsCompanion extends UpdateCompanion<AccountData> {
       if (currency != null) 'currency': currency,
       if (initialBalance != null) 'initial_balance': initialBalance,
       if (reservedBalance != null) 'reserved_balance': reservedBalance,
-      if (reservedLimit != null) 'reserved_limit': reservedLimit,
+      if (interestRate != null) 'interest_rate': interestRate,
+      if (color != null) 'color': color,
+      if (iconData != null) 'icon_data': iconData,
       if (isArchived != null) 'is_archived': isArchived,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -534,7 +615,9 @@ class AccountsCompanion extends UpdateCompanion<AccountData> {
     Value<String>? currency,
     Value<double>? initialBalance,
     Value<double>? reservedBalance,
-    Value<double>? reservedLimit,
+    Value<double?>? interestRate,
+    Value<int>? color,
+    Value<String>? iconData,
     Value<bool>? isArchived,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -546,7 +629,9 @@ class AccountsCompanion extends UpdateCompanion<AccountData> {
       currency: currency ?? this.currency,
       initialBalance: initialBalance ?? this.initialBalance,
       reservedBalance: reservedBalance ?? this.reservedBalance,
-      reservedLimit: reservedLimit ?? this.reservedLimit,
+      interestRate: interestRate ?? this.interestRate,
+      color: color ?? this.color,
+      iconData: iconData ?? this.iconData,
       isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -574,8 +659,14 @@ class AccountsCompanion extends UpdateCompanion<AccountData> {
     if (reservedBalance.present) {
       map['reserved_balance'] = Variable<double>(reservedBalance.value);
     }
-    if (reservedLimit.present) {
-      map['reserved_limit'] = Variable<double>(reservedLimit.value);
+    if (interestRate.present) {
+      map['interest_rate'] = Variable<double>(interestRate.value);
+    }
+    if (color.present) {
+      map['color'] = Variable<int>(color.value);
+    }
+    if (iconData.present) {
+      map['icon_data'] = Variable<String>(iconData.value);
     }
     if (isArchived.present) {
       map['is_archived'] = Variable<bool>(isArchived.value);
@@ -598,7 +689,9 @@ class AccountsCompanion extends UpdateCompanion<AccountData> {
           ..write('currency: $currency, ')
           ..write('initialBalance: $initialBalance, ')
           ..write('reservedBalance: $reservedBalance, ')
-          ..write('reservedLimit: $reservedLimit, ')
+          ..write('interestRate: $interestRate, ')
+          ..write('color: $color, ')
+          ..write('iconData: $iconData, ')
           ..write('isArchived: $isArchived, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -3115,7 +3208,9 @@ typedef $$AccountsTableCreateCompanionBuilder =
       Value<String> currency,
       Value<double> initialBalance,
       Value<double> reservedBalance,
-      Value<double> reservedLimit,
+      Value<double?> interestRate,
+      Value<int> color,
+      Value<String> iconData,
       Value<bool> isArchived,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -3128,7 +3223,9 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<String> currency,
       Value<double> initialBalance,
       Value<double> reservedBalance,
-      Value<double> reservedLimit,
+      Value<double?> interestRate,
+      Value<int> color,
+      Value<String> iconData,
       Value<bool> isArchived,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -3173,8 +3270,18 @@ class $$AccountsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<double> get reservedLimit => $composableBuilder(
-    column: $table.reservedLimit,
+  ColumnFilters<double> get interestRate => $composableBuilder(
+    column: $table.interestRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconData => $composableBuilder(
+    column: $table.iconData,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3233,8 +3340,18 @@ class $$AccountsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<double> get reservedLimit => $composableBuilder(
-    column: $table.reservedLimit,
+  ColumnOrderings<double> get interestRate => $composableBuilder(
+    column: $table.interestRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconData => $composableBuilder(
+    column: $table.iconData,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3285,10 +3402,16 @@ class $$AccountsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<double> get reservedLimit => $composableBuilder(
-    column: $table.reservedLimit,
+  GeneratedColumn<double> get interestRate => $composableBuilder(
+    column: $table.interestRate,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<String> get iconData =>
+      $composableBuilder(column: $table.iconData, builder: (column) => column);
 
   GeneratedColumn<bool> get isArchived => $composableBuilder(
     column: $table.isArchived,
@@ -3339,7 +3462,9 @@ class $$AccountsTableTableManager
                 Value<String> currency = const Value.absent(),
                 Value<double> initialBalance = const Value.absent(),
                 Value<double> reservedBalance = const Value.absent(),
-                Value<double> reservedLimit = const Value.absent(),
+                Value<double?> interestRate = const Value.absent(),
+                Value<int> color = const Value.absent(),
+                Value<String> iconData = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -3350,7 +3475,9 @@ class $$AccountsTableTableManager
                 currency: currency,
                 initialBalance: initialBalance,
                 reservedBalance: reservedBalance,
-                reservedLimit: reservedLimit,
+                interestRate: interestRate,
+                color: color,
+                iconData: iconData,
                 isArchived: isArchived,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -3363,7 +3490,9 @@ class $$AccountsTableTableManager
                 Value<String> currency = const Value.absent(),
                 Value<double> initialBalance = const Value.absent(),
                 Value<double> reservedBalance = const Value.absent(),
-                Value<double> reservedLimit = const Value.absent(),
+                Value<double?> interestRate = const Value.absent(),
+                Value<int> color = const Value.absent(),
+                Value<String> iconData = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -3374,7 +3503,9 @@ class $$AccountsTableTableManager
                 currency: currency,
                 initialBalance: initialBalance,
                 reservedBalance: reservedBalance,
-                reservedLimit: reservedLimit,
+                interestRate: interestRate,
+                color: color,
+                iconData: iconData,
                 isArchived: isArchived,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

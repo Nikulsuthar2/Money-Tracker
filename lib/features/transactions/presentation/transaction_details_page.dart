@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -43,13 +44,13 @@ class TransactionDetailsPage extends ConsumerWidget {
         title: const Text('Transaction Details'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
+            icon: const Icon(Symbols.edit),
             onPressed: () {
               context.push('/add-transaction', extra: t);
             },
           ),
           IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
+            icon: const Icon(Symbols.delete, color: Colors.red),
             onPressed: () {
                showDialog(context: context, builder: (d) => AlertDialog(
                   title: const Text('Delete Transaction?'),
@@ -83,8 +84,8 @@ class TransactionDetailsPage extends ConsumerWidget {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    t.type == TransactionType.income ? Icons.arrow_downward : 
-                    t.type == TransactionType.expense ? Icons.arrow_upward : Icons.compare_arrows,
+                    t.type == TransactionType.income ? Symbols.arrow_downward : 
+                    t.type == TransactionType.expense ? Symbols.arrow_upward : Symbols.compare_arrows,
                     size: 48,
                     color: color,
                   ),
@@ -128,7 +129,7 @@ class TransactionDetailsPage extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _DetailRow(icon: Icons.calendar_today, label: 'Date', value: DateFormat.yMMMd().format(t.date)),
+                  _DetailRow(icon: Symbols.calendar_today, label: 'Date', value: DateFormat.yMMMd().format(t.date)),
                   const Divider(),
                   // Ideally we show account/category names here too by fetching them
                   FutureBuilder(
@@ -147,7 +148,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                                _AccountChip(account: from),
                                const Padding(
                                  padding: EdgeInsets.symmetric(horizontal: 4),
-                                 child: Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+                                 child: Icon(Symbols.arrow_forward, size: 16, color: Colors.grey),
                                ),
                                _AccountChip(account: to),
                                const Gap(8),
@@ -162,16 +163,16 @@ class TransactionDetailsPage extends ConsumerWidget {
                   return Column(
                      crossAxisAlignment: CrossAxisAlignment.start,
                      children: [
-                        _DetailRow(icon: Icons.account_balance_wallet, label: 'Account', customValue: valWidget),
+                        _DetailRow(icon: Symbols.account_balance_wallet, label: 'Account', customValue: valWidget),
                         
                         const Divider(),
 
                         // Category / Transfer / Split Chips
                         if (t.type == TransactionType.transfer)
                            _DetailRow(
-                              icon: Icons.swap_horiz,
+                              icon: Symbols.swap_horiz,
                               label: 'Category',
-                              customValue: _Chip(icon: Icons.compare_arrows, label: 'Self Transfer', color: theme.colorScheme.outline),
+                              customValue: _Chip(icon: Symbols.compare_arrows, label: 'Self Transfer', color: theme.colorScheme.outline),
                            )
                         else if (t.subTransactions != null && t.subTransactions!.isNotEmpty)
                            FutureBuilder<List<Category>>(
@@ -189,10 +190,10 @@ class TransactionDetailsPage extends ConsumerWidget {
                                      // Check if it's a Settlement
                                      if (t.mode == TransactionMode.settlement || t.hasLedgerEntries) {
                                          return _DetailRow(
-                                            icon: Icons.handshake,
+                                            icon: Symbols.handshake,
                                             label: 'Category',
                                             customValue: _Chip(
-                                                icon: Icons.handshake,
+                                                icon: Symbols.handshake,
                                                 label: 'Settlement',
                                                 color: Colors.blue,
                                             )
@@ -205,7 +206,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
                                    child: Row(
                                         children: [
-                                          Icon(Icons.category, size: 20, color: theme.colorScheme.secondary),
+                                          Icon(Symbols.category, size: 20, color: theme.colorScheme.secondary),
                                           const Gap(16),
                                           Expanded(
                                             child: Column(
@@ -247,10 +248,10 @@ class TransactionDetailsPage extends ConsumerWidget {
                                    // If no category, check if it's a Settlement or has Ledger Entries (implies settlement/loan)
                                    if (t.mode == TransactionMode.settlement || t.hasLedgerEntries) {
                                       return _DetailRow(
-                                         icon: Icons.handshake,
+                                         icon: Symbols.handshake,
                                          label: 'Category',
                                          customValue: _Chip(
-                                            icon: Icons.handshake,
+                                            icon: Symbols.handshake,
                                             label: 'Settlement',
                                             color: Colors.blue,
                                          )
@@ -258,10 +259,10 @@ class TransactionDetailsPage extends ConsumerWidget {
                                    }
                                    // Fallback for purely Uncategorized
                                    return _DetailRow(
-                                      icon: Icons.category_outlined,
+                                      icon: Symbols.category,
                                       label: 'Category',
                                       customValue: _Chip(
-                                          icon: Icons.help_outline,
+                                          icon: Symbols.help_outline,
                                           label: 'Uncategorized',
                                           color: Colors.grey,
                                       )
@@ -269,7 +270,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                                 }
                                 
                                 return _DetailRow(
-                                  icon: Icons.category, 
+                                  icon: Symbols.category, 
                                   label: 'Category', 
                                   customValue: _Chip(
                                      icon: IconData(cat.icon, fontFamily: 'MaterialIcons'), 
@@ -299,7 +300,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                    children: [
                      Row(
                        children: [
-                         Icon(Icons.notes, size: 20, color: theme.colorScheme.primary),
+                         Icon(Symbols.notes, size: 20, color: theme.colorScheme.primary),
                          const Gap(8),
                          const Text('Note', style: TextStyle(fontWeight: FontWeight.bold)),
                        ],
@@ -328,7 +329,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Original transaction not found')));
                     }
                  },
-                 icon: const Icon(Icons.link),
+                 icon: const Icon(Symbols.link),
                  label: const Text('View Original Transaction'),
                ),
              ),
@@ -366,7 +367,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                            final isSettlement = split.categoryId == null; // Simple heuristic if no other flag
                            final displayIcon = category != null 
                                ? IconData(category.icon, fontFamily: 'MaterialIcons') 
-                               : (isSettlement ? Icons.handshake : Icons.category);
+                               : (isSettlement ? Symbols.handshake : Symbols.category);
                            
                            final iconColor = category != null ? theme.colorScheme.primary : (isSettlement ? Colors.blue : Colors.grey);
                            final title = category?.name ?? (isSettlement ? 'Settlement' : 'Uncategorized');
@@ -405,7 +406,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                                                   Row(
                                                     children: [
                                                        if (partyName != null) ...[
-                                                          Icon(Icons.person, size: 12, color: theme.colorScheme.onSurfaceVariant),
+                                                          Icon(Symbols.person, size: 12, color: theme.colorScheme.onSurfaceVariant),
                                                           const Gap(4),
                                                           Text(partyName, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
                                                        ],
@@ -437,7 +438,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)
                                                   ),
                                                   if (isRefunded)
-                                                    const Padding(padding: EdgeInsets.only(top: 2), child: Icon(Icons.check_circle, size: 12, color: Colors.green))
+                                                    const Padding(padding: EdgeInsets.only(top: 2), child: Icon(Symbols.check_circle, size: 12, color: Colors.green))
                                                 ],
                                               );
                                            }
@@ -468,7 +469,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                       const Gap(8),
                       ...snapshot.data!.map((r) => Card(
                          child: ListTile(
-                            leading: const Icon(Icons.reply, color: Colors.green),
+                            leading: const Icon(Symbols.reply, color: Colors.green),
                             title: Text(r.note ?? 'Refund'),
                             subtitle: Text(DateFormat.yMMMd().format(r.date)),
                             trailing: Text('+ \$${r.amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
@@ -486,7 +487,7 @@ class TransactionDetailsPage extends ConsumerWidget {
              Center(
                child: Chip(
                  label: const Text('Settlement Transaction'),
-                 avatar: const Icon(Icons.handshake, size: 16),
+                 avatar: const Icon(Symbols.handshake, size: 16),
                  backgroundColor: theme.colorScheme.primaryContainer,
                ),
              ),
@@ -496,7 +497,7 @@ class TransactionDetailsPage extends ConsumerWidget {
              Center(
                child: Chip(
                  label: const Text('Refund (Skipped from Stats)'),
-                 avatar: const Icon(Icons.replay, size: 16),
+                 avatar: const Icon(Symbols.replay, size: 16),
                ),
              ),
           // Ledger Entries Section
@@ -575,7 +576,7 @@ class _AccountChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.account_balance_wallet, size: 14),
+          const Icon(Symbols.account_balance_wallet, size: 14),
           const Gap(8),
           Text(account.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         ],
@@ -610,4 +611,5 @@ class _Chip extends StatelessWidget {
     );
   }
 }
+
 

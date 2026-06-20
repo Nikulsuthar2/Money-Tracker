@@ -17,6 +17,8 @@ import 'package:money_manager/features/transactions/presentation/all_transaction
 import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/accounts/presentation/account_details_page.dart';
 import 'package:money_manager/features/people/presentation/people_page.dart';
+import 'package:money_manager/features/accounts/presentation/accounts_page.dart' as accounts_page_import;
+
 final routerProvider = Provider<GoRouter>((ref) {
   final rootNavigatorKey = GlobalKey<NavigatorState>();
   final sectionNavigatorKey = GlobalKey<NavigatorState>();
@@ -131,6 +133,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/transactions-table',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const AllTransactionsTablePage(),
+      ),
+      GoRoute(
+        path: '/accounts',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const accounts_page_import.AccountsPage(),
       ),
 
 

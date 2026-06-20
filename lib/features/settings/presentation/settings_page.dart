@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -27,23 +28,23 @@ class SettingsPage extends ConsumerWidget {
             child: Text('General', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
           ListTile(
-            leading: const Icon(Icons.category),
+            leading: const Icon(Symbols.category),
             title: const Text('Categories'),
             subtitle: const Text('Manage your categories'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Symbols.chevron_right),
             onTap: () => context.push('/categories'),
           ),
           ListTile(
-            leading: const Icon(Icons.subscriptions),
+            leading: const Icon(Symbols.subscriptions),
             title: const Text('Subscriptions'),
             subtitle: const Text('Manage recurring payments'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Symbols.chevron_right),
             onTap: () => context.push('/subscriptions'),
           ),
 
           
           ListTile(
-            leading: const Icon(Icons.monetization_on),
+            leading: const Icon(Symbols.monetization_on),
             title: const Text('Currency'),
             subtitle: Text('Selected: ${ref.watch(currencyProvider)} ${currencyNames[ref.watch(currencyProvider)] ?? ''}'),
             onTap: () {
@@ -82,7 +83,7 @@ class SettingsPage extends ConsumerWidget {
             child: Text('Data Management', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
           ListTile(
-            leading: const Icon(Icons.upload),
+            leading: const Icon(Symbols.upload),
             title: const Text('Export Data'),
             subtitle: const Text('Save backup to file'),
             onTap: () async {
@@ -99,7 +100,7 @@ class SettingsPage extends ConsumerWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.download),
+            leading: const Icon(Symbols.download),
             title: const Text('Import Data'),
             subtitle: const Text('Restore from backup file'),
             onTap: () async {
@@ -116,7 +117,7 @@ class SettingsPage extends ConsumerWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.delete_forever, color: Colors.red),
+            leading: const Icon(Symbols.delete_forever, color: Colors.red),
             title: const Text('Reset Data', style: TextStyle(color: Colors.red)),
             onTap: () {
               showDialog(context: context, builder: (c) => AlertDialog(
@@ -147,14 +148,14 @@ class SettingsPage extends ConsumerWidget {
                final version = snapshot.data?.version ?? '...';
                final buildNumber = snapshot.data?.buildNumber ?? '...';
                return ListTile(
-                 leading: const Icon(Icons.info_outline),
+                 leading: const Icon(Symbols.info),
                  title: const Text('App Version'),
                  subtitle: Text('v$version ($buildNumber)'),
                );
             },
           ),
            ListTile(
-            leading: const Icon(Icons.code),
+            leading: const Icon(Symbols.code),
             title: const Text('Source Code'),
             subtitle: const Text('View on GitHub'),
             onTap: () async {
@@ -169,7 +170,7 @@ class SettingsPage extends ConsumerWidget {
             },
           ),
            const ListTile(
-            leading: Icon(Icons.person),
+            leading: Icon(Symbols.person),
             title: Text('Developer'),
             subtitle: Text('Google Antigravity & Nikul Suthar'), 
           ),
@@ -200,9 +201,9 @@ class _AppearanceSelector extends ConsumerWidget {
             width: double.infinity,
             child: SegmentedButton<ThemeMode>(
               segments: const [
-                ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto), label: Text('System')),
-                ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode), label: Text('Light')),
-                ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode), label: Text('Dark')),
+                ButtonSegment(value: ThemeMode.system, icon: Icon(Symbols.brightness_auto), label: Text('System')),
+                ButtonSegment(value: ThemeMode.light, icon: Icon(Symbols.light_mode), label: Text('Light')),
+                ButtonSegment(value: ThemeMode.dark, icon: Icon(Symbols.dark_mode), label: Text('Dark')),
               ],
               selected: {themeMode},
               onSelectionChanged: (Set<ThemeMode> newSelection) {
@@ -248,7 +249,7 @@ class _AppearanceSelector extends ConsumerWidget {
                              width: 2.5
                            ),
                          ),
-                         child: ref.watch(manualThemeColorProvider) == color.value ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
+                         child: ref.watch(manualThemeColorProvider) == color.value ? const Icon(Symbols.check, color: Colors.white, size: 20) : null,
                        ),
                      ),
                    )
@@ -301,4 +302,5 @@ class _SecuritySection extends ConsumerWidget {
     );
   }
 }
+
 

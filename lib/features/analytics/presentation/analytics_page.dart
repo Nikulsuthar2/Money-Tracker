@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -118,9 +119,9 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          IconButton.filledTonal(onPressed: _prevPeriod, icon: const Icon(Icons.chevron_left), constraints: const BoxConstraints(minWidth: 32, minHeight: 32), padding: EdgeInsets.zero, iconSize: 18),
+                          IconButton.filledTonal(onPressed: _prevPeriod, icon: const Icon(Symbols.chevron_left), constraints: const BoxConstraints(minWidth: 32, minHeight: 32), padding: EdgeInsets.zero, iconSize: 18),
                           Text(dateLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                          IconButton.filledTonal(onPressed: _nextPeriod, icon: const Icon(Icons.chevron_right), constraints: const BoxConstraints(minWidth: 32, minHeight: 32), padding: EdgeInsets.zero, iconSize: 18),
+                          IconButton.filledTonal(onPressed: _nextPeriod, icon: const Icon(Symbols.chevron_right), constraints: const BoxConstraints(minWidth: 32, minHeight: 32), padding: EdgeInsets.zero, iconSize: 18),
                         ],
                      ),
                   ),
@@ -142,9 +143,9 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                      // View Switcher
                      SegmentedButton<String>(
                         segments: const [
-                          ButtonSegment(value: 'Trends', label: Text('Trends'), icon: Icon(Icons.bar_chart)),
-                          ButtonSegment(value: 'Categories', label: Text('Categories'), icon: Icon(Icons.pie_chart)),
-                          ButtonSegment(value: 'Calendar', label: Text('Calendar'), icon: Icon(Icons.calendar_month)),
+                          ButtonSegment(value: 'Trends', label: Text('Trends'), icon: Icon(Symbols.bar_chart)),
+                          ButtonSegment(value: 'Categories', label: Text('Categories'), icon: Icon(Symbols.pie_chart)),
+                          ButtonSegment(value: 'Calendar', label: Text('Calendar'), icon: Icon(Symbols.calendar_month)),
                         ],
                         selected: {_viewType},
                         onSelectionChanged: (s) => setState(() => _viewType = s.first),
@@ -386,7 +387,7 @@ class _TrendsView extends StatelessWidget {
                      return ListTile(
                        leading: CircleAvatar(
                           backgroundColor: cat != null ? Color(cat.color).withOpacity(0.2) : Colors.grey.withOpacity(0.2),
-                          child: Icon(cat?.icon != null ? IconData(cat!.icon, fontFamily: 'MaterialIcons') : Icons.category, color: cat != null ? Color(cat.color) : Colors.grey, size: 16),
+                          child: Icon(cat?.icon != null ? IconData(cat!.icon, fontFamily: 'MaterialIcons') : Symbols.category, color: cat != null ? Color(cat.color) : Colors.grey, size: 16),
                        ),
                        title: Text(cat?.name ?? 'Unknown'),
                        trailing: Text('$currency${e.value.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -622,4 +623,5 @@ class _CalendarView extends StatelessWidget {
     }
   }
 }
+
 

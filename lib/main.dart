@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/core/router/app_router.dart';
@@ -115,13 +116,13 @@ class _LockScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.lock_outline, size: 64, color: Colors.teal),
+            const Icon(Symbols.lock_outline, size: 64, color: Colors.teal),
             const Gap(24),
             const Text('App Locked', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const Gap(16),
             FilledButton.icon(
               onPressed: onUnlock,
-              icon: const Icon(Icons.fingerprint),
+              icon: const Icon(Symbols.fingerprint),
               label: const Text('Unlock'),
             ),
           ],
@@ -153,7 +154,7 @@ class InitializationErrorApp extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const Icon(Symbols.error_outline, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
                   const Text(
                     'Initialization Error',
@@ -204,3 +205,4 @@ class InitializationErrorApp extends StatelessWidget {
     );
   }
 }
+

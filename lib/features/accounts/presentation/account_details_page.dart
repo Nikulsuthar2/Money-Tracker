@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -84,17 +85,17 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
         actions: [
           IconButton(
             tooltip: 'Add Transaction',
-            icon: const Icon(Icons.add),
+            icon: const Icon(Symbols.add),
             onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id}), 
           ),
           IconButton(
             tooltip: 'Transfer',
-            icon: const Icon(Icons.swap_horiz),
+            icon: const Icon(Symbols.swap_horiz),
             onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.transfer}),
           ),
            IconButton(
              tooltip: 'Manage Reserved',
-             icon: const Icon(Icons.lock_outline),
+             icon: const Icon(Symbols.lock_outline),
              onPressed: () {
                  final controller = TextEditingController(text: account.reservedBalance.toString());
                  showDialog(context: context, builder: (d) => AlertDialog(
@@ -149,8 +150,8 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
               }
             },
             itemBuilder: (context) => [
-               const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 20), Gap(12), Text('Edit Account')])),
-               const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 20, color: Colors.red), Gap(12), Text('Delete Account', style: TextStyle(color: Colors.red))])),
+               const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Symbols.edit, size: 20), Gap(12), Text('Edit Account')])),
+               const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Symbols.delete, size: 20, color: Colors.red), Gap(12), Text('Delete Account', style: TextStyle(color: Colors.red))])),
             ],
           ),
         ],
@@ -208,9 +209,9 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                IconButton(onPressed: _prevPeriod, icon: const Icon(Icons.chevron_left)),
+                                IconButton(onPressed: _prevPeriod, icon: const Icon(Symbols.chevron_left)),
                                 Text(dateLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                IconButton(onPressed: _nextPeriod, icon: const Icon(Icons.chevron_right)),
+                                IconButton(onPressed: _nextPeriod, icon: const Icon(Symbols.chevron_right)),
                               ],
                            ),
                          ),
@@ -285,7 +286,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.undo, size: 12, color: theme.colorScheme.onSurface),
+                                    Icon(Symbols.undo, size: 12, color: theme.colorScheme.onSurface),
                                     const Gap(8),
                                     Text('Reimbursed: $currency${_calculateReimbursements(account, timeFilteredTransactions).toStringAsFixed(2)}',
                                        style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface)), 
@@ -309,7 +310,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                                children: [
                                   Row(
                                     children: [
-                                       Icon(Icons.account_balance_wallet, color: theme.colorScheme.primary),
+                                       Icon(Symbols.account_balance_wallet, color: theme.colorScheme.primary),
                                        const Gap(12),
                                        const Text('Funds Allocation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                     ],
@@ -319,7 +320,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                                   Builder(
                                     builder: (context) {
                                       final balance = _calculateBalance(account, accountTransactions);
-                                      final spendable = balance - (account.reservedBalance.isNaN ? 0.0 : account.reservedBalance) - account.buckets.fold(0.0, (sum, b) => sum + (b.balance.isNaN ? 0.0 : b.balance));
+                                      final spendable = balance - (account.reservedBalance.isNaN ? 0.0 : account.reservedBalance);
                                       return Row(
                                          children: [
                                             Expanded(
@@ -351,75 +352,11 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                                       );
                                     }
                                   ),
-        
                                   
-                                  // Custom Buckets (and Add Button)
-                                  if (account.buckets.isNotEmpty) ...[
-                                      const Gap(16),
-                                      Divider(color: theme.colorScheme.outlineVariant),
-                                      const Gap(8),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                           const Text('Custom Buckets', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                           InkWell(
-                                              onTap: () => _showAddBucketDialog(context, account),
-                                              borderRadius: BorderRadius.circular(12),
-                                              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), child: Text('+ Add Bucket', style: TextStyle(fontSize: 11, color: theme.colorScheme.primary, fontWeight: FontWeight.bold))),
-                                           ),
-                                        ],
-                                      ),
-                                      const Gap(8),
-                                      Wrap(
-                                        spacing: 12,
-                                        runSpacing: 12,
-                                        children: [
-                                           ...account.buckets.asMap().entries.map((entry) {
-                                              final index = entry.key;
-                                              final b = entry.value;
-                                              return _BucketItem(
-                                                label: b.name ?? 'Bucket', 
-                                                amount: b.balance, 
-                                                color: Colors.blueAccent,
-                                                icon: Icons.pie_chart,
-                                                onTap: () => _showBucketManagementDialog(context, account, index, _calculateBalance(account, accountTransactions)),
-                                             );
-                                           }),
-                                        ],
-                                      ),
-                                  ] else ...[
-                                      const Gap(16),
-                                      Center(
-                                        child: TextButton.icon(
-                                          onPressed: () => _showAddBucketDialog(context, account),
-                                          icon: const Icon(Icons.add_circle_outline, size: 16),
-                                          label: const Text('Create Savings Bucket'),
-                                          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                                        )
-                                      )
-                                  ],
                                ],
                             )
                          )
                       ),
-                       
-                       if (account.autoSaveEnabled) ...[
-
-                         const Gap(12),
-                         Card(
-                           elevation: 0,
-                           color: Colors.amber.withOpacity(0.1),
-                           shape: RoundedRectangleBorder(
-                             borderRadius: BorderRadius.circular(16),
-                             side: BorderSide(color: Colors.amber.withOpacity(0.5)),
-                           ),
-                           child: ListTile(
-                             leading: const Icon(Icons.savings, color: Colors.amber),
-                             title: const Text('Auto-Save Active', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                             subtitle: Text('Automatically saving ${account.autoSaveIsPercentage ? "${account.autoSaveAmount.toStringAsFixed(0)}%" : "$currency${account.autoSaveAmount.toStringAsFixed(0)}"} of every income deposit.', style: const TextStyle(fontSize: 12)),
-                           ),
-                         ),
-                       ],
         
                        const Gap(16),
         
@@ -638,142 +575,6 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
      return expense;
    }
 
-   Future<void> _showAddBucketDialog(BuildContext context, Account account) async {
-      final controller = TextEditingController();
-      await showDialog(
-         context: context,
-         builder: (c) => AlertDialog(
-            title: const Text('New Savings Bucket'),
-            content: TextField(
-               controller: controller,
-               decoration: const InputDecoration(labelText: 'Bucket Name', hintText: 'e.g. Car, Holiday', border: OutlineInputBorder()),
-               textCapitalization: TextCapitalization.words,
-            ),
-            actions: [
-               TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
-               FilledButton(onPressed: () async {
-                  if (controller.text.isNotEmpty) {
-                     account.buckets = [...account.buckets, AccountBucket()..name = controller.text..balance = 0];
-                     await ref.read(accountsRepositoryProvider).updateAccount(account);
-                     if (context.mounted) Navigator.pop(c);
-                     setState(() {});
-                  }
-               }, child: const Text('Create')),
-            ],
-         )
-      );
-   }
-
-   Future<void> _showBucketManagementDialog(BuildContext context, Account account, int index, double currentTotalBalance) async {
-       final bucket = account.buckets[index];
-       final controller = TextEditingController();
-       
-       // Calculate Spendable (Total Balance - Reserved - Other Buckets - This Bucket)
-       // Wait, Spendable = Total Balance - Reserved - SUM(All Buckets)
-       // If we want to ADD to this bucket, we take from Spendable.
-       // If we want to WITHDRAW from this bucket, we add to Spendable.
-       
-       final totalBuckets = account.buckets.fold(0.0, (sum, b) => sum + b.balance);
-       final spendable = currentTotalBalance - account.reservedBalance - totalBuckets; 
-       
-       bool isDeposit = true;
-
-       await showDialog(
-          context: context,
-          builder: (context) {
-             return StatefulBuilder(
-                builder: (context, setStateSB) {
-                   return AlertDialog(
-                      title: Text(bucket.name ?? 'Bucket'),
-                      content: Column(
-                         mainAxisSize: MainAxisSize.min,
-                         children: [
-                             Text('Balance: ${ref.read(currencyProvider)}${bucket.balance.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                             const Gap(16),
-                             Row(
-                                children: [
-                                   Expanded(child: FilterChip(label: const Text('Add Funds'), selected: isDeposit, onSelected: (v) => setStateSB(() => isDeposit = true))),
-                                   const Gap(8),
-                                   Expanded(child: FilterChip(label: const Text('Withdraw'), selected: !isDeposit, onSelected: (v) => setStateSB(() => isDeposit = false))),
-                                ],
-                             ),
-                             const Gap(16),
-                             TextField(
-                                controller: controller,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: InputDecoration(
-                                   labelText: 'Amount',
-                                   prefixText: '${ref.read(currencyProvider)} ',
-                                   border: const OutlineInputBorder(),
-                                   helperText: isDeposit 
-                                      ? 'Available to Add: ${ref.read(currencyProvider)}${(spendable < 0 ? 0 : spendable).toStringAsFixed(2)}'
-                                      : 'Available to Withdraw: ${ref.read(currencyProvider)}${bucket.balance.toStringAsFixed(2)}'
-                                ),
-                             ),
-                         ],
-                      ),
-                      actions: [
-                         TextButton(
-                            onPressed: () {
-                               // Delete confirmation
-                               showDialog(context: context, builder: (d) => AlertDialog(
-                                  title: const Text('Delete Bucket?'),
-                                  content: Text('Funds (${ref.read(currencyProvider)}${bucket.balance.toStringAsFixed(2)}) will return to Spendable.'),
-                                  actions: [
-                                     TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
-                                     TextButton(onPressed: () async {
-                                        // Return funds to spendable implicitly by deleting bucket (Spendable is calculated as Bal - Buckets)
-                                        // So just remove bucket.
-                                        final newBuckets = List<AccountBucket>.from(account.buckets);
-                                        newBuckets.removeAt(index);
-                                        account.buckets = newBuckets;
-                                        await ref.read(accountsRepositoryProvider).updateAccount(account);
-                                        if (context.mounted) {
-                                           Navigator.pop(d); // Close confirm
-                                           Navigator.pop(context); // Close main dialog
-                                        }
-                                        setState(() {});
-                                     }, child: const Text('Delete', style: TextStyle(color: Colors.red))),
-                                  ],
-                               ));
-                            }, 
-                            child: const Text('Delete Bucket', style: TextStyle(color: Colors.red))
-                         ),
-                         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                         FilledButton(onPressed: () async {
-                            final amount = double.tryParse(controller.text) ?? 0.0;
-                            if (amount <= 0) return;
-
-                            if (isDeposit) {
-                               if (amount > spendable) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient Spendable funds')));
-                                  return;
-                               }
-                               bucket.balance += amount;
-                            } else {
-                               if (amount > bucket.balance) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient Bucket funds')));
-                                  return;
-                               }
-                               bucket.balance -= amount;
-                            }
-                            
-                            // Save
-                            // Isar embedded objects are updated when parent is put.
-                            // We need to trigger update.
-                            // However, we modified 'bucket' which is a reference from 'account.buckets'.
-                            // So 'account' is updated locally.
-                            await ref.read(accountsRepositoryProvider).updateAccount(account);
-                            if (context.mounted) Navigator.pop(context);
-                            setState(() {});
-                         }, child: const Text('Save')),
-                      ],
-                   );
-                }
-             );
-          }
-       );
-   }
 }
 
 
@@ -871,4 +672,5 @@ class _BucketItem extends StatelessWidget {
     );
   }
 }
+
 

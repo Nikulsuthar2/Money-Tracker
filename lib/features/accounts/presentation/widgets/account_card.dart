@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -17,6 +18,7 @@ class AccountCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final account = item.account;
     final theme = Theme.of(context);
+    final color = Color(account.color);
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -39,11 +41,13 @@ class AccountCard extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  _buildIcon(account.iconData, color),
+                  const Gap(16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                         Text(
+                        Text(
                           account.name,
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
@@ -65,23 +69,23 @@ class AccountCard extends ConsumerWidget {
                   Row(
                     children: [
                        IconButton(
-                        icon: const Icon(Icons.swap_horiz_outlined),
+                        icon: const Icon(Symbols.swap_horiz),
                         color: theme.colorScheme.primary,
                          tooltip: 'Transfer',
                         onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.transfer}),
                       ),
                        IconButton(
-                        icon: const Icon(Icons.add_circle),
+                        icon: const Icon(Symbols.add_circle),
                         color: theme.colorScheme.primary,
                         tooltip: 'Add Transaction',
                         onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.expense}),
                       ),
                       PopupMenuButton(
-                        icon: Icon(Icons.more_vert, color: theme.colorScheme.onSurfaceVariant),
+                        icon: Icon(Symbols.more_vert, color: theme.colorScheme.onSurfaceVariant),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         itemBuilder: (context) => [
                           PopupMenuItem(
-                            child: const Row(children: [Icon(Icons.lock, size: 18, color: Colors.orange), Gap(12), Text('Manage Reserved')]),
+                            child: const Row(children: [Icon(Symbols.lock, size: 18, color: Colors.orange), Gap(12), Text('Manage Reserved')]),
                             onTap: () {
                                Future.delayed(Duration.zero, () {
                                  if (context.mounted) _showSavingsDialog(context, ref, account);
@@ -89,11 +93,11 @@ class AccountCard extends ConsumerWidget {
                             },
                           ),
                           PopupMenuItem(
-                            child: const Row(children: [Icon(Icons.edit, size: 18), Gap(12), Text('Edit')]),
+                            child: const Row(children: [Icon(Symbols.edit, size: 18), Gap(12), Text('Edit')]),
                             onTap: () => context.push('/add-account', extra: account),
                           ),
                           PopupMenuItem(
-                            child: const Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), Gap(12), Text('Delete')]),
+                            child: const Row(children: [Icon(Symbols.delete, size: 18, color: Colors.red), Gap(12), Text('Delete')]),
                             onTap: () {
                                Future.delayed(Duration.zero, () {
                                  if (context.mounted) {
@@ -122,10 +126,10 @@ class AccountCard extends ConsumerWidget {
               if (account.reservedBalance > 0) ...[
                  const Gap(12),
                  Container(
-                   padding: const EdgeInsets.all(8),
+                   padding: const EdgeInsets.all(12),
                    decoration: BoxDecoration(
                      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                     borderRadius: BorderRadius.circular(8),
+                     borderRadius: BorderRadius.circular(12),
                    ),
                    child: Row(
                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -133,21 +137,23 @@ class AccountCard extends ConsumerWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Reserved Amount', style: TextStyle(fontSize: 10)),
-                            Text('${ref.watch(currencyProvider)}${account.reservedBalance.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            const Text('Reserved Amount', style: TextStyle(fontSize: 11)),
+                            const Gap(4),
+                            Text('${ref.watch(currencyProvider)}${account.reservedBalance.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           ],
                         ),
-                        Container(color: theme.colorScheme.outline, width: 1, height: 20),
+                        Container(color: theme.colorScheme.outlineVariant, width: 1, height: 30),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text('Spendable Amount', style: TextStyle(fontSize: 10)),
+                            const Text('Spendable Amount', style: TextStyle(fontSize: 11)),
+                            const Gap(4),
                               Text(
-                                '${ref.watch(currencyProvider)}${(item.balance - account.reservedBalance - account.buckets.fold(0.0, (sum, b) => sum + b.balance)).toStringAsFixed(2)}', 
+                                '${ref.watch(currencyProvider)}${(item.balance - account.reservedBalance).toStringAsFixed(2)}', 
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold, 
-                                  fontSize: 13,
-                                  color: (item.balance - account.reservedBalance - account.buckets.fold(0.0, (sum, b) => sum + b.balance)) < 0 ? theme.colorScheme.error : theme.colorScheme.primary,
+                                  fontSize: 14,
+                                  color: (item.balance - account.reservedBalance) < 0 ? theme.colorScheme.error : theme.colorScheme.primary,
                                 )
                               ),
                           ],
@@ -162,9 +168,9 @@ class AccountCard extends ConsumerWidget {
                 const Gap(12),
                 Row(
                   children: [
-                     Expanded(child: _CompactStat(label: 'Total In', amount: item.totalIncome, color: Colors.teal.withOpacity(0.7), icon: Icons.arrow_downward)),
+                     Expanded(child: _CompactStat(label: 'Total In', amount: item.totalIncome, color: Colors.teal.withOpacity(0.7), icon: Symbols.arrow_downward)),
                      Container(width: 1, height: 24, color: theme.colorScheme.outlineVariant.withOpacity(0.2)),
-                     Expanded(child: _CompactStat(label: 'Total Out', amount: item.totalExpense, color: Colors.redAccent.withOpacity(0.7), icon: Icons.arrow_upward)),
+                     Expanded(child: _CompactStat(label: 'Total Out', amount: item.totalExpense, color: Colors.redAccent.withOpacity(0.7), icon: Symbols.arrow_upward)),
                   ],
                 ),
 
@@ -175,6 +181,44 @@ class AccountCard extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildIcon(String iconStr, Color color) {
+    if (iconStr.startsWith('emoji:')) {
+      final emoji = iconStr.replaceFirst('emoji:', '');
+      return Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: Text(emoji, style: const TextStyle(fontSize: 24)),
+      );
+    } else if (iconStr.startsWith('material:')) {
+      final code = int.tryParse(iconStr.replaceFirst('material:', ''));
+      return Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: code != null ? Icon(IconData(code, fontFamily: 'MaterialIcons'), color: color) : Icon(Symbols.account_balance_wallet, color: color),
+      );
+    } else if (iconStr.startsWith('asset:')) {
+      final assetPath = iconStr.replaceFirst('asset:', '');
+      return Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+        padding: const EdgeInsets.all(10),
+        child: Image.asset(assetPath, fit: BoxFit.contain),
+      );
+    }
+    return Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: Icon(Symbols.account_balance_wallet, color: color),
     );
   }
 }
@@ -241,10 +285,9 @@ Future<void> _showSavingsDialog(BuildContext context, WidgetRef ref, Account acc
        ),
        actions: [
          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () async {
+         FilledButton(onPressed: () async {
              final val = double.tryParse(controller.text) ?? 0.0;
              account.reservedBalance = val;
-             account.reservedLimit = val; // Also update limit to match
              await ref.read(accountsRepositoryProvider).updateAccount(account);
              if (context.mounted) Navigator.pop(context);
           }, child: const Text('Save')),
@@ -252,5 +295,6 @@ Future<void> _showSavingsDialog(BuildContext context, WidgetRef ref, Account acc
     ),
   );
 }
+
 
 

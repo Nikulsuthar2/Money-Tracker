@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -41,9 +42,79 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(Symbols.account_balance_wallet, size: 48, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                  const Gap(8),
+                  Text('Money Tracker', style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer, fontSize: 24, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Symbols.home),
+              title: const Text('Dashboard'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Symbols.list),
+              title: const Text('All Transactions'),
+              onTap: () {
+                Navigator.pop(context);
+                context.go('/transactions');
+              },
+            ),
+          ],
+        ),
+      ),
       appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: const [],
+        centerTitle: true,
+        title: accountsWithBalance.when(
+          data: (stats) {
+             double totalBalance = 0;
+             for (var s in stats) {
+                totalBalance += s.balance; 
+             }
+             return Container(
+               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+               decoration: BoxDecoration(
+                 color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                 borderRadius: BorderRadius.circular(16),
+               ),
+               child: Column(
+                 mainAxisSize: MainAxisSize.min,
+                 children: [
+                   Text('Total Balance', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                   Consumer(builder: (c, ref, _) =>
+                     Text(
+                       '${ref.watch(currencyProvider)}${totalBalance.toStringAsFixed(2)}',
+                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
+                     )
+                   ),
+                 ],
+               ),
+             );
+          },
+          loading: () => const Text('Loading...'),
+          error: (_,__) => const Text('Dashboard'),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Symbols.settings),
+            onPressed: () {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings coming soon')));
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -55,7 +126,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         child: ListView(
         padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80), 
         children: [
-          // Total Balance Card
           // Stats Section
           accountsWithBalance.when(
             data: (stats) {
@@ -94,7 +164,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                            color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
                            shape: BoxShape.circle,
                          ),
-                         child: Icon(Icons.account_balance_wallet, color: Theme.of(context).colorScheme.onPrimary, size: 32),
+                         child: Icon(Symbols.account_balance_wallet, color: Theme.of(context).colorScheme.onPrimary, size: 32),
                        ),
                        const Gap(16),
                        Column(
@@ -133,24 +203,25 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('My Wallets', style: Theme.of(context).textTheme.titleLarge),
+              Text('My Accounts', style: Theme.of(context).textTheme.titleLarge),
               IconButton(
-                onPressed: () => context.push('/add-account'),
-                icon: const Icon(Icons.add_card),
-                tooltip: 'Add New Wallet',
+                onPressed: () => context.push('/accounts'),
+                icon: const Icon(Symbols.chevron_right),
+                tooltip: 'View All',
               ),
             ],
           ),
           const Gap(16),
           accountsWithBalance.when(
             data: (accounts) {
-              if (accounts.isEmpty) return const Text('No wallets yet.');
+              if (accounts.isEmpty) return const Text('No accounts yet.');
+              final displayAccounts = accounts.take(3).toList();
               return Column(
-                children: accounts.map((item) => AccountCard(item: item)).toList(),
+                children: displayAccounts.map((item) => AccountCard(item: item)).toList(),
               );
             },
              loading: () => const Center(child: CircularProgressIndicator()),
-             error: (_,__) => const Text('Error loading accounts'),
+             error: (e, s) => Text('Error loading accounts: $e\n$s'),
           ),
           const Gap(24),
           
@@ -517,4 +588,5 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
+
 

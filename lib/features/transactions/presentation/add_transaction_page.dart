@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -277,35 +278,19 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                     }
                 }
 
-                // Expense Priority Logic: Spendable -> Custom (Savings/Investment) -> Reserved
-                // We need to know the breakdown.
-                // Spendable = Current - Reserved - Savings - Investment
-                
-                final totalCustom = account.buckets.fold(0.0, (sum, b) => sum + b.balance);
-                final spendable = currentBalance - account.reservedBalance - totalCustom;
+                // Expense Priority Logic: Spendable -> Reserved
+                final spendable = currentBalance - account.reservedBalance;
                 final reserved = account.reservedBalance;
 
                 String warningMsg = '';
                 double remainingAmount = amount;
 
-                // 1. Deduct from Spendable
-                if (remainingAmount <= spendable) {
-                   // All good
-                } else {
+                if (remainingAmount > spendable) {
                    remainingAmount -= spendable; // Spendable depleted
-                   
-                   // 2. Deduct from Custom Buckets
-                   if (remainingAmount <= totalCustom) {
-                      warningMsg = 'This transaction exceeds Spendable balance.\nIt will deduct ${ref.read(currencyProvider)}${remainingAmount.toStringAsFixed(2)} from your Custom Buckets.';
-                   }
-                   // 3. Deduct from Reserved
-                   else {
-                      remainingAmount -= totalCustom; // Custom depleted
-                      if (remainingAmount <= reserved) {
-                         warningMsg = 'This transaction depletes Spendable AND Custom buckets.\nIt will deduct ${ref.read(currencyProvider)}${remainingAmount.toStringAsFixed(2)} from your RESERVED funds.';
-                      } else {
-                         warningMsg = 'This transaction exceeds ALL funds (Spendable + Custom + Reserved). Balance will go negative.';
-                      }
+                   if (remainingAmount <= reserved) {
+                      warningMsg = 'This transaction exceeds Spendable balance.\nIt will deduct ${ref.read(currencyProvider)}${remainingAmount.toStringAsFixed(2)} from your RESERVED funds.';
+                   } else {
+                      warningMsg = 'This transaction exceeds ALL funds (Spendable + Reserved). Balance will go negative.';
                    }
                 }
 
@@ -397,55 +382,17 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                if (account != null) {
                   bool updated = false;
                   
-                  // Income Logic (Bucket Fill)
+                  // Income Logic
                   if (_type == TransactionType.income) {
-                      double remainingIncome = amount;
-                      
-                      // 1. Fill Reserved (up to limit)
-                      if (account.reservedBalance < account.reservedLimit) {
-                         final needed = account.reservedLimit - account.reservedBalance;
-                         final toAdd = needed < remainingIncome ? needed : remainingIncome;
-                         account.reservedBalance += toAdd;
-                         remainingIncome -= toAdd;
-                         updated = true;
-                      }
-
-                      // 2. Custom Bucket (if selected)
-                      if (remainingIncome > 0 && _targetCustomBucket != null) {
-                         final customAmount = double.tryParse(_customBucketAmountController.text) ?? 0.0;
-                         final toAdd = customAmount < remainingIncome ? customAmount : remainingIncome;
-                         
-                         // Find bucket by name
-                         final bucketIndex = account.buckets.indexWhere((b) => b.name == _targetCustomBucket);
-                         if (bucketIndex != -1) {
-                             account.buckets[bucketIndex].balance += toAdd;
-                             updated = true;
-                         }
-                      }
+                      // Reserved Limits and Buckets removed, so income just gets added to Spendable.
                   }
                   
-                  // Expense Logic (Bucket Deduction)
+                  // Expense Logic (Reserved Deduction)
                   else if (_type == TransactionType.expense || _type == TransactionType.transfer) {
-                      final currentBal = await ref.read(transactionsRepositoryProvider).getAccountBalance(account.id, account.openingBalance); 
-                      
-                      // Because we already added the transaction above within this same try-block, 
-                      // getAccountBalance MIGHT include it if the watcher fired or if Isar is immediate.
-                      // Actually AddTransaction is async. 
-                      // Let's rely on the previous calculation logic used for warning? 
-                      // No, that was BEFORE adding.
-                      // Let's reuse the logic: We know we just spent 'amount'. Use that to deduct from buckets in memory and save.
-                      
-                      // RE-CALCULATE Pre-Txn Balance logic to match Warning Logic EXACTLY
-                      // We need the balance BEFORE this transaction to know what we depleted.
-                      // But we just added it. 
-                      // So (Current Balance Including New Txn) - Amount = Pre-Txn Balance.
-                      
-                      // Wait, getAccountBalance sums up ALL transactions. So it includes the one we just added.
                       final balanceAfterTxn = await ref.read(transactionsRepositoryProvider).getAccountBalance(account.id, account.openingBalance); 
                       final preTxnBalance = balanceAfterTxn + amount; // Revert locally
 
-                      final totalCustom = account.buckets.fold(0.0, (sum, b) => sum + b.balance);
-                      final preTxnSpendable = preTxnBalance - account.reservedBalance - totalCustom;
+                      final preTxnSpendable = preTxnBalance - account.reservedBalance;
                       
                       double amountRemaining = amount;
                       
@@ -454,19 +401,6 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                          amountRemaining = 0;
                       } else {
                          amountRemaining -= preTxnSpendable; // Spendable exhausted
-                      }
-                      
-                      // 2. Deduct from Custom Buckets
-                      if (amountRemaining > 0) {
-                          for (var i = 0; i < account.buckets.length; i++) {
-                              if (amountRemaining <= 0) break;
-                              if (account.buckets[i].balance > 0) {
-                                  final deduct = amountRemaining < account.buckets[i].balance ? amountRemaining : account.buckets[i].balance;
-                                  account.buckets[i].balance -= deduct;
-                                  amountRemaining -= deduct;
-                                  updated = true;
-                              }
-                          }
                       }
                       
                       // 3. Deduct from Reserved
@@ -528,7 +462,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         title: Text(widget.extra is Transaction ? 'Edit Transaction' : (_isRefundMode ? 'Refund Transaction' : 'Add Transaction')),
         actions: [
           IconButton(
-            icon: const Icon(Icons.check),
+            icon: const Icon(Symbols.check),
             tooltip: 'Save',
             onPressed: _save,
           ),
@@ -564,14 +498,14 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                               label: const Text('I Paid (They Owe Less)'),
                               selected: _settlementIPaid,
                               onSelected: (v) => setState(() { _settlementIPaid = true; _type = TransactionType.expense; }),
-                              avatar: const Icon(Icons.arrow_upward, size: 16, color: Colors.red),
+                              avatar: const Icon(Symbols.arrow_upward, size: 16, color: Colors.red),
                             )),
                             const Gap(8),
                             Expanded(child: ChoiceChip(
                               label: const Text('They Paid (I Owe Less)'),
                               selected: !_settlementIPaid,
                               onSelected: (v) => setState(() { _settlementIPaid = false; _type = TransactionType.income; }),
-                              avatar: const Icon(Icons.arrow_downward, size: 16, color: Colors.green),
+                              avatar: const Icon(Symbols.arrow_downward, size: 16, color: Colors.green),
                             )),
                          ],
                       ),
@@ -580,7 +514,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                       partiesAsync.when(
                         data: (parties) => DropdownButtonFormField<int>(
                              value: _settlementPartyId,
-                             decoration: inputDecoration.copyWith(labelText: 'Select Party', prefixIcon: const Icon(Icons.person)),
+                             decoration: inputDecoration.copyWith(labelText: 'Select Party', prefixIcon: const Icon(Symbols.person)),
                              items: parties.where((p) => !p.isMe()).map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
                              onChanged: (v) => setState(() => _settlementPartyId = v),
                         ),
@@ -609,7 +543,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                        fillColor: _isRefundMode ? Theme.of(context).disabledColor.withOpacity(0.05) : null,
                        filled: _isRefundMode,
                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.calculate_outlined), 
+                          icon: const Icon(Symbols.calculate), 
                           onPressed: () {
                              if (_amountController.text.isNotEmpty) {
                                 final val = MathEvaluator.evaluate(_amountController.text);
@@ -669,7 +603,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                        }
                     });
                  },
-                 secondary: const Icon(Icons.handshake),
+                 secondary: const Icon(Symbols.handshake),
                  dense: true,
                  contentPadding: EdgeInsets.zero,
                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -698,7 +632,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                     child: InputDecorator(
                       decoration: inputDecoration.copyWith(
                         labelText: 'Date',
-                        suffixIcon: const Icon(Icons.calendar_today, size: 20),
+                        suffixIcon: const Icon(Symbols.calendar_today, size: 20),
                       ),
                       child: Text(
                         DateFormat.yMMMd().format(_date),
@@ -725,7 +659,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                       decoration: inputDecoration.copyWith(
                         labelText: 'Time',
                         suffixIcon: IconButton(
-                          icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+                          icon: const Icon(Symbols.close, size: 20, color: Colors.grey),
                           onPressed: () => setState(() => _hasTime = false),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -740,7 +674,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                     height: 47,
                     child: OutlinedButton.icon(
                       onPressed: () => setState(() => _hasTime = true),
-                      icon: const Icon(Icons.access_time),
+                      icon: const Icon(Symbols.access_time),
                       label: const Text('Add Time'),
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -762,7 +696,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                       padding: const EdgeInsets.only(bottom: 16),
                       child: DropdownButtonFormField<int>(
                            value: _settlementPartyId,
-                           decoration: inputDecoration.copyWith(labelText: 'Select Party', prefixIcon: const Icon(Icons.person)),
+                           decoration: inputDecoration.copyWith(labelText: 'Select Party', prefixIcon: const Icon(Symbols.person)),
                            items: parties.where((p) => !p.isMe()).map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
                            onChanged: (v) => setState(() => _settlementPartyId = v),
                       ),
@@ -858,48 +792,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
             
              if (_type == TransactionType.income) ...[
                  const Gap(8),
-                 Container(
-                   padding: const EdgeInsets.all(12),
-                   decoration: BoxDecoration(
-                     border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                     borderRadius: BorderRadius.circular(12),
-                   ),
-                   child: StreamBuilder<List<Account>>(
-                      stream: ref.read(accountsRepositoryProvider).watchActiveAccounts(),
-                      builder: (context, snapshot) {
-                         final account = snapshot.data?.where((a) => a.id == _selectedAccountId).firstOrNull;
-                         final buckets = account?.buckets ?? [];
-
-                         return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Bucket Allocation', style: TextStyle(fontWeight: FontWeight.bold)),
-                              const Gap(8),
-                              const Text('Auto-fills Reserved (to limit) first.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              const Gap(8),
-                              DropdownButtonFormField<String>(
-                                value: _targetCustomBucket,
-                                decoration: inputDecoration.copyWith(labelText: 'Fill Custom Bucket (Optional)'),
-                                items: [
-                                   const DropdownMenuItem(value: null, child: Text('None (Rest to Spendable)')),
-                                   ...buckets.map((b) => DropdownMenuItem(value: b.name, child: Text(b.name ?? 'Unnamed'))),
-                                ],
-                                onChanged: (v) => setState(() => _targetCustomBucket = v),
-                              ),
-                              if (_targetCustomBucket != null) ...[
-                                 const Gap(8),
-                                 TextFormField(
-                                   controller: _customBucketAmountController,
-                                   decoration: inputDecoration.copyWith(labelText: 'Amount to Custom', prefixText: ref.watch(currencyProvider)),
-                                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                 ),
-                              ]
-                            ],
-                         );
-                      }
-                   ),
-                 ),
-                 const Gap(16),
+                 // Removed Bucket Allocation UI since buckets feature is deprecated
              ],
              
              // Refund Toggle for Income
@@ -910,7 +803,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                    subtitle: const Text('Exclude from Net Income stats'),
                    value: _skipFromStats,
                    onChanged: (v) => setState(() => _skipFromStats = v),
-                   secondary: const Icon(Icons.replay),
+                   secondary: const Icon(Symbols.replay),
                    contentPadding: EdgeInsets.zero,
                 ),
                 const Gap(8),
@@ -965,7 +858,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                                         onChanged: (v) => setState(() => _splits[i].categoryId = v),
                                       ),
                                    ),
-                                   IconButton(icon: const Icon(Icons.remove_circle, color: Colors.red), onPressed: () => _removeSplit(i))
+                                   IconButton(icon: const Icon(Symbols.remove_circle, color: Colors.red), onPressed: () => _removeSplit(i))
                                  ],
                                ),
                                const Gap(8),
@@ -1029,7 +922,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                  loading: () => const CircularProgressIndicator(),
                  error: (_, __) => const SizedBox(),
                ),
-               TextButton.icon(onPressed: _addSplit, icon: const Icon(Icons.add), label: const Text('Add Split Line')),
+               TextButton.icon(onPressed: _addSplit, icon: const Icon(Symbols.add), label: const Text('Add Split Line')),
             ],
 
              const Gap(16),
@@ -1097,4 +990,5 @@ class SubTransactionInput {
     noteController.dispose();
   }
 }
+
 

@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
@@ -33,7 +34,7 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                    leading: Column(
                      children: [
                         IconButton(
-                          icon: Icon(_isRailExtended ? Icons.menu_open : Icons.menu),
+                          icon: Icon(_isRailExtended ? Symbols.menu_open : Symbols.menu),
                           onPressed: () => setState(() => _isRailExtended = !_isRailExtended),
                         ),
                         const Gap(16),
@@ -41,7 +42,7 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                           onPressed: () => context.push('/add-transaction'),
                           elevation: 0,
                           tooltip: 'Add Transaction',
-                          child: const Icon(Icons.add),
+                          child: const Icon(Symbols.add),
                         ),
                      ],
                    ),
@@ -50,11 +51,11 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                    labelType: _isRailExtended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
                    groupAlignment: -0.9,
                    destinations: const [
-                       NavigationRailDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: Text('Home')),
-                       NavigationRailDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: Text('History')),
-                       NavigationRailDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: Text('People')),
-                       NavigationRailDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: Text('Analysis')),
-                       NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: Text('Settings')),
+                       NavigationRailDestination(icon: Icon(Symbols.dashboard), selectedIcon: Icon(Symbols.dashboard), label: Text('Home')),
+                       NavigationRailDestination(icon: Icon(Symbols.receipt_long), selectedIcon: Icon(Symbols.receipt_long), label: Text('History')),
+                       NavigationRailDestination(icon: Icon(Symbols.people), selectedIcon: Icon(Symbols.people), label: Text('Parties')),
+                       NavigationRailDestination(icon: Icon(Symbols.analytics), selectedIcon: Icon(Symbols.analytics), label: Text('Analysis')),
+                       NavigationRailDestination(icon: Icon(Symbols.settings), selectedIcon: Icon(Symbols.settings), label: Text('Settings')),
                    ],
                  ),
                  const VerticalDivider(thickness: 1, width: 1),
@@ -92,11 +93,11 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
             onDestinationSelected: (index) => _onTap(index),
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             destinations: const [
-               NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Home'),
-               NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'History'),
-               NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'People'),
-               NavigationDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: 'Analytics'),
-               NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
+               NavigationDestination(icon: Icon(Symbols.dashboard), selectedIcon: Icon(Symbols.dashboard), label: 'Home'),
+               NavigationDestination(icon: Icon(Symbols.receipt_long), selectedIcon: Icon(Symbols.receipt_long), label: 'History'),
+               NavigationDestination(icon: Icon(Symbols.people), selectedIcon: Icon(Symbols.people), label: 'Parties'),
+               NavigationDestination(icon: Icon(Symbols.analytics), selectedIcon: Icon(Symbols.analytics), label: 'Analytics'),
+               NavigationDestination(icon: Icon(Symbols.settings), selectedIcon: Icon(Symbols.settings), label: 'Settings'),
             ],
           ),
         );
@@ -115,3 +116,4 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
           );
   }
 }
+

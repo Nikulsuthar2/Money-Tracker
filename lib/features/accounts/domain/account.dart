@@ -1,37 +1,29 @@
 class Account {
   int id = 0;
   String name = '';
-  AccountType type = AccountType.wallet;
+  AccountType type = AccountType.cash;
   String currency = 'INR';
   double initialBalance = 0.0;
   double reservedBalance = 0.0;
-  double reservedLimit = 0.0;
   bool isArchived = false;
   int color = 0xFF2196F3;
-  int icon = 57522;
+  String iconData = 'material:57522'; // Default wallet icon
+  double? interestRate; // Used for Interest Rate or P/L
   DateTime? createdAt;
   DateTime? updatedAt;
 
-  // --- Legacy UI Stubs ---
+  // --- Legacy UI Stubs (to be removed safely later) ---
   double get openingBalance => initialBalance;
   set openingBalance(double v) => initialBalance = v;
-  List<AccountBucket> buckets = [];
-  bool autoSaveEnabled = false;
-  int? autoSaveTargetAccountId;
-  double autoSaveAmount = 0.0; 
-  bool autoSaveIsPercentage = true; 
 }
 
 enum AccountType {
-  wallet,
-  bank,
   cash,
-  savings,
-  salary,
-  others
-}
-
-class AccountBucket {
-  String? name;
-  double balance = 0.0;
+  bank,
+  creditCard,
+  pf,
+  investment,
+  loan,
+  eWallet,
+  other
 }

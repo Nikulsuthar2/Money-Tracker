@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,7 +44,7 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
                      selected: _filterType == CategoryType.income,
                      onSelected: (b) => setState(() => _filterType = CategoryType.income),
                      showCheckmark: false,
-                     avatar: _filterType == CategoryType.income ? const Icon(Icons.check, size: 16) : null,
+                     avatar: _filterType == CategoryType.income ? const Icon(Symbols.check, size: 16) : null,
                    ),
                    const Gap(8),
                    FilterChip(
@@ -51,7 +52,7 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
                      selected: _filterType == CategoryType.expense,
                      onSelected: (b) => setState(() => _filterType = CategoryType.expense),
                      showCheckmark: false,
-                     avatar: _filterType == CategoryType.expense ? const Icon(Icons.check, size: 16) : null,
+                     avatar: _filterType == CategoryType.expense ? const Icon(Symbols.check, size: 16) : null,
                    ),
                    const Gap(8),
                    FilterChip(
@@ -59,7 +60,7 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
                      selected: _filterType == CategoryType.common,
                      onSelected: (b) => setState(() => _filterType = CategoryType.common),
                      showCheckmark: false,
-                     avatar: _filterType == CategoryType.common ? const Icon(Icons.check, size: 16) : null,
+                     avatar: _filterType == CategoryType.common ? const Icon(Symbols.check, size: 16) : null,
                    ),
                  ],
                ),
@@ -118,7 +119,7 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
                            title: Text(cat.name, style: Theme.of(context).textTheme.titleMedium),
                            subtitle: Text(cat.type.name.toUpperCase(), style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).colorScheme.secondary)),
                            trailing: PopupMenuButton(
-                             icon: const Icon(Icons.more_vert, size: 20),
+                             icon: const Icon(Symbols.more_vert, size: 20),
                              padding: EdgeInsets.zero,
                              itemBuilder: (context) => [
                                PopupMenuItem(
@@ -158,10 +159,11 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
         onPressed: () {
           context.push('/add-category');
         },
-        icon: const Icon(Icons.add),
+        icon: const Icon(Symbols.add),
         label: const Text('New Category'),
       ),
     );
   }
 }
+
 

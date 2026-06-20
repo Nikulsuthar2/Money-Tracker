@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -40,44 +41,44 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
 
   final List<IconData> _icons = [
     // General
-    Icons.category, Icons.label, Icons.star, Icons.favorite, Icons.bookmark,
+    Symbols.category, Symbols.label, Symbols.star, Symbols.favorite, Symbols.bookmark,
     // Transport
-    Icons.directions_car, Icons.train, Icons.flight, Icons.directions_bus, 
-    Icons.directions_bike, Icons.directions_boat, Icons.local_taxi,
+    Symbols.directions_car, Symbols.train, Symbols.flight, Symbols.directions_bus, 
+    Symbols.directions_bike, Symbols.directions_boat, Symbols.local_taxi,
     // Food
-    Icons.restaurant, Icons.shopping_cart, Icons.local_cafe, Icons.local_bar, 
-    Icons.fastfood, Icons.icecream, Icons.local_pizza, Icons.bakery_dining,
-    Icons.lunch_dining, Icons.kitchen, 
+    Symbols.restaurant, Symbols.shopping_cart, Symbols.local_cafe, Symbols.local_bar, 
+    Symbols.fastfood, Symbols.icecream, Symbols.local_pizza, Symbols.bakery_dining,
+    Symbols.lunch_dining, Symbols.kitchen, 
     // Health & Personal
-    Icons.local_hospital, Icons.healing, Icons.medication, Icons.fitness_center,
-    Icons.spa, Icons.pool, Icons.content_cut, Icons.shower,
+    Symbols.local_hospital, Symbols.healing, Symbols.medication, Symbols.fitness_center,
+    Symbols.spa, Symbols.pool, Symbols.content_cut, Symbols.shower,
     // Education & Work
-    Icons.school, Icons.work, Icons.business_center, Icons.computer, 
-    Icons.library_books, Icons.attach_file,
+    Symbols.school, Symbols.work, Symbols.business_center, Symbols.computer, 
+    Symbols.library_books, Symbols.attach_file,
     // Entertainment
-    Icons.movie, Icons.music_note, Icons.sports_esports, Icons.sports_soccer, 
-    Icons.sports_basketball, Icons.sports_tennis, Icons.theater_comedy, Icons.casino,
+    Symbols.movie, Symbols.music_note, Symbols.sports_esports, Symbols.sports_soccer, 
+    Symbols.sports_basketball, Symbols.sports_tennis, Symbols.theater_comedy, Symbols.casino,
     // Home & Family
-    Icons.home, Icons.child_care, Icons.pets, Icons.stroller, Icons.family_restroom,
-    Icons.chair, Icons.bed, Icons.local_laundry_service, Icons.build,
+    Symbols.home, Symbols.child_care, Symbols.pets, Symbols.stroller, Symbols.family_restroom,
+    Symbols.chair, Symbols.bed, Symbols.local_laundry_service, Symbols.build,
     // Tech & Bills
-    Icons.smartphone, Icons.wifi, Icons.electric_bolt, Icons.water_drop, 
-    Icons.description, Icons.receipt, Icons.credit_card, Icons.account_balance,
-    Icons.savings, Icons.attach_money, Icons.security, Icons.shield,
+    Symbols.smartphone, Symbols.wifi, Symbols.electric_bolt, Symbols.water_drop, 
+    Symbols.description, Symbols.receipt, Symbols.credit_card, Symbols.account_balance,
+    Symbols.savings, Symbols.attach_money, Symbols.security, Symbols.shield,
     // Shopping
-    Icons.shopping_bag, Icons.card_giftcard, Icons.diamond, Icons.watch,
-    Icons.checkroom, Icons.local_offer,
+    Symbols.shopping_bag, Symbols.card_giftcard, Symbols.diamond, Symbols.watch,
+    Symbols.checkroom, Symbols.local_offer,
     // Travel
-    Icons.map, Icons.public, Icons.language, Icons.camera_alt, Icons.photo_camera,
-    Icons.hotel, Icons.beach_access, Icons.park,
+    Symbols.map, Symbols.public, Symbols.language, Symbols.camera_alt, Symbols.photo_camera,
+    Symbols.hotel, Symbols.beach_access, Symbols.park,
     // Subscriptions & Services (New)
-    Icons.subscriptions, Icons.video_library, Icons.live_tv, Icons.ondemand_video,
-    Icons.cloud, Icons.vpn_key, Icons.storage, Icons.settings_remote,
+    Symbols.subscriptions, Symbols.video_library, Symbols.live_tv, Symbols.ondemand_video,
+    Symbols.cloud, Symbols.vpn_key, Symbols.storage, Symbols.settings_remote,
     // Medical (Expanded)
-    Icons.medical_services, Icons.bloodtype, Icons.masks, Icons.vaccines,
+    Symbols.medical_services, Symbols.bloodtype, Symbols.masks, Symbols.vaccines,
     // Others
-    Icons.emoji_events, Icons.extension, Icons.palette, Icons.brush,
-    Icons.auto_stories, Icons.psychology, Icons.volunteer_activism,
+    Symbols.emoji_events, Symbols.extension, Symbols.palette, Symbols.brush,
+    Symbols.auto_stories, Symbols.psychology, Symbols.volunteer_activism,
   ];
 
   @override
@@ -165,7 +166,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                                  BoxShadow(color: c.withOpacity(0.4), blurRadius: 8, spreadRadius: 2)
                                ]
                              ),
-                             child: _color == c.value ? const Icon(Icons.check, color: Colors.white, size: 24) : null,
+                             child: _color == c.value ? const Icon(Symbols.check, color: Colors.white, size: 24) : null,
                            ),
                          )).toList(),
                        ),
@@ -185,7 +186,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                       const Gap(12),
                       Text('#${_color.toRadixString(16).toUpperCase().substring(2)}', style: const TextStyle(fontWeight: FontWeight.w500)),
                       const Spacer(),
-                      const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                      const Icon(Symbols.arrow_drop_down, color: Colors.grey),
                    ],
                  ),
               ),
@@ -233,7 +234,7 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
                       const Gap(12),
                       const Text('Selected Icon', style: TextStyle(fontWeight: FontWeight.w500)),
                       const Spacer(),
-                      const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                      const Icon(Symbols.arrow_drop_down, color: Colors.grey),
                    ],
                  ),
               ),
@@ -250,4 +251,5 @@ class _AddCategoryPageState extends ConsumerState<AddCategoryPage> {
     );
   }
 }
+
 

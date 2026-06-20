@@ -11,11 +11,13 @@ part 'app_database.g.dart';
 class Accounts extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
-  TextColumn get type => text()(); // wallet, bank, cash, etc.
+  TextColumn get type => text()(); // cash, bank, creditCard, etc.
   TextColumn get currency => text().withDefault(const Constant('INR'))();
   RealColumn get initialBalance => real().withDefault(const Constant(0.0))();
   RealColumn get reservedBalance => real().withDefault(const Constant(0.0))();
-  RealColumn get reservedLimit => real().withDefault(const Constant(0.0))();
+  RealColumn get interestRate => real().nullable()();
+  IntColumn get color => integer().withDefault(const Constant(0xFF2196F3))();
+  TextColumn get iconData => text().withDefault(const Constant('material:57522'))();
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -103,5 +105,21 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onCreate: (Migrator m) async {
+        await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 2) {
+          await m.addColumn(accounts, accounts.interestRate);
+          await m.addColumn(accounts, accounts.color);
+          await m.addColumn(accounts, accounts.iconData);
+        }
+      },
+    );
+  }
 }

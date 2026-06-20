@@ -21,7 +21,9 @@ extension AccountDataMapper on AccountData {
       ..currency = currency
       ..initialBalance = initialBalance
       ..reservedBalance = reservedBalance
-      ..reservedLimit = reservedLimit
+      ..interestRate = interestRate
+      ..color = color
+      ..iconData = iconData
       ..isArchived = isArchived
       ..createdAt = createdAt
       ..updatedAt = updatedAt;
@@ -55,7 +57,9 @@ class AccountsRepository {
       currency: drift.Value(account.currency),
       initialBalance: drift.Value(account.initialBalance),
       reservedBalance: drift.Value(account.reservedBalance),
-      reservedLimit: drift.Value(account.reservedLimit),
+      interestRate: drift.Value(account.interestRate),
+      color: drift.Value(account.color),
+      iconData: drift.Value(account.iconData),
       isArchived: drift.Value(account.isArchived),
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -70,7 +74,9 @@ class AccountsRepository {
       currency: account.currency,
       initialBalance: account.initialBalance,
       reservedBalance: account.reservedBalance,
-      reservedLimit: account.reservedLimit,
+      interestRate: account.interestRate,
+      color: account.color,
+      iconData: account.iconData,
       isArchived: account.isArchived,
       createdAt: account.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),

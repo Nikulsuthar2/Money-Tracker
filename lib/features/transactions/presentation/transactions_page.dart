@@ -1,3 +1,4 @@
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,23 +34,23 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
         title: const Text('Transactions'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.subscriptions),
+            icon: const Icon(Symbols.subscriptions),
             tooltip: 'Subscriptions',
             onPressed: () => context.push('/subscriptions'),
           ),
           IconButton(
-            icon: Icon(_isCompact ? Icons.view_agenda : Icons.view_headline),
+            icon: Icon(_isCompact ? Symbols.view_agenda : Symbols.view_headline),
             tooltip: _isCompact ? 'Comfortable View' : 'Concise View',
             onPressed: () => setState(() => _isCompact = !_isCompact),
           ),
           IconButton(
-            icon: const Icon(Icons.table_chart),
+            icon: const Icon(Symbols.table_chart),
             tooltip: 'Table View',
             onPressed: () => context.push('/transactions-table'),
           ),
           if (!Platform.isAndroid)
             IconButton(
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Symbols.refresh),
               tooltip: 'Refresh',
               onPressed: () {
                  ref.invalidate(transactionsStreamProvider);
@@ -115,7 +116,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                                    child: Column(
                                      crossAxisAlignment: CrossAxisAlignment.center, // Centered
                                      children: [
-                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_downward, size: 16, color: Colors.teal), Gap(8), Text('Total Income', style: TextStyle(color: Colors.teal))]),
+                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Symbols.arrow_downward, size: 16, color: Colors.teal), Gap(8), Text('Total Income', style: TextStyle(color: Colors.teal))]),
                                        const Gap(8),
                                        Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalIncome.toStringAsFixed(0)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal))),
                                      ],
@@ -127,7 +128,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                                    child: Column(
                                      crossAxisAlignment: CrossAxisAlignment.center, // Centered
                                      children: [
-                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_upward, size: 16, color: Colors.red), Gap(8), Text('Total Expense', style: TextStyle(color: Colors.red))]),
+                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Symbols.arrow_upward, size: 16, color: Colors.red), Gap(8), Text('Total Expense', style: TextStyle(color: Colors.red))]),
                                        const Gap(8),
                                        Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalExpense.toStringAsFixed(0)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red))),
                                      ],
@@ -209,10 +210,11 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
 
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/add-transaction'),
-        icon: const Icon(Icons.add),
+        icon: const Icon(Symbols.add),
         label: const Text('Add Transaction'),
       ),
     );
   }
 }
+
 

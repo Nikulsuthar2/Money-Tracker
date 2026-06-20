@@ -13,10 +13,11 @@ class AppTheme {
       brightness: Brightness.light,
       colorScheme: scheme,
       scaffoldBackgroundColor: const Color(0xFFF8F9FA), // Softer off-white
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFF8F9FA),
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFFF8F9FA),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        shape: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1)),
       ),
       cardTheme: CardThemeData(
         color: Colors.white,
@@ -26,7 +27,7 @@ class AppTheme {
             side: BorderSide(color: Colors.grey.withOpacity(0.1))
         ),
       ),
-      textTheme: GoogleFonts.outfitTextTheme(ThemeData.light().textTheme),
+      textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme),
     );
   }
 
@@ -52,17 +53,18 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: darkBackground,
       colorScheme: scheme,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: darkBackground,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1), width: 1)),
       ),
       cardTheme: CardThemeData(
         color: darkSurface,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
+      textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: darkBackground,
         indicatorColor: scheme.primary.withOpacity(0.2),
