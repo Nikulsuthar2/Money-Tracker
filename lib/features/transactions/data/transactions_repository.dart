@@ -27,9 +27,10 @@ extension TransactionDataMapper on TransactionData {
       ..fromAccountId = fromAccountId
       ..toAccountId = toAccountId
       ..categoryId = categoryId
+      ..title = title
       ..note = note
-      ..date = date
       ..isSettlement = isSettlement
+      ..principalAmount = principalAmount
       ..createdAt = createdAt
       ..updatedAt = updatedAt;
   }
@@ -59,17 +60,19 @@ class TransactionsRepository {
     return watchAllTransactions();
   }
 
-  Future<void> addTransaction(Transaction transaction) async {
-    await _db.into(_db.transactions).insert(TransactionsCompanion.insert(
+  Future<int> addTransaction(Transaction transaction) async {
+    return await _db.into(_db.transactions).insert(TransactionsCompanion.insert(
       type: transaction.type.name,
       amount: transaction.amount,
       currency: drift.Value(transaction.currency),
       fromAccountId: drift.Value(transaction.fromAccountId),
       toAccountId: drift.Value(transaction.toAccountId),
       categoryId: drift.Value(transaction.categoryId),
+      title: drift.Value(transaction.title),
       note: drift.Value(transaction.note),
       date: transaction.date,
       isSettlement: drift.Value(transaction.isSettlement),
+      principalAmount: drift.Value(transaction.principalAmount),
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     ));
@@ -84,9 +87,11 @@ class TransactionsRepository {
       fromAccountId: transaction.fromAccountId,
       toAccountId: transaction.toAccountId,
       categoryId: transaction.categoryId,
+      title: transaction.title,
       note: transaction.note,
       date: transaction.date,
       isSettlement: transaction.isSettlement,
+      principalAmount: transaction.principalAmount,
       createdAt: transaction.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     ));
@@ -104,19 +109,28 @@ class TransactionsRepository {
   Future<double> getAccountBalance(int accountId, double openingBalance) async {
     final list = await _db.select(_db.transactions).get();
     
-    double income = list.where((t) => t.toAccountId == accountId && t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-    double expense = list.where((t) => t.fromAccountId == accountId && t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+    double income = list.where((t) => t.toAccountId == accountId && (t.type == 'income' || t.type == 'sellInvestment')).fold(0.0, (s, t) => s + t.amount);
+    double expense = list.where((t) => t.fromAccountId == accountId && (t.type == 'expense' || t.type == 'buyInvestment')).fold(0.0, (s, t) => s + t.amount);
     double transferIn = list.where((t) => t.toAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
     double transferOut = list.where((t) => t.fromAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
     
     return openingBalance + income - expense + transferIn - transferOut;
   }
 
+  Future<double> getInvestedBalance(int accountId) async {
+    final list = await _db.select(_db.transactions).get();
+    
+    double invested = list.where((t) => t.fromAccountId == accountId && t.type == 'buyInvestment').fold(0.0, (s, t) => s + t.amount);
+    double withdrawn = list.where((t) => t.toAccountId == accountId && t.type == 'sellInvestment').fold(0.0, (s, t) => s + (t.principalAmount ?? t.amount));
+    
+    return invested - withdrawn;
+  }
+
   Future<Map<String, double>> getAccountStats(int accountId, double openingBalance) async {
     final list = await _db.select(_db.transactions).get();
     
-    double income = list.where((t) => t.toAccountId == accountId && t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-    double expense = list.where((t) => t.fromAccountId == accountId && t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+    double income = list.where((t) => t.toAccountId == accountId && (t.type == 'income' || t.type == 'sellInvestment')).fold(0.0, (s, t) => s + t.amount);
+    double expense = list.where((t) => t.fromAccountId == accountId && (t.type == 'expense' || t.type == 'buyInvestment')).fold(0.0, (s, t) => s + t.amount);
     double transferIn = list.where((t) => t.toAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
     double transferOut = list.where((t) => t.fromAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
     
@@ -142,8 +156,8 @@ class TransactionsRepository {
     // Filter monthly
     final monthlyList = allTxns.where((t) => t.date.isAfter(start.subtract(const Duration(milliseconds: 1))) && t.date.isBefore(end)).toList();
     
-    double monthlyIncome = monthlyList.where((t) => t.toAccountId == accountId && t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-    double monthlyExpense = monthlyList.where((t) => t.fromAccountId == accountId && t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+    double monthlyIncome = monthlyList.where((t) => t.toAccountId == accountId && (t.type == 'income' || t.type == 'sellInvestment')).fold(0.0, (s, t) => s + t.amount);
+    double monthlyExpense = monthlyList.where((t) => t.fromAccountId == accountId && (t.type == 'expense' || t.type == 'buyInvestment')).fold(0.0, (s, t) => s + t.amount);
     double monthlyTransferIn = monthlyList.where((t) => t.toAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
     double monthlyTransferOut = monthlyList.where((t) => t.fromAccountId == accountId && t.type == 'transfer').fold(0.0, (s, t) => s + t.amount);
 

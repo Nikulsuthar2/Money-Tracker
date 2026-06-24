@@ -1,10 +1,11 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
 import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/accounts/presentation/widgets/icon_selector_modal.dart';
+import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:circle_flags/circle_flags.dart';
 import 'package:gap/gap.dart';
 
 class AddAccountPage extends ConsumerStatefulWidget {
@@ -26,6 +27,7 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
   AccountType _type = AccountType.cash;
   int _color = 0xFF2196F3;
   String _iconData = 'emoji:💵';
+  String _currency = 'INR';
 
   final Map<AccountType, List<String>> _suggestedIcons = {
     AccountType.cash: ['emoji:💵', 'emoji:💰', 'emoji:🪙', 'emoji:💶'],
@@ -43,20 +45,24 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
     super.initState();
     final account = widget.accountToEdit;
     _nameController = TextEditingController(text: account?.name ?? '');
-    _balanceController = TextEditingController(text: account?.openingBalance.toString() ?? '');
-    _interestRateController = TextEditingController(text: account?.interestRate?.toString() ?? '');
+    _balanceController = TextEditingController(text: account?.openingBalance.toString() ?? '0');
+    _interestRateController = TextEditingController(text: account?.interestRate?.toString() ?? '0');
     _customEmojiController = TextEditingController();
 
     if (account != null) {
       _type = account.type;
       _color = account.color;
       _iconData = account.iconData;
+      _currency = account.currency;
       if (_iconData.startsWith('emoji:')) {
         _customEmojiController.text = _iconData.replaceFirst('emoji:', '');
       }
     } else {
       _iconData = _suggestedIcons[_type]!.first;
       _customEmojiController.text = _iconData.replaceFirst('emoji:', '');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+         if (mounted) setState(() => _currency = ref.read(currencyProvider));
+      });
     }
   }
 
@@ -73,12 +79,13 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
     if (_formKey.currentState!.validate()) {
       final name = _nameController.text.trim();
       final balance = double.tryParse(_balanceController.text) ?? 0.0;
-      final interestRate = double.tryParse(_interestRateController.text);
+      final interestRate = double.tryParse(_interestRateController.text) ?? 0.0;
       
       final account = widget.accountToEdit ?? Account();
       account
         ..name = name
         ..type = _type
+        ..currency = _currency
         ..openingBalance = balance
         ..interestRate = interestRate
         ..color = _color
@@ -98,14 +105,14 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
 
   String _formatType(AccountType type) {
     switch (type) {
-      case AccountType.cash: return 'Cash (Wallet)';
-      case AccountType.bank: return 'Bank Account';
-      case AccountType.creditCard: return 'Credit Card';
-      case AccountType.pf: return 'PF Account';
-      case AccountType.investment: return 'Investment';
-      case AccountType.loan: return 'Loan';
-      case AccountType.eWallet: return 'E-Wallet';
-      case AccountType.other: return 'Other';
+      case AccountType.cash: return '💵 Cash (Wallet)';
+      case AccountType.bank: return '🏦 Bank Account';
+      case AccountType.creditCard: return '💳 Credit Card';
+      case AccountType.pf: return '🗄️ PF Account';
+      case AccountType.investment: return '📈 Investment';
+      case AccountType.loan: return '💸 Loan';
+      case AccountType.eWallet: return '📱 E-Wallet';
+      case AccountType.other: return '💼 Other';
     }
   }
 
@@ -120,7 +127,22 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
       final assetPath = iconStr.replaceFirst('asset:', '');
       return Image.asset(assetPath, width: 28, height: 28, fit: BoxFit.contain);
     }
-    return Icon(Symbols.account_balance_wallet, size: 28, color: Theme.of(context).colorScheme.primary);
+    return Icon(Icons.account_balance_wallet, size: 28, color: Theme.of(context).colorScheme.primary);
+  }
+
+  Widget _buildFlag(String cur, double size) {
+    final flagCode = currencyFlags[cur] ?? 'us';
+    if (flagCode == 'eu') {
+      return Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF003399)),
+        child: Center(
+          child: Icon(Icons.euro, color: const Color(0xFFFFCC00), size: size * 0.65),
+        ),
+      );
+    }
+    return CircleFlag(flagCode, size: size);
   }
 
   @override
@@ -128,6 +150,9 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
     final inputDecoration = InputDecoration(
       isDense: true,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.outline)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+      filled: false,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
 
@@ -144,58 +169,130 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
           padding: const EdgeInsets.all(16),
           children: [
             // Account Type
-            DropdownButtonFormField<AccountType>(
-              value: _type,
-              decoration: inputDecoration.copyWith(labelText: 'Account Type'),
-              borderRadius: BorderRadius.circular(12),
-              items: AccountType.values.map((t) {
-                return DropdownMenuItem(value: t, child: Text(_formatType(t)));
-              }).toList(),
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() {
-                    _type = v;
-                    // Auto-select first suggested icon
-                    _iconData = _suggestedIcons[_type]!.first;
-                    _customEmojiController.text = _iconData.replaceFirst('emoji:', '');
-                  });
-                }
+            const Text('Account Type', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Gap(8),
+            InkWell(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Select Account Type'),
+                    contentPadding: const EdgeInsets.only(top: 16, bottom: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    content: SizedBox(
+                      width: double.maxFinite,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: AccountType.values.length,
+                        itemBuilder: (ctx, index) {
+                          final t = AccountType.values[index];
+                          return ListTile(
+                            leading: Text(_formatType(t).split(' ')[0], style: const TextStyle(fontSize: 24)),
+                            title: Text(_formatType(t).substring(_formatType(t).indexOf(' ') + 1)),
+                            selected: _type == t,
+                            selectedTileColor: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+                            onTap: () {
+                              setState(() {
+                                _type = t;
+                                _iconData = _suggestedIcons[_type]!.first;
+                                _customEmojiController.text = _iconData.replaceFirst('emoji:', '');
+                              });
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
               },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(_formatType(_type).split(' ')[0], style: const TextStyle(fontSize: 24)),
+                    ),
+                    const Gap(16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Account Type', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          Text(_formatType(_type).substring(_formatType(_type).indexOf(' ') + 1), style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface, fontSize: 16)),
+                        ]
+                      )
+                    ),
+                    Icon(Icons.keyboard_arrow_down, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ]
+                )
+              )
             ),
             const Gap(24),
 
             // Icon Picker
             const Text('Account Icon', style: TextStyle(fontWeight: FontWeight.bold)),
             const Gap(8),
-            Row(
-              children: [
-                InkWell(
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
-                      builder: (ctx) => IconSelectorModal(
-                        onIconSelected: (val) {
-                          setState(() => _iconData = val);
-                        }
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                     padding: const EdgeInsets.all(12),
-                     decoration: BoxDecoration(
-                       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                       borderRadius: BorderRadius.circular(12),
-                       border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
-                     ),
-                     child: _buildIcon(_iconData),
+            InkWell(
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+                  builder: (ctx) => IconSelectorModal(
+                    onIconSelected: (val) {
+                      setState(() => _iconData = val);
+                    }
                   ),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                 ),
-                const Gap(16),
-                Text('Tap to change icon', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-              ]
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: _buildIcon(_iconData),
+                    ),
+                    const Gap(16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Select Icon', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface, fontSize: 16)),
+                          Text('Personalize your account appearance', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        ]
+                      )
+                    ),
+                    Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ]
+                )
+              )
             ),
             const Gap(24),
 
@@ -204,6 +301,50 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
               controller: _nameController,
               decoration: inputDecoration.copyWith(labelText: 'Account Name', hintText: 'e.g. SBI Savings'),
               validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+            ),
+            const Gap(16),
+
+            // Currency Selector
+            InkWell(
+              onTap: () {
+                 showDialog(context: context, builder: (c) => SimpleDialog(
+                   title: const Text('Select Currency'),
+                   children: supportedCurrencies.map((cur) => SimpleDialogOption(
+                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                     onPressed: () {
+                       setState(() => _currency = cur);
+                       Navigator.pop(c);
+                     },
+                     child: Row(
+                       children: [
+                         _buildFlag(cur, 24),
+                         const Gap(16),
+                         Text(cur, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                         const Gap(16),
+                         Expanded(child: Text(currencyNames[cur] ?? '', style: const TextStyle(fontSize: 16))),
+                       ],
+                     ),
+                   )).toList(),
+                 ));
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).colorScheme.outline),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    _buildFlag(_currency, 24),
+                    const Gap(16),
+                    Text(_currency, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Gap(8),
+                    Expanded(child: Text(currencyNames[_currency] ?? '', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14), overflow: TextOverflow.ellipsis)),
+                    const Icon(Icons.keyboard_arrow_down),
+                  ],
+                ),
+              ),
             ),
             const Gap(16),
             TextFormField(
@@ -229,6 +370,9 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
             ElevatedButton(
               onPressed: _save,
               style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),

@@ -13,6 +13,7 @@ extension ExpenseDataMapper on ExpenseData {
     return Expense()
       ..id = id
       ..transactionId = transactionId
+      ..paidByPersonId = paidByPersonId
       ..totalAmount = totalAmount
       ..categoryId = categoryId
       ..note = note
@@ -52,12 +53,20 @@ class ExpensesRepository {
   Future<int> addExpense(Expense expense) async {
     return await _db.into(_db.expenses).insert(ExpensesCompanion.insert(
       transactionId: drift.Value(expense.transactionId),
+      paidByPersonId: drift.Value(expense.paidByPersonId),
       totalAmount: expense.totalAmount,
       categoryId: drift.Value(expense.categoryId),
       note: drift.Value(expense.note),
       date: expense.date,
       createdAt: DateTime.now(),
     ));
+  }
+
+  Future<void> deleteExpense(int expenseId) async {
+    await _db.transaction(() async {
+      await (_db.delete(_db.expenseSplits)..where((s) => s.expenseId.equals(expenseId))).go();
+      await (_db.delete(_db.expenses)..where((e) => e.id.equals(expenseId))).go();
+    });
   }
 
   // ExpenseSplit Methods
@@ -83,6 +92,29 @@ class ExpensesRepository {
   }
   
   // Queries
+  // Queries
+  Stream<List<Expense>> watchAllExpenses() {
+    return (_db.select(_db.expenses)..orderBy([(t) => drift.OrderingTerm.desc(t.date)])).watch().map((list) => list.map((e) => e.toDomain()).toList());
+  }
+
+  Stream<List<ExpenseSplit>> watchAllExpenseSplits() {
+    return _db.select(_db.expenseSplits).watch().map((list) => list.map((e) => e.toDomain()).toList());
+  }
+
+  Stream<List<Settlement>> watchAllSettlements() {
+    return (_db.select(_db.settlements)..orderBy([(t) => drift.OrderingTerm.desc(t.createdAt)])).watch().map((list) => list.map((e) => e.toDomain()).toList());
+  }
+
+  Future<List<Expense>> getAllExpenses() async {
+    final list = await _db.select(_db.expenses).get();
+    return list.map((e) => e.toDomain()).toList();
+  }
+
+  Future<List<ExpenseSplit>> getAllExpenseSplits() async {
+    final list = await _db.select(_db.expenseSplits).get();
+    return list.map((e) => e.toDomain()).toList();
+  }
+
   Future<List<ExpenseSplit>> getSplitsForPerson(int personId) async {
     final list = await (_db.select(_db.expenseSplits)..where((s) => s.personId.equals(personId))).get();
     return list.map((e) => e.toDomain()).toList();
@@ -92,5 +124,25 @@ class ExpensesRepository {
     final list = await (_db.select(_db.settlements)
       ..where((s) => s.fromPersonId.equals(personId) | s.toPersonId.equals(personId))).get();
     return list.map((e) => e.toDomain()).toList();
+  }
+
+  Future<double> getPersonBalance(int personId) async {
+    final owesMeSplits = await (_db.select(_db.expenseSplits).join([
+      drift.innerJoin(_db.expenses, _db.expenses.id.equalsExp(_db.expenseSplits.expenseId))
+    ])..where(_db.expenseSplits.personId.equals(personId) & _db.expenses.paidByPersonId.equals(0))).get();
+    
+    double owedToMe = owesMeSplits.fold(0.0, (sum, row) => sum + row.readTable(_db.expenseSplits).amount);
+    
+    final iOweSplits = await (_db.select(_db.expenseSplits).join([
+      drift.innerJoin(_db.expenses, _db.expenses.id.equalsExp(_db.expenseSplits.expenseId))
+    ])..where(_db.expenseSplits.personId.equals(0) & _db.expenses.paidByPersonId.equals(personId))).get();
+    
+    double iOwe = iOweSplits.fold(0.0, (sum, row) => sum + row.readTable(_db.expenseSplits).amount);
+    
+    final settlements = await getSettlementsForPerson(personId);
+    double settlementsToMe = settlements.where((s) => s.toPersonId == 0 && s.fromPersonId == personId).fold(0.0, (sum, s) => sum + s.amount);
+    double settlementsByMe = settlements.where((s) => s.fromPersonId == 0 && s.toPersonId == personId).fold(0.0, (sum, s) => sum + s.amount);
+    
+    return (owedToMe - settlementsToMe) - (iOwe - settlementsByMe);
   }
 }

@@ -15,7 +15,8 @@ extension CategoryDataMapper on CategoryData {
       ..name = name
       ..type = CategoryType.values.firstWhere((e) => e.name == type)
       ..color = color
-      ..icon = icon;
+      ..icon = icon
+      ..iconData = iconData;
   }
 }
 
@@ -46,6 +47,7 @@ class CategoriesRepository {
       type: category.type.name,
       color: category.color,
       icon: category.icon,
+      iconData: drift.Value(category.iconData),
     ));
   }
 
@@ -56,6 +58,7 @@ class CategoriesRepository {
       type: category.type.name,
       color: category.color,
       icon: category.icon,
+      iconData: category.iconData,
     ));
   }
 
@@ -101,6 +104,7 @@ class CategoriesRepository {
           type: c.type.name,
           color: c.color,
           icon: c.icon,
+          iconData: drift.Value(c.iconData),
         )));
       });
     }

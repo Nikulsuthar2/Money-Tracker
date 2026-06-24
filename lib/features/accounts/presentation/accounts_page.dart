@@ -1,4 +1,3 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/features/accounts/application/accounts_providers.dart';
@@ -27,7 +26,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     'Investment',
     'Loan',
     'E-Wallet',
-    'Other'
+    'Other',
   ];
 
   @override
@@ -37,59 +36,27 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: accountsAsync.when(
-          data: (stats) {
-             double totalBalance = 0;
-             for (var s in stats) {
-                totalBalance += s.balance; 
-             }
-             return Container(
-               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-               decoration: BoxDecoration(
-                 color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                 borderRadius: BorderRadius.circular(16),
-               ),
-               child: Column(
-                 mainAxisSize: MainAxisSize.min,
-                 children: [
-                   Text('Total Balance', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                   Consumer(builder: (c, ref, _) =>
-                     Text(
-                       '${ref.watch(currencyProvider)}${totalBalance.toStringAsFixed(2)}',
-                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
-                     )
-                   ),
-                 ],
-               ),
-             );
-          },
-          loading: () => const Text('Loading...'),
-          error: (_,__) => const Text('Accounts'),
-        ),
+        title: const Text('My Accounts'),
+        shape: const Border(), // remove default bottom border
+        actions: [
+          IconButton(
+            onPressed: () => context.push('/add-account'),
+            icon: const Icon(Icons.add_card),
+            color: Theme.of(context).colorScheme.primary,
+            tooltip: 'Add Account',
+          ),
+          const Gap(8),
+        ],
       ),
       body: accountsAsync.when(
         data: (accounts) {
-          final filteredAccounts = _selectedType == 'All' 
-              ? accounts 
+          final filteredAccounts = _selectedType == 'All'
+              ? accounts
               : accounts.where((a) => a.account.type == _selectedType).toList();
 
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('My Accounts', style: Theme.of(context).textTheme.titleLarge),
-                    IconButton(
-                      onPressed: () => context.push('/add-account'),
-                      icon: const Icon(Symbols.add_card),
-                      color: Theme.of(context).colorScheme.primary,
-                      tooltip: 'Add Account',
-                    ),
-                  ],
-                ),
-              ),
+              const Gap(16),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -101,7 +68,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                       child: FilterChip(
                         label: Text(type),
                         selected: isSelected,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                         onSelected: (selected) {
                           setState(() {
                             _selectedType = type;
@@ -113,11 +82,23 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 ),
               ),
               const Gap(16),
+              Divider(
+                height: 1,
+                color: Theme.of(
+                  context,
+                ).colorScheme.outlineVariant.withOpacity(0.5),
+              ),
+              // const Gap(8),
               Expanded(
                 child: filteredAccounts.isEmpty
                     ? const Center(child: Text('No accounts found.'))
                     : ListView.builder(
-                        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
+                        padding: const EdgeInsets.only(
+                          top: 10,
+                          left: 16,
+                          right: 16,
+                          bottom: 80,
+                        ),
                         itemCount: filteredAccounts.length,
                         itemBuilder: (context, index) {
                           return AccountCard(item: filteredAccounts[index]);
@@ -133,5 +114,3 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     );
   }
 }
-
-

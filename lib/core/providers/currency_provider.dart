@@ -46,3 +46,25 @@ final currencyNames = {
   '₫': 'Vietnamese Dong',
   '₪': 'Israeli Shekel',
 };
+
+final currencyFlags = {
+  '\$': 'us',
+  '€': 'eu',
+  '£': 'gb',
+  '₹': 'in',
+  '¥': 'jp',
+  '₽': 'ru',
+  '₩': 'kr',
+  'A\$': 'au',
+  'C\$': 'ca',
+  'CHF': 'ch',
+  'kr': 'se',
+  'R\$': 'br',
+  '₺': 'tr',
+  'Rp': 'id',
+  'RM': 'my',
+  '₱': 'ph',
+  '฿': 'th',
+  '₫': 'vn',
+  '₪': 'il',
+};

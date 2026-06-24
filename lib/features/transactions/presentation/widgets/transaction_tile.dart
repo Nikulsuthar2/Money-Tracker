@@ -1,4 +1,3 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -6,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
+
+import 'package:money_manager/core/widgets/icon_utils.dart';
 
 class TransactionTile extends ConsumerWidget {
   const TransactionTile({
@@ -30,28 +31,36 @@ class TransactionTile extends ConsumerWidget {
     final currency = ref.watch(currencyProvider);
 
     // Determine color based on type
-    final color = t.type == TransactionType.income
+    final color = (t.type == TransactionType.income || t.type == TransactionType.sellInvestment)
         ? Colors.teal
-        : t.type == TransactionType.expense
+        : (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment)
             ? Colors.redAccent
             : Colors.blue;
 
-    IconData icon;
-    // Check if it's a "Shared" split (involves other parties)
-    // User wants to hide split icon if it's just "my share" (category splits only).
-    // Assuming "my share" means subtransactions with NO party assigned (partyId is null).
+    Widget iconWidget;
     final isSharedSplit = t.subTransactions != null && t.subTransactions!.any((s) => s.partyId != null);
 
     if (isSharedSplit) {
-      icon = Symbols.call_split;
+      iconWidget = Container(
+        width: compact ? 32 : 48,
+        height: compact ? 32 : 48,
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+        child: Icon(Icons.call_split, color: color, size: compact ? 18 : 24),
+      );
     } else if (category != null) {
-      icon = IconData(category!.icon, fontFamily: 'MaterialIcons');
+      iconWidget = buildIconWidget(category!.iconData, Color(category!.color), size: compact ? 32 : 48);
     } else {
-      icon = t.type == TransactionType.income
-        ? Symbols.arrow_downward
-        : t.type == TransactionType.expense
-            ? Symbols.arrow_upward
-            : Symbols.compare_arrows;
+      IconData icon = (t.type == TransactionType.income || t.type == TransactionType.sellInvestment)
+        ? Icons.arrow_downward
+        : (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment)
+            ? Icons.arrow_upward
+            : Icons.compare_arrows;
+      iconWidget = Container(
+        width: compact ? 32 : 48,
+        height: compact ? 32 : 48,
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+        child: Icon(icon, color: color, size: compact ? 18 : 24),
+      );
     }
 
     return Card(
@@ -60,7 +69,7 @@ class TransactionTile extends ConsumerWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(compact ? 12 : 16),
       ),
-      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(compact ? 12 : 16),
@@ -69,15 +78,7 @@ class TransactionTile extends ConsumerWidget {
           child: Row(
             children: [
               // Icon Circle
-              Container(
-                width: compact ? 32 : 48,
-                height: compact ? 32 : 48,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: compact ? 18 : 24),
-              ),
+              iconWidget,
               const Gap(16),
               
               // Main Content
@@ -87,7 +88,10 @@ class TransactionTile extends ConsumerWidget {
                   children: [
                     Text(
                       (t.title?.isNotEmpty == true) ? t.title! :
-                      (category?.name ?? (t.subTransactions?.isNotEmpty == true ? 'Split Transaction' : (t.type.name[0].toUpperCase() + t.type.name.substring(1)))),
+                      (category?.name ?? (t.subTransactions?.isNotEmpty == true ? 'Split Transaction' : 
+                        (t.type == TransactionType.buyInvestment ? 'Buy Investment' : 
+                         t.type == TransactionType.sellInvestment ? 'Sell Investment' : 
+                         (t.type.name[0].toUpperCase() + t.type.name.substring(1))))),
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: compact ? 15 : 17),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -104,8 +108,8 @@ class TransactionTile extends ConsumerWidget {
                           if (t.subTransactions != null && t.subTransactions!.isNotEmpty) ...[
                                const Gap(2),
                                ...t.subTransactions!.take(2).map((s) => Text(
-                                 '• $currency${s.amount.toStringAsFixed(0)} ${s.note?.isNotEmpty==true ? "(${s.note})" : ""}',
-                                 style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8)),
+                                 '• $currency${formatAmount(s.amount)} ${s.note?.isNotEmpty==true ? "(${s.note})" : ""}',
+                                 style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8)),
                                )),
                                if (t.subTransactions!.length > 2)
                                  Text('+ ${t.subTransactions!.length - 2} more', style: TextStyle(fontSize: 10, color: theme.colorScheme.primary)),
@@ -134,7 +138,7 @@ class TransactionTile extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${t.type == TransactionType.income ? "+" : (t.type == TransactionType.expense ? "-" : "")}$currency${t.amount.toStringAsFixed(2)}',
+                    '${(t.type == TransactionType.income || t.type == TransactionType.sellInvestment) ? "+" : ((t.type == TransactionType.expense || t.type == TransactionType.buyInvestment) ? "-" : "")}$currency${formatAmount(t.amount)}',
                     style: TextStyle(
                       color: color,
                       fontWeight: FontWeight.w900, // Extra Bold

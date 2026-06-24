@@ -1,6 +1,7 @@
 class Expense {
   int id = 0;
   int? transactionId;
+  int? paidByPersonId;
   double totalAmount = 0.0;
   int? categoryId;
   String? note;

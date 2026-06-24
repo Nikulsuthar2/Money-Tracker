@@ -1,4 +1,3 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,15 +5,21 @@ import 'package:intl/intl.dart';
 import 'package:gap/gap.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
-import 'package:money_manager/features/accounts/data/accounts_repository.dart';
+import 'package:money_manager/features/transactions/presentation/advanced_split_page.dart';
+import 'package:money_manager/core/widgets/icon_utils.dart';
 import 'package:money_manager/features/accounts/domain/account.dart';
+import 'package:money_manager/features/accounts/data/accounts_repository.dart';
+import 'package:money_manager/features/accounts/application/accounts_providers.dart';
 import 'package:money_manager/features/categories/data/categories_repository.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
 import 'package:money_manager/core/providers/savings_provider.dart';
-import 'package:money_manager/features/ledger/domain/party.dart';
-import 'package:money_manager/features/ledger/application/party_providers.dart';
+import 'package:money_manager/features/people/domain/person.dart';
+import 'package:money_manager/features/people/data/people_repository.dart';
+import 'package:money_manager/features/expenses/domain/expense.dart';
+import 'package:money_manager/features/expenses/data/expenses_repository.dart';
+import 'package:money_manager/features/transactions/presentation/advanced_split_page.dart';
 import 'package:money_manager/core/utils/math_evaluator.dart';
 
 class AddTransactionPage extends ConsumerStatefulWidget {
@@ -46,7 +51,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
 
   // Split Transaction State
   bool _isSplit = false;
-  List<SubTransactionInput> _splits = [];
+  List<AdvancedExpenseItem>? _advancedSplits;
   
   bool _isRefundMode = false;
 
@@ -72,8 +77,209 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
   int? _settlementPartyId;
   bool _settlementIPaid = true; // true = I Paid (Expense), false = They Paid (Income)
   
-  // Experimental Inline Settlement
-  bool _inlineSettlementMode = false;
+
+  Widget _buildSelector({
+    required String label,
+    required Widget leading,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        ),
+        child: Row(
+          children: [
+            leading,
+            const Gap(16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface, fontSize: 16)),
+                ]
+              )
+            ),
+            if (subtitle != null) ...[
+               Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.outline, fontSize: 14, fontWeight: FontWeight.bold)),
+               const Gap(16),
+            ],
+            Icon(Icons.keyboard_arrow_down, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ]
+        )
+      )
+    );
+  }
+
+  void _showAccountPicker(List<AccountStats> accounts, bool isToAccount, String currency) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isToAccount ? 'Transfer To' : 'Select Account'),
+        contentPadding: const EdgeInsets.only(top: 16, bottom: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: accounts.isEmpty 
+          ? const Padding(padding: EdgeInsets.all(16), child: Text('No accounts available'))
+          : ListView.builder(
+            shrinkWrap: true,
+            itemCount: accounts.length,
+            itemBuilder: (context, index) {
+              final a = accounts[index];
+              return ListTile(
+                leading: buildIconWidget(a.account.iconData, Color(a.account.color), size: 40),
+                title: Text(a.account.name),
+                trailing: Text('$currency${a.balance.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).colorScheme.outline, fontWeight: FontWeight.bold, fontSize: 14)),
+                onTap: () {
+                  setState(() {
+                    if (isToAccount) {
+                      _selectedToAccountId = a.account.id;
+                    } else {
+                      _selectedAccountId = a.account.id;
+                    }
+                  });
+                  Navigator.pop(ctx);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryPicker(List<Category> categories) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Select Category'),
+        contentPadding: const EdgeInsets.only(top: 16, bottom: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: categories.length + 1, // +1 for "None"
+            itemBuilder: (ctx, index) {
+              if (index == 0) {
+                 return ListTile(
+                    leading: Container(width: 40, height: 40, decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.surfaceContainerHighest), child: const Icon(Icons.do_not_disturb_alt)),
+                    title: const Text('None'),
+                    onTap: () {
+                      setState(() => _selectedCategoryId = null);
+                      Navigator.pop(ctx);
+                    },
+                 );
+              }
+              final c = categories[index - 1];
+              return ListTile(
+                leading: buildIconWidget(c.iconData, Color(c.color), size: 40),
+                title: Text(c.name),
+                onTap: () {
+                  setState(() => _selectedCategoryId = c.id);
+                  Navigator.pop(ctx);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPersonPicker(List<Person> people, bool isWhoPaid, int? splitIndex) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isWhoPaid ? 'Who Paid?' : 'Split For'),
+        contentPadding: const EdgeInsets.only(top: 16, bottom: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: people.length + 2, // +1 for "Me", +1 for "+ Add Person"
+            itemBuilder: (ctx, index) {
+              if (index == 0) {
+                 return ListTile(
+                    leading: CircleAvatar(backgroundColor: Theme.of(context).colorScheme.primaryContainer, child: const Icon(Icons.account_balance_wallet)),
+                    title: const Text('Me (My Account)'),
+                    onTap: () {
+                      Navigator.pop(ctx, 0); // Return 0 for Me
+                    },
+                 );
+              }
+              if (index == people.length + 1) {
+                 return ListTile(
+                    leading: CircleAvatar(backgroundColor: Theme.of(context).colorScheme.secondaryContainer, child: const Icon(Icons.person_add)),
+                    title: const Text('+ Add Person', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showAddPersonDialog();
+                    },
+                 );
+              }
+              final p = people[index - 1];
+              return ListTile(
+                leading: CircleAvatar(
+                   backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                   child: Text(p.name.isNotEmpty ? p.name[0].toUpperCase() : '?'),
+                ),
+                title: Text(p.name),
+                onTap: () {
+                  Navigator.pop(ctx, p.id); // Return person ID
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddPersonDialog() async {
+    final controller = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add New Person'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Name',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                // To avoid circular dependencies if we just import people repository here:
+                // We'll just push to the repository via the provider
+                final person = Person()..name = name;
+                await ref.read(peopleRepositoryProvider).addPerson(person);
+                if (ctx.mounted) Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -102,16 +308,11 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
       _hasTime = t.hasTime;
       _hasTime = t.hasTime;
 
-      // Load splits
+      // Load splits (legacy support or new expense splits to be handled later)
+      // Since we just swapped to ExpenseSplits, if editing an existing split transaction, 
+      // we'd need to load from Expenses repository. For now, leave splits empty when editing old split transactions.
       if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
-        _isSplit = true;
-        _splits = t.subTransactions!.map((s) => SubTransactionInput(
-          amountController: TextEditingController(text: s.amount.toString()),
-          noteController: TextEditingController(text: s.note ?? ''),
-          categoryId: s.categoryId,
-          isMine: s.isMine,
-          partyId: s.partyId,
-        )).toList();
+        _isSplit = false; // Disable legacy subTransactions
       }
 
       // Map accounts based on type
@@ -140,7 +341,10 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
          } else if (defaults['type'] == TransactionType.transfer) {
            _type = TransactionType.transfer;
            _tabController.index = 2;
-           _selectedAccountId = defaults['accountId']; // From Account
+         } else if (defaults['type'] == 'settlement') {
+           _type = TransactionType.expense; // Settlement mode controls its own logic
+           _tabController.index = 3;
+           _selectedAccountId = defaults['accountId'];
          } else {
            // Expense
            _type = TransactionType.expense;
@@ -179,7 +383,6 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
            // Reset split if switching to transfer or settlement
            if (_type == TransactionType.transfer || _tabController.index == 3) {
               _isSplit = false;
-              _splits.clear();
            }
          });
        }
@@ -187,7 +390,6 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
 
     ref.read(categoriesRepositoryProvider).seedDefaultCategories();
   }
-
   @override
   void dispose() {
     _amountController.dispose();
@@ -195,23 +397,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
     _noteController.dispose();
     _customBucketAmountController.dispose();
     _tabController.dispose();
-    for (var s in _splits) {
-      s.dispose();
-    }
     super.dispose();
-  }
-
-  void _addSplit() {
-    setState(() {
-      _splits.add(SubTransactionInput());
-    });
-  }
-
-  void _removeSplit(int index) {
-    setState(() {
-      _splits[index].dispose();
-      _splits.removeAt(index);
-    });
   }
 
   Future<void> _save() async {
@@ -226,33 +412,24 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
           return;
         }
         
-        // Category Validation - Removed to allow "None"
-        // if (!_isSplit && (_type == TransactionType.income || _type == TransactionType.expense) && _selectedCategoryId == null) {
-        //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a category')));
-        //   return;
-        // }
-
         final amount = double.tryParse(_amountController.text) ?? 0.0;
 
         // Split Validation
         if (_isSplit) {
-          if (_splits.isEmpty) {
-             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add at least one split item')));
-             return;
-          }
-          double splitTotal = 0.0;
-          for (var s in _splits) {
-            if (s.categoryId == null) {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All split items must have a category')));
-               return;
-            }
-             splitTotal += double.tryParse(s.amountController.text) ?? 0.0;
-          }
-          if ((splitTotal - amount).abs() > 0.01) {
-             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Split total ($splitTotal) does not match Amount ($amount)')));
-             return;
-          }
-        }
+         if (_advancedSplits == null || _advancedSplits!.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add split items or disable split transaction.')));
+            return;
+         }
+         
+         double advancedTotal = 0;
+         for (var item in _advancedSplits!) {
+            advancedTotal += item.amount;
+         }
+         if ((advancedTotal - amount).abs() > 0.01) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Total of split items ($advancedTotal) does not match Transaction Amount ($amount)')));
+            return;
+         }
+      }
 
         double expenseDeductedFromSavings = 0.0;
         double expenseDeductedFromReserved = 0.0;
@@ -318,51 +495,21 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         transaction
           ..amount = amount
           ..type = _type
-          ..mode = (_tabController.index == 3 || _inlineSettlementMode) ? TransactionMode.settlement : TransactionMode.regular
+          ..mode = (_tabController.index == 3) ? TransactionMode.settlement : TransactionMode.regular
           ..date = _hasTime ? _date : DateTime(_date.year, _date.month, _date.day) // Strip time if no time
           ..title = _titleController.text 
           ..note = _noteController.text
-          ..categoryId = _isSplit || _tabController.index == 3 || _inlineSettlementMode ? null : _selectedCategoryId // Settlement/Split have no main category? Or Settlement defaults?
+          ..categoryId = _isSplit || _tabController.index == 3 ? null : _selectedCategoryId 
           ..skipFromStats = _skipFromStats
           ..hasTime = _hasTime
           ..relatedTransactionId = _relatedTransactionId;
-       
-        // Assign Splits or Settlement Party
-        if (_tabController.index == 3 || _inlineSettlementMode) {
-           // Settlement Mode
-           if (_settlementPartyId == null) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a party to settle with')));
-              return;
-           }
-           // Create a single subtransaction to carry the Party ID
-           transaction.subTransactions = [
-              SubTransaction()
-                ..amount = amount
-                ..partyId = _settlementPartyId
-                ..isMine = _type == TransactionType.expense // If Expense (I paid), isMine=true?
-                ..note = 'Settlement'
-           ];
-           // Settlement usually has no category, or a system "Debt" category?
-           // We'll leave categoryId null for now.
-        }
-        else if (_isSplit) {
-          transaction.subTransactions = _splits.map((s) => SubTransaction()
-            ..amount = double.parse(s.amountController.text)
-            ..note = s.noteController.text
-            ..categoryId = s.categoryId
-            ..isMine = s.isMine
-            ..partyId = s.partyId
-          ).toList();
-        } else {
-          transaction.subTransactions = [];
-        }
 
-        if (_type == TransactionType.income) {
-          transaction.toAccountId = _selectedAccountId;
-          transaction.fromAccountId = null;
-        } else if (_type == TransactionType.expense) {
+        if (_type == TransactionType.expense) {
           transaction.fromAccountId = _selectedAccountId;
           transaction.toAccountId = null;
+        } else if (_type == TransactionType.income) {
+          transaction.toAccountId = _selectedAccountId;
+          transaction.fromAccountId = null;
         } else {
           // Transfer
           transaction.fromAccountId = _selectedAccountId;
@@ -372,23 +519,83 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         if (widget.extra is Transaction) {
            await ref.read(transactionsRepositoryProvider).updateTransaction(transaction);
         } else {
-           await ref.read(transactionsRepositoryProvider).addTransaction(transaction);
+           // --- NEW EXPENSE ENGINE INTEGRATION ---
+           int? txId;
+           final txRepo = ref.read(transactionsRepositoryProvider);
+           final expRepo = ref.read(expensesRepositoryProvider);
+
+           if (_tabController.index == 3) {
+              // Settlement Mode
+              if (_settlementPartyId == null) {
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a party to settle with')));
+                 return;
+              }
+              transaction.isSettlement = true;
+              transaction.type = TransactionType.transfer;
+              if (_settlementIPaid) {
+                 transaction.fromAccountId = _selectedAccountId;
+                 transaction.toAccountId = null;
+              } else {
+                 transaction.toAccountId = _selectedAccountId;
+                 transaction.fromAccountId = null;
+              }
+              txId = await txRepo.addTransaction(transaction);
+
+              final s = Settlement()
+                 ..transactionId = txId
+                 ..fromPersonId = _settlementIPaid ? 0 : _settlementPartyId!
+                 ..toPersonId = _settlementIPaid ? _settlementPartyId! : 0
+                 ..amount = amount;
+              await expRepo.addSettlement(s);
+           } 
+           else if (_isSplit) {
+              if (_advancedSplits != null && _advancedSplits!.isNotEmpty) {
+                 // Advanced Split (Multiple Items)
+                 
+                 // How much of the total did I pay?
+                 double myTotalPaid = 0.0;
+                 for (var item in _advancedSplits!) {
+                    if (item.paidByPersonId == 0) myTotalPaid += item.amount;
+                 }
+                 
+                 if (myTotalPaid > 0) {
+                    transaction.amount = myTotalPaid;
+                    txId = await txRepo.addTransaction(transaction);
+                 }
+                 
+                 for (var item in _advancedSplits!) {
+                     final e = Expense()
+                        ..transactionId = item.paidByPersonId == 0 ? txId : null
+                        ..paidByPersonId = item.paidByPersonId
+                        ..totalAmount = item.amount
+                        ..categoryId = item.categoryId ?? _selectedCategoryId
+                        ..note = item.note.isNotEmpty ? item.note : _noteController.text
+                        ..date = _date;
+                     final expenseId = await expRepo.addExpense(e);
+
+                     final splitList = item.splits.map((s) => ExpenseSplit()
+                        ..expenseId = expenseId
+                        ..personId = s.personId
+                        ..amount = double.parse(s.amountController.text)
+                     ).toList();
+                     await expRepo.addExpenseSplits(splitList);
+                  }
+              }
+           } 
+           else {
+              // Standard Transaction
+              txId = await txRepo.addTransaction(transaction);
+           }
            
            // Logic to update Account Balance (Savings/Reserved)
            final accountRepo = ref.read(accountsRepositoryProvider);
-           if (_selectedAccountId != null) {
+           if (_selectedAccountId != null && txId != null) {
                final accounts = await accountRepo.getAllAccounts();
                final account = accounts.where((a) => a.id == _selectedAccountId).firstOrNull;
                if (account != null) {
                   bool updated = false;
-                  
-                  // Income Logic
-                  if (_type == TransactionType.income) {
-                      // Reserved Limits and Buckets removed, so income just gets added to Spendable.
-                  }
-                  
                   // Expense Logic (Reserved Deduction)
-                  else if (_type == TransactionType.expense || _type == TransactionType.transfer) {
+                  if (_type == TransactionType.expense || _type == TransactionType.transfer) {
                       final balanceAfterTxn = await ref.read(transactionsRepositoryProvider).getAccountBalance(account.id, account.openingBalance); 
                       final preTxnBalance = balanceAfterTxn + amount; // Revert locally
 
@@ -448,8 +655,12 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
         categoriesAsync = ref.watch(expenseCategoriesProvider);
     }
     
-    // Load Parties for Splits
-    final partiesAsync = ref.watch(partiesStreamProvider);
+    // Load People for Splits
+    final peopleAsync = ref.watch(peopleStreamProvider);
+    
+    // Accounts with Balance
+    final accountsAsync = ref.watch(accountsWithBalanceProvider);
+    final currency = ref.watch(currencyProvider);
 
     final inputDecoration = InputDecoration(
       isDense: true,
@@ -460,15 +671,10 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.extra is Transaction ? 'Edit Transaction' : (_isRefundMode ? 'Refund Transaction' : 'Add Transaction')),
-        actions: [
-          IconButton(
-            icon: const Icon(Symbols.check),
-            tooltip: 'Save',
-            onPressed: _save,
-          ),
-        ],
+        actions: [],
         bottom: _isRefundMode ? null : TabBar(
           controller: _tabController,
+          isScrollable: false,
           tabs: const [
             Tab(text: 'Income'),
             Tab(text: 'Expense'),
@@ -498,28 +704,28 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                               label: const Text('I Paid (They Owe Less)'),
                               selected: _settlementIPaid,
                               onSelected: (v) => setState(() { _settlementIPaid = true; _type = TransactionType.expense; }),
-                              avatar: const Icon(Symbols.arrow_upward, size: 16, color: Colors.red),
+                              avatar: const Icon(Icons.arrow_upward, size: 16, color: Colors.red),
                             )),
                             const Gap(8),
                             Expanded(child: ChoiceChip(
                               label: const Text('They Paid (I Owe Less)'),
                               selected: !_settlementIPaid,
                               onSelected: (v) => setState(() { _settlementIPaid = false; _type = TransactionType.income; }),
-                              avatar: const Icon(Symbols.arrow_downward, size: 16, color: Colors.green),
+                              avatar: const Icon(Icons.arrow_downward, size: 16, color: Colors.green),
                             )),
                          ],
                       ),
                       const Gap(16),
                       // Party Selector
-                      partiesAsync.when(
-                        data: (parties) => DropdownButtonFormField<int>(
+                      peopleAsync.when(
+                        data: (people) => DropdownButtonFormField<int>(
                              value: _settlementPartyId,
-                             decoration: inputDecoration.copyWith(labelText: 'Select Party', prefixIcon: const Icon(Symbols.person)),
-                             items: parties.where((p) => !p.isMe()).map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                             decoration: inputDecoration.copyWith(labelText: 'Select Person', prefixIcon: const Icon(Icons.person)),
+                             items: people.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
                              onChanged: (v) => setState(() => _settlementPartyId = v),
                         ),
                         loading: () => const LinearProgressIndicator(),
-                        error: (_,__) => const Text('Error loading parties'),
+                        error: (_,__) => const Text('Error loading people'),
                       ),
                     ],
                   ),
@@ -532,52 +738,27 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                child: Column(
                  crossAxisAlignment: CrossAxisAlignment.stretch,
                  children: [
-                    // Amount
-                   TextFormField(
-                     controller: _amountController,
-                     readOnly: _isRefundMode,
-                     decoration: inputDecoration.copyWith(
-                       labelText: 'Amount',
-                       prefixText: '${ref.watch(currencyProvider)} ',
-                       // Visual cue that it's disabled/fixed
-                       fillColor: _isRefundMode ? Theme.of(context).disabledColor.withOpacity(0.05) : null,
-                       filled: _isRefundMode,
-                       suffixIcon: IconButton(
-                          icon: const Icon(Symbols.calculate), 
-                          onPressed: () {
-                             if (_amountController.text.isNotEmpty) {
-                                final val = MathEvaluator.evaluate(_amountController.text);
-                                if (val != null) {
-                                   _amountController.text = val.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
-                                }
-                             }
-                          },
-                          tooltip: 'Calculate Expression',
-                       ), 
-                     ),
-                     keyboardType: TextInputType.text, // Changed to text to allow math symbols
-                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                     onFieldSubmitted: (v) {
-                        final val = MathEvaluator.evaluate(v);
-                        if (val != null) {
-                            _amountController.text = val.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
-                        }
-                     },
-                     onTapOutside: (_) {
-                        final val = MathEvaluator.evaluate(_amountController.text);
-                        if (val != null) {
-                            _amountController.text = val.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
-                        }
-                     },
-                     validator: (v) {
-                       if (v == null || v.isEmpty) return 'Required';
-                       if (MathEvaluator.evaluate(v) == null) return 'Invalid Amount';
-                       return null;
-                     },
-                   ),
+            // Amount
+            TextFormField(
+              controller: _amountController,
+              readOnly: _isRefundMode,
+              decoration: inputDecoration.copyWith(
+                labelText: 'Amount',
+                prefixText: '${ref.watch(currencyProvider)} ',
+                fillColor: _isRefundMode ? Theme.of(context).disabledColor.withOpacity(0.05) : null,
+                filled: _isRefundMode,
+              ),
+              keyboardType: TextInputType.text,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Required';
+                if (MathEvaluator.evaluate(v) == null) return 'Invalid Amount';
+                return null;
+              },
+            ),
             const Gap(16),
 
-           // Title Field
+            // Title Field
             TextFormField(
               controller: _titleController,
               decoration: inputDecoration.copyWith(
@@ -587,29 +768,6 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
               textCapitalization: TextCapitalization.sentences,
             ),
             const Gap(16),
-
-            // Inline Settlement Switch (Experimental)
-            if (_tabController.index != 2 && _tabController.index != 3 && !_isRefundMode) ...[
-               SwitchListTile(
-                 title: const Text('Settlement Transaction', style: TextStyle(fontWeight: FontWeight.bold)),
-                 subtitle: const Text('Link this to a person (Ledger) instead of a category'),
-                 value: _inlineSettlementMode,
-                 onChanged: (val) {
-                    setState(() {
-                       _inlineSettlementMode = val;
-                       if (val) {
-                          _isSplit = false;
-                          _splits.clear();
-                       }
-                    });
-                 },
-                 secondary: const Icon(Symbols.handshake),
-                 dense: true,
-                 contentPadding: EdgeInsets.zero,
-                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-               ),
-               const Gap(16),
-            ],
 
             // Date & Time Picker
             Row(
@@ -632,7 +790,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                     child: InputDecorator(
                       decoration: inputDecoration.copyWith(
                         labelText: 'Date',
-                        suffixIcon: const Icon(Symbols.calendar_today, size: 20),
+                        suffixIcon: const Icon(Icons.calendar_today, size: 20),
                       ),
                       child: Text(
                         DateFormat.yMMMd().format(_date),
@@ -659,7 +817,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                       decoration: inputDecoration.copyWith(
                         labelText: 'Time',
                         suffixIcon: IconButton(
-                          icon: const Icon(Symbols.close, size: 20, color: Colors.grey),
+                          icon: const Icon(Icons.close, size: 20, color: Colors.grey),
                           onPressed: () => setState(() => _hasTime = false),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -674,7 +832,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                     height: 47,
                     child: OutlinedButton.icon(
                       onPressed: () => setState(() => _hasTime = true),
-                      icon: const Icon(Symbols.access_time),
+                      icon: const Icon(Icons.access_time),
                       label: const Text('Add Time'),
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -689,101 +847,58 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
             
             const Gap(16),
             
-            // Party Selector (Inline Settlement)
-            if (_inlineSettlementMode && _tabController.index != 3)
-                 partiesAsync.when(
-                    data: (parties) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: DropdownButtonFormField<int>(
-                           value: _settlementPartyId,
-                           decoration: inputDecoration.copyWith(labelText: 'Select Party', prefixIcon: const Icon(Symbols.person)),
-                           items: parties.where((p) => !p.isMe()).map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
-                           onChanged: (v) => setState(() => _settlementPartyId = v),
-                      ),
-                    ),
-                    loading: () => const LinearProgressIndicator(),
-                    error: (_,__) => const Text('Error loading parties'),
-                 ),
 
             // Account Selection (From)
-            StreamBuilder<List<Account>>(
-              stream: ref.read(accountsRepositoryProvider).watchActiveAccounts(),
-              builder: (context, snapshot) {
-                 if (!snapshot.hasData) return const LinearProgressIndicator();
-                 final accounts = snapshot.data!;
-                 return DropdownButtonFormField<int>(
-                   initialValue: _selectedAccountId,
-                   decoration: inputDecoration.copyWith(
-                     labelText: _type == TransactionType.income ? 'Deposit To' : 'Pay From',
-                   ),
-                   items: accounts.map((a) => DropdownMenuItem(
-                     value: a.id,
-                     child: Text(a.name),
-                   )).toList(),
-                   onChanged: (v) => setState(() => _selectedAccountId = v),
+            accountsAsync.when(
+               data: (accounts) {
+                 final selected = accounts.where((a) => a.account.id == _selectedAccountId).firstOrNull;
+                 return _buildSelector(
+                   label: _type == TransactionType.income ? 'Deposit To' : 'Pay From',
+                   title: selected?.account.name ?? 'Select Account',
+                   subtitle: selected != null ? '$currency${selected.balance.toStringAsFixed(2)}' : null,
+                   leading: selected != null ? buildIconWidget(selected.account.iconData, Color(selected.account.color), size: 48) : Container(width: 48, height: 48, decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.secondaryContainer), child: Icon(Icons.account_balance_wallet, color: Theme.of(context).colorScheme.onSecondaryContainer)),
+                   onTap: () => _showAccountPicker(accounts, false, currency),
                  );
-              },
+               },
+               loading: () => const LinearProgressIndicator(),
+               error: (_,__) => const Text('Error loading accounts'),
             ),
             const Gap(16),
             
             // To Account (Transfer only)
-             if (_type == TransactionType.transfer)
-              StreamBuilder<List<Account>>(
-                stream: ref.read(accountsRepositoryProvider).watchActiveAccounts(),
-                builder: (context, snapshot) {
-                   if (!snapshot.hasData) return const SizedBox.shrink();
-                   final accounts = snapshot.data!;
-                   return DropdownButtonFormField<int>(
-                     initialValue: _selectedToAccountId,
-                     decoration: inputDecoration.copyWith(
-                       labelText: 'Transfer To',
-                     ),
-                     items: accounts.where((a) => a.id != _selectedAccountId).map((a) => DropdownMenuItem(
-                       value: a.id,
-                       child: Text(a.name),
-                   )).toList(),
-                     onChanged: (v) => setState(() => _selectedToAccountId = v),
-                   );
-                },
+             if (_type == TransactionType.transfer) ...[
+              accountsAsync.when(
+                 data: (accounts) {
+                    final selected = accounts.where((a) => a.account.id == _selectedToAccountId).firstOrNull;
+                    final filteredAccounts = accounts.where((a) => a.account.id != _selectedAccountId).toList();
+                    return _buildSelector(
+                      label: 'Transfer To',
+                      title: selected?.account.name ?? 'Select Account',
+                      subtitle: selected != null ? '$currency${selected.balance.toStringAsFixed(2)}' : null,
+                      leading: selected != null ? buildIconWidget(selected.account.iconData, Color(selected.account.color), size: 48) : Container(width: 48, height: 48, decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.secondaryContainer), child: Icon(Icons.account_balance_wallet, color: Theme.of(context).colorScheme.onSecondaryContainer)),
+                      onTap: () => _showAccountPicker(filteredAccounts, true, currency),
+                    );
+                 },
+                 loading: () => const SizedBox.shrink(),
+                 error: (_,__) => const SizedBox.shrink(),
               ),
-            
-            const Gap(16),
+              const Gap(16),
+            ],
 
-            // Category Selection (Normal Mode AND Not Inline Settlement)
-            if (_type != TransactionType.transfer && !_isSplit && !_inlineSettlementMode) 
+            // Category Selection (Normal Mode)
+            if (_type != TransactionType.transfer && !_isSplit) 
               categoriesAsync.when(
                 data: (categories) {
-                     // specific validation to prevent crash if pre-filled category (e.g. from Refund) doesn't exist in this type list
-                     if (_selectedCategoryId != null && !categories.any((c) => c.id == _selectedCategoryId)) {
-                        // We can't setState during build, but we can coerce the value for the dropdown
-                        // Ideally we should use a post-frame callback or just pass null to value
-                        // But local variable modification doesn't affect state. 
-                        // Let's just pass null if not found.
-                     }
-
                      final effectiveCategoryId = (_selectedCategoryId != null && categories.any((c) => c.id == _selectedCategoryId)) 
                         ? _selectedCategoryId 
                         : null;
 
-                     return DropdownButtonFormField<int?>(
-                       initialValue: effectiveCategoryId,
-                        decoration: inputDecoration.copyWith(
-                         labelText: 'Category',
-                       ),
-                       items: [
-                         const DropdownMenuItem(value: null, child: Text('None')),
-                         ...categories.map((c) => DropdownMenuItem(
-                           value: c.id,
-                           child: Row(
-                             children: [
-                               Icon(IconData(c.icon, fontFamily: 'MaterialIcons')), 
-                               const Gap(8),
-                               Text(c.name),
-                             ],
-                           ),
-                         ))
-                       ].toList(),
-                       onChanged: (v) => setState(() => _selectedCategoryId = v),
+                     final selected = categories.where((c) => c.id == effectiveCategoryId).firstOrNull;
+                     return _buildSelector(
+                       label: 'Category',
+                       title: selected?.name ?? 'None',
+                       leading: selected != null ? buildIconWidget(selected.iconData, Color(selected.color), size: 48) : Container(width: 48, height: 48, decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.surfaceContainerHighest), child: const Icon(Icons.do_not_disturb_alt)),
+                       onTap: () => _showCategoryPicker(categories),
                      );
                 },
                 loading: () => const LinearProgressIndicator(), 
@@ -795,19 +910,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                  // Removed Bucket Allocation UI since buckets feature is deprecated
              ],
              
-             // Refund Toggle for Income
-             if (_tabController.index == 0) ...[
-                const Gap(8),
-                SwitchListTile(
-                   title: const Text('Mark as Refund'),
-                   subtitle: const Text('Exclude from Net Income stats'),
-                   value: _skipFromStats,
-                   onChanged: (v) => setState(() => _skipFromStats = v),
-                   secondary: const Icon(Symbols.replay),
-                   contentPadding: EdgeInsets.zero,
-                ),
-                const Gap(8),
-             ],
+
 
              if (_type != TransactionType.transfer && _tabController.index != 3) ...[
                 const Gap(8),
@@ -817,112 +920,105 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
                      const Spacer(),
                      Switch(
                         value: _isSplit,
-                        onChanged: (v) => setState(() {
-                          _isSplit = v;
-                          if (_isSplit && _splits.isEmpty) {
-                            _addSplit();
+                        onChanged: (v) async {
+                          setState(() {
+                             _isSplit = v;
+                          });
+                          if (_isSplit && (_advancedSplits == null || _advancedSplits!.isEmpty)) {
+                             // Instantly open advanced split page
+                             final people = ref.read(peopleStreamProvider).value ?? [];
+                             final result = await context.push<List<AdvancedExpenseItem>>('/advanced-split', extra: {
+                                'initialItems': _advancedSplits ?? [],
+                                'people': people,
+                                'categories': ref.read(expenseCategoriesProvider).value ?? [],
+                             });
+                             if (result != null && result.isNotEmpty) {
+                                setState(() {
+                                  _advancedSplits = result;
+                                });
+                             } else if (_advancedSplits == null || _advancedSplits!.isEmpty) {
+                                // If they cancelled and it's still empty, toggle switch off
+                                setState(() {
+                                   _isSplit = false;
+                                });
+                             }
                           }
-                        })
+                        }
                      ),
                   ],
                 ),
              ],
 
-             // SPLIT LIST
+             // ADVANCED SPLIT SUMMARY CARD
             if (_isSplit) ...[
-               const Text('Split Details', style: TextStyle(fontWeight: FontWeight.bold)),
-               const Gap(8),
-               categoriesAsync.when(
-                 data: (categories) => Column(
-                   children: [
-                     for (int i = 0; i < _splits.length; i++) 
-                       Card(
-                         margin: const EdgeInsets.only(bottom: 8),
-                         child: Padding(
-                           padding: const EdgeInsets.all(8.0),
-                           child: Column(
-                             children: [
-                               Row(
-                                 children: [
-                                    Expanded(
-                                      child: DropdownButtonFormField<int?>(
-                                        initialValue: _splits[i].categoryId,
-                                        decoration: const InputDecoration(labelText: 'Category', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
-                                        items: [
-                                           const DropdownMenuItem(value: null, child: Text('None')),
-                                           ...categories.map((c) => DropdownMenuItem(
-                                             value: c.id,
-                                             child: Text(c.name),
-                                           ))
-                                        ].toList(),
-                                        onChanged: (v) => setState(() => _splits[i].categoryId = v),
-                                      ),
-                                   ),
-                                   IconButton(icon: const Icon(Symbols.remove_circle, color: Colors.red), onPressed: () => _removeSplit(i))
-                                 ],
-                               ),
-                               const Gap(8),
-                               Row(
-                                 children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        controller: _splits[i].amountController,
-                                        decoration: InputDecoration(labelText: 'Amount', prefixText: ref.watch(currencyProvider), isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                      ),
-                                    ),
-                                    const Gap(8),
-                                   Expanded(
-                                      child: TextFormField(
-                                        controller: _splits[i].noteController,
-                                        decoration: const InputDecoration(labelText: 'Note', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
-                                      ),
-                                    ),
-                                 ],
-                               ),
-                               const Gap(8),
-                               const Gap(8),
-                               Padding(
-                                 padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                                 child: Row(
-                                   children: [
-                                      // Party Selector
-                                      Expanded(
-                                        child: partiesAsync.when(
-                                           data: (parties) {
-                                              return DropdownButtonFormField<int?>(
-                                                value: _splits[i].partyId,
-                                                decoration: const InputDecoration(labelText: 'Assign To', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
-                                                items: [
-                                                   const DropdownMenuItem(value: null, child: Text('Me (My Expense)')),
-                                                   ...parties.where((p) => !p.isMe()).map((p) => DropdownMenuItem(
-                                                      value: p.id,
-                                                      child: Text(p.name),
-                                                   )),
-                                                ],
-                                                onChanged: (v) => setState(() {
-                                                   _splits[i].partyId = v;
-                                                   _splits[i].isMine = (v == null);
-                                                }),
-                                              );
-                                           },
-                                           loading: () => const LinearProgressIndicator(), // Minimal loader
-                                           error: (_,__) => const Text('Error loading parties'),
-                                        ),
-                                      ),
-                                   ],
-                                 ),
-                               )
-                             ],
+               const Gap(16),
+               Card(
+                 elevation: 0,
+                 color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+                 child: Padding(
+                   padding: const EdgeInsets.all(16.0),
+                   child: Column(
+                     crossAxisAlignment: CrossAxisAlignment.stretch,
+                     children: [
+                       Row(
+                         children: [
+                           const Icon(Icons.receipt_long, color: Colors.blue),
+                           const Gap(8),
+                           const Text('Split Items', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                           const Spacer(),
+                           TextButton.icon(
+                              onPressed: () async {
+                                 final people = ref.read(peopleStreamProvider).value ?? [];
+                                 final result = await context.push<List<AdvancedExpenseItem>>('/advanced-split', extra: {
+                                    'initialItems': _advancedSplits ?? [],
+                                    'people': people,
+                                    'categories': ref.read(expenseCategoriesProvider).value ?? [],
+                                 });
+                                 if (result != null) {
+                                    setState(() {
+                                      _advancedSplits = result;
+                                      if (_advancedSplits!.isEmpty) _isSplit = false;
+                                    });
+                                 }
+                              },
+                              icon: const Icon(Icons.edit, size: 16),
+                              label: const Text('Edit'),
+                              style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                            ),
-                         )
+                         ],
                        ),
-                   ],
+                       const Divider(),
+                       const Gap(8),
+                       
+                       if (_advancedSplits != null && _advancedSplits!.isNotEmpty) ...[
+                          ..._advancedSplits!.map((item) {
+                             return Padding(
+                               padding: const EdgeInsets.only(bottom: 8.0),
+                               child: Row(
+                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                 children: [
+                                   Expanded(child: Text(item.note.isNotEmpty ? item.note : 'Item', style: const TextStyle(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                   Text('${ref.watch(currencyProvider)}${item.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                 ],
+                               ),
+                             );
+                          }),
+                          const Divider(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Total Split', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                              Text('${ref.watch(currencyProvider)}${_advancedSplits!.fold(0.0, (s, e) => s + e.amount).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                            ],
+                          )
+                       ] else ...[
+                          const Text('No splits added. Tap edit to add.', style: TextStyle(color: Colors.red)),
+                       ]
+                     ],
+                   ),
                  ),
-                 loading: () => const CircularProgressIndicator(),
-                 error: (_, __) => const SizedBox(),
                ),
-               TextButton.icon(onPressed: _addSplit, icon: const Icon(Symbols.add), label: const Text('Add Split Line')),
             ],
 
              const Gap(16),
@@ -946,13 +1042,12 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
              ),
 
              const Gap(24),
-             ElevatedButton(
+             FilledButton(
                onPressed: _save,
-               style: ElevatedButton.styleFrom(
+               style: FilledButton.styleFrom(
+                 elevation: 0,
                  padding: const EdgeInsets.symmetric(vertical: 16),
-                 textStyle: const TextStyle(fontSize: 18),
-                 backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                 foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                 textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                ),
                child: const Text('Save Transaction'),
@@ -968,27 +1063,17 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> with Si
   }
 }
 
-class SubTransactionInput {
+class ExpenseSplitInput {
   final TextEditingController amountController;
-  final TextEditingController noteController;
-  int? categoryId;
-  bool isMine;
-  int? partyId;
+  int personId; // 0 = Me
 
-  SubTransactionInput({
+  ExpenseSplitInput({
     TextEditingController? amountController,
-    TextEditingController? noteController,
-    this.categoryId,
-    this.isMine = true,
-    this.partyId,
+    this.personId = 0,
   }) : 
-    amountController = amountController ?? TextEditingController(),
-    noteController = noteController ?? TextEditingController();
+    amountController = amountController ?? TextEditingController();
 
   void dispose() {
     amountController.dispose();
-    noteController.dispose();
   }
 }
-
-

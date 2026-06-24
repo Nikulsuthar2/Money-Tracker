@@ -24,6 +24,7 @@ extension AccountDataMapper on AccountData {
       ..interestRate = interestRate
       ..color = color
       ..iconData = iconData
+      ..currentValue = currentValue
       ..isArchived = isArchived
       ..createdAt = createdAt
       ..updatedAt = updatedAt;
@@ -60,6 +61,7 @@ class AccountsRepository {
       interestRate: drift.Value(account.interestRate),
       color: drift.Value(account.color),
       iconData: drift.Value(account.iconData),
+      currentValue: drift.Value(account.currentValue),
       isArchived: drift.Value(account.isArchived),
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -77,6 +79,7 @@ class AccountsRepository {
       interestRate: account.interestRate,
       color: account.color,
       iconData: account.iconData,
+      currentValue: account.currentValue,
       isArchived: account.isArchived,
       createdAt: account.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),

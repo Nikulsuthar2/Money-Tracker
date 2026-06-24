@@ -10,13 +10,15 @@ class CurrencyFormatter {
       return '${showSymbol ? symbol : ''}${_formatCompact(amount)}';
     }
 
+    int decimals = amount.toStringAsFixed(2).endsWith('.00') ? 0 : 2;
+
     // Indian Numbering System: 1,00,000
     // intl doesn't fully support "en_IN" custom patterns perfectly in all versions, 
     // but NumberFormat.currency(locale: 'en_IN') usually works.
     final format = NumberFormat.currency(
       locale: 'en_IN',
       symbol: showSymbol ? symbol : '',
-      decimalDigits: 0, // Usually compact means no decimals for large numbers
+      decimalDigits: decimals,
     );
     
     // Manual trim if needed or just use standard

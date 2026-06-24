@@ -13,11 +13,21 @@ import 'package:money_manager/features/categories/presentation/add_category_page
 import 'package:money_manager/features/transactions/presentation/transaction_details_page.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
-import 'package:money_manager/features/transactions/presentation/all_transactions_table_page.dart';
+import 'package:money_manager/features/people/presentation/person_details_page.dart';
+import 'package:money_manager/features/transactions/presentation/advanced_split_page.dart';
+import 'package:money_manager/features/transactions/presentation/expense_details_page.dart';
+import 'package:money_manager/features/transactions/domain/timeline_entry.dart';
+import 'package:money_manager/features/people/domain/person.dart';
 import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/accounts/presentation/account_details_page.dart';
+import 'package:money_manager/features/accounts/presentation/investment_account_details_page.dart';
 import 'package:money_manager/features/people/presentation/people_page.dart';
 import 'package:money_manager/features/accounts/presentation/accounts_page.dart' as accounts_page_import;
+import 'package:money_manager/features/more/presentation/more_page.dart';
+import 'package:money_manager/features/goals/domain/goal.dart';
+import 'package:money_manager/features/goals/presentation/goals_page.dart';
+import 'package:money_manager/features/goals/presentation/add_goal_page.dart';
+import 'package:money_manager/features/goals/presentation/goal_details_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -72,8 +82,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/settings',
-                builder: (context, state) => const SettingsPage(),
+                path: '/more',
+                builder: (context, state) => const MorePage(),
               ),
             ],
           ),
@@ -114,6 +124,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SettingsPage(),
       ),
       GoRoute(
+        path: '/expense-details',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final entry = state.extra as ExpenseOnlyTimelineEntry;
+          return ExpenseDetailsPage(entry: entry);
+        },
+      ),
+      GoRoute(
         path: '/transaction-details',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
@@ -130,14 +148,58 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/transactions-table',
+        path: '/investment-account',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const AllTransactionsTablePage(),
+        builder: (context, state) {
+          final account = state.extra as Account;
+          return InvestmentAccountDetailsPage(account: account);
+        },
+      ),
+      GoRoute(
+        path: '/person-details/:id',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final person = state.extra as Person;
+          return PersonDetailsPage(person: person);
+        },
+      ),
+      GoRoute(
+        path: '/advanced-split',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>;
+          return AdvancedSplitPage(
+            initialItems: data['initialItems'] as List<AdvancedExpenseItem>,
+            people: data['people'] as List<Person>,
+            categories: data['categories'] as List<Category>,
+          );
+        },
       ),
       GoRoute(
         path: '/accounts',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const accounts_page_import.AccountsPage(),
+      ),
+      GoRoute(
+        path: '/goals',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const GoalsPage(),
+      ),
+      GoRoute(
+        path: '/add-goal',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final goal = state.extra as Goal?;
+          return AddGoalPage(goalToEdit: goal);
+        },
+      ),
+      GoRoute(
+        path: '/goal-details',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final goal = state.extra as Goal;
+          return GoalDetailsPage(goal: goal);
+        },
       ),
 
 

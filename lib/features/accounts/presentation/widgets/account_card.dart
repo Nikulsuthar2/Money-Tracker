@@ -1,4 +1,3 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -31,7 +30,11 @@ class AccountCard extends ConsumerWidget {
       color: theme.cardTheme.color,
       child: InkWell(
         onTap: () {
-          context.push('/account-details', extra: account);
+          if (account.isCash) {
+            context.push('/account-details', extra: account);
+          } else {
+            context.push('/investment-account', extra: account);
+          }
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -56,10 +59,10 @@ class AccountCard extends ConsumerWidget {
                         ),
                         const Gap(4),
                         Text(
-                          '${ref.watch(currencyProvider)}${item.balance.toStringAsFixed(2)}',
+                          '${ref.watch(currencyProvider)}${account.isCash ? item.balance.toStringAsFixed(2) : item.totalContributionToNetWorth.abs().toStringAsFixed(2)}',
                           style: theme.textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: item.balance >= 0 ? theme.colorScheme.primary : theme.colorScheme.error,
+                            color: (account.isCash ? item.balance : item.totalContributionToNetWorth) >= 0 ? theme.colorScheme.primary : theme.colorScheme.error,
                           ),
                         ),
                       ],
@@ -69,23 +72,31 @@ class AccountCard extends ConsumerWidget {
                   Row(
                     children: [
                        IconButton(
-                        icon: const Icon(Symbols.swap_horiz),
+                        icon: const Icon(Icons.swap_horiz),
                         color: theme.colorScheme.primary,
                          tooltip: 'Transfer',
                         onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.transfer}),
                       ),
-                       IconButton(
-                        icon: const Icon(Symbols.add_circle),
-                        color: theme.colorScheme.primary,
-                        tooltip: 'Add Transaction',
-                        onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.expense}),
-                      ),
+                       if (account.isCash)
+                         IconButton(
+                          icon: const Icon(Icons.add_circle),
+                          color: theme.colorScheme.primary,
+                          tooltip: 'Add Transaction',
+                          onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.expense}),
+                        )
+                       else
+                         IconButton(
+                           icon: const Icon(Icons.trending_up),
+                           color: theme.colorScheme.primary,
+                           tooltip: 'Update P/L',
+                           onPressed: () => _showPLDialog(context, ref, account),
+                         ),
                       PopupMenuButton(
-                        icon: Icon(Symbols.more_vert, color: theme.colorScheme.onSurfaceVariant),
+                        icon: Icon(Icons.more_vert, color: theme.colorScheme.onSurfaceVariant),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         itemBuilder: (context) => [
-                          PopupMenuItem(
-                            child: const Row(children: [Icon(Symbols.lock, size: 18, color: Colors.orange), Gap(12), Text('Manage Reserved')]),
+                          if (account.isCash) PopupMenuItem(
+                            child: const Row(children: [Icon(Icons.lock, size: 18, color: Colors.orange), Gap(12), Text('Manage Reserved')]),
                             onTap: () {
                                Future.delayed(Duration.zero, () {
                                  if (context.mounted) _showSavingsDialog(context, ref, account);
@@ -93,11 +104,11 @@ class AccountCard extends ConsumerWidget {
                             },
                           ),
                           PopupMenuItem(
-                            child: const Row(children: [Icon(Symbols.edit, size: 18), Gap(12), Text('Edit')]),
+                            child: const Row(children: [Icon(Icons.edit, size: 18), Gap(12), Text('Edit')]),
                             onTap: () => context.push('/add-account', extra: account),
                           ),
                           PopupMenuItem(
-                            child: const Row(children: [Icon(Symbols.delete, size: 18, color: Colors.red), Gap(12), Text('Delete')]),
+                            child: const Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), Gap(12), Text('Delete')]),
                             onTap: () {
                                Future.delayed(Duration.zero, () {
                                  if (context.mounted) {
@@ -123,7 +134,7 @@ class AccountCard extends ConsumerWidget {
                 ],
               ),
 
-              if (account.reservedBalance > 0) ...[
+              if (account.isCash && account.reservedBalance > 0) ...[
                  const Gap(12),
                  Container(
                    padding: const EdgeInsets.all(12),
@@ -149,11 +160,58 @@ class AccountCard extends ConsumerWidget {
                             const Text('Spendable Amount', style: TextStyle(fontSize: 11)),
                             const Gap(4),
                               Text(
-                                '${ref.watch(currencyProvider)}${(item.balance - account.reservedBalance).toStringAsFixed(2)}', 
+                                '${ref.watch(currencyProvider)}${item.spendableBalance.toStringAsFixed(2)}', 
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold, 
                                   fontSize: 14,
-                                  color: (item.balance - account.reservedBalance) < 0 ? theme.colorScheme.error : theme.colorScheme.primary,
+                                  color: item.spendableBalance < 0 ? theme.colorScheme.error : theme.colorScheme.primary,
+                                )
+                              ),
+                          ],
+                        ),
+                     ],
+                   ),
+                 )
+              ] else if (!account.isCash) ...[
+                 const Gap(12),
+                 Container(
+                   padding: const EdgeInsets.all(12),
+                   decoration: BoxDecoration(
+                     color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                     borderRadius: BorderRadius.circular(12),
+                   ),
+                   child: Row(
+                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                     children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(account.isLiability ? 'Remaining Debt' : 'Fund Wallet', style: const TextStyle(fontSize: 11)),
+                            const Gap(4),
+                            Text('${ref.watch(currencyProvider)}${item.balance.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          ],
+                        ),
+                        Container(color: theme.colorScheme.outlineVariant, width: 1, height: 30),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(account.isLiability ? 'Borrowed Amount' : 'Invested Amount', style: const TextStyle(fontSize: 11)),
+                            const Gap(4),
+                            Text('${ref.watch(currencyProvider)}${item.investedBalance.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          ],
+                        ),
+                        Container(color: theme.colorScheme.outlineVariant, width: 1, height: 30),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(account.isLiability ? 'Interest / Fees' : 'P/L', style: const TextStyle(fontSize: 11)),
+                            const Gap(4),
+                              Text(
+                                '${item.pl >= 0 ? '+' : '-'}${item.pl.abs().toStringAsFixed(2)}%', 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 14,
+                                  color: item.pl < 0 ? theme.colorScheme.error : Colors.green.shade600,
                                 )
                               ),
                           ],
@@ -168,9 +226,9 @@ class AccountCard extends ConsumerWidget {
                 const Gap(12),
                 Row(
                   children: [
-                     Expanded(child: _CompactStat(label: 'Total In', amount: item.totalIncome, color: Colors.teal.withOpacity(0.7), icon: Symbols.arrow_downward)),
+                     Expanded(child: _CompactStat(label: 'Total In', amount: item.totalIncome, color: Colors.teal.withOpacity(0.7), icon: Icons.arrow_downward)),
                      Container(width: 1, height: 24, color: theme.colorScheme.outlineVariant.withOpacity(0.2)),
-                     Expanded(child: _CompactStat(label: 'Total Out', amount: item.totalExpense, color: Colors.redAccent.withOpacity(0.7), icon: Symbols.arrow_upward)),
+                     Expanded(child: _CompactStat(label: 'Total Out', amount: item.totalExpense, color: Colors.redAccent.withOpacity(0.7), icon: Icons.arrow_upward)),
                   ],
                 ),
 
@@ -201,7 +259,7 @@ class AccountCard extends ConsumerWidget {
         height: 48,
         decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
         alignment: Alignment.center,
-        child: code != null ? Icon(IconData(code, fontFamily: 'MaterialIcons'), color: color) : Icon(Symbols.account_balance_wallet, color: color),
+        child: code != null ? Icon(IconData(code, fontFamily: 'MaterialIcons'), color: color) : Icon(Icons.account_balance_wallet, color: color),
       );
     } else if (iconStr.startsWith('asset:')) {
       final assetPath = iconStr.replaceFirst('asset:', '');
@@ -218,7 +276,7 @@ class AccountCard extends ConsumerWidget {
         height: 48,
         decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
         alignment: Alignment.center,
-        child: Icon(Symbols.account_balance_wallet, color: color),
+        child: Icon(Icons.account_balance_wallet, color: color),
     );
   }
 }
@@ -246,7 +304,7 @@ class _CompactStat extends StatelessWidget {
                crossAxisAlignment: CrossAxisAlignment.start,
                children: [
                  Text(label, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                 Text('${ref.watch(currencyProvider)}${amount.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color)),
+                 Text('${ref.watch(currencyProvider)}${amount % 1 == 0 ? amount.toStringAsFixed(0) : amount.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color)),
                ],
              )
           ],
@@ -292,6 +350,39 @@ Future<void> _showSavingsDialog(BuildContext context, WidgetRef ref, Account acc
              if (context.mounted) Navigator.pop(context);
           }, child: const Text('Save')),
        ],
+    ),
+  );
+}
+
+Future<void> _showPLDialog(BuildContext context, WidgetRef ref, Account account) async {
+  final controller = TextEditingController(text: (account.interestRate ?? 0).toString());
+  await showDialog(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('Update Overall P/L (%)'),
+      content: TextField(
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+        decoration: const InputDecoration(
+          labelText: 'Profit/Loss Percentage',
+          hintText: 'e.g. 5.5 or -2.3',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () async {
+            final val = double.tryParse(controller.text);
+            if (val != null) {
+               account.interestRate = val;
+               await ref.read(accountsRepositoryProvider).updateAccount(account);
+            }
+            if (c.mounted) Navigator.pop(c);
+          },
+          child: const Text('Save'),
+        ),
+      ],
     ),
   );
 }

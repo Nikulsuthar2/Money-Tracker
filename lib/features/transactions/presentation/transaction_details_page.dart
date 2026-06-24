@@ -1,4 +1,3 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -14,9 +13,14 @@ import 'package:money_manager/features/ledger/domain/ledger_entry.dart';
 import 'package:money_manager/features/ledger/domain/party.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/data/categories_repository.dart';
+import 'package:money_manager/features/expenses/data/expenses_repository.dart';
+import 'package:money_manager/features/people/data/people_repository.dart';
+import 'package:money_manager/features/expenses/domain/expense.dart';
 import 'package:money_manager/core/utils/currency_formatter.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
 import 'package:money_manager/features/ledger/presentation/widgets/ledger_entry_compact_tile.dart';
+
+import 'package:money_manager/core/widgets/icon_utils.dart';
 
 class TransactionDetailsPage extends ConsumerWidget {
   const TransactionDetailsPage({super.key, required this.transaction});
@@ -44,13 +48,13 @@ class TransactionDetailsPage extends ConsumerWidget {
         title: const Text('Transaction Details'),
         actions: [
           IconButton(
-            icon: const Icon(Symbols.edit),
+            icon: const Icon(Icons.edit),
             onPressed: () {
               context.push('/add-transaction', extra: t);
             },
           ),
           IconButton(
-            icon: const Icon(Symbols.delete, color: Colors.red),
+            icon: const Icon(Icons.delete, color: Colors.red),
             onPressed: () {
                showDialog(context: context, builder: (d) => AlertDialog(
                   title: const Text('Delete Transaction?'),
@@ -77,18 +81,28 @@ class TransactionDetailsPage extends ConsumerWidget {
           Center(
             child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    t.type == TransactionType.income ? Symbols.arrow_downward : 
-                    t.type == TransactionType.expense ? Symbols.arrow_upward : Symbols.compare_arrows,
-                    size: 48,
-                    color: color,
-                  ),
+                FutureBuilder<Category?>(
+                  future: t.categoryId != null ? ref.read(categoriesRepositoryProvider).getCategory(t.categoryId!) : Future.value(null),
+                  builder: (context, snapshot) {
+                     final cat = snapshot.data;
+                     if (cat != null) {
+                         return buildIconWidget(cat.iconData, Color(cat.color), size: 72);
+                     } else {
+                         return Container(
+                           padding: const EdgeInsets.all(16),
+                           decoration: BoxDecoration(
+                             color: color.withValues(alpha: 0.1),
+                             shape: BoxShape.circle,
+                           ),
+                           child: Icon(
+                             t.type == TransactionType.income ? Icons.arrow_downward : 
+                             t.type == TransactionType.expense ? Icons.arrow_upward : Icons.compare_arrows,
+                             size: 48,
+                             color: color,
+                           ),
+                         );
+                     }
+                  }
                 ),
                 const Gap(16),
                 Text(
@@ -102,7 +116,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                   builder: (context, ref, _) {
                      final symbol = ref.watch(currencyProvider);
                      return Text(
-                       CurrencyFormatter.format(t.amount, symbol: symbol),
+                       '$symbol${formatAmount(t.amount)}',
                        style: theme.textTheme.displayMedium?.copyWith(
                          color: color, 
                          fontWeight: FontWeight.w900,
@@ -129,7 +143,7 @@ class TransactionDetailsPage extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _DetailRow(icon: Symbols.calendar_today, label: 'Date', value: DateFormat.yMMMd().format(t.date)),
+                  _DetailRow(icon: Icons.calendar_today, label: 'Date', value: DateFormat.yMMMd().format(t.date)),
                   const Divider(),
                   // Ideally we show account/category names here too by fetching them
                   FutureBuilder(
@@ -148,7 +162,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                                _AccountChip(account: from),
                                const Padding(
                                  padding: EdgeInsets.symmetric(horizontal: 4),
-                                 child: Icon(Symbols.arrow_forward, size: 16, color: Colors.grey),
+                                 child: Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
                                ),
                                _AccountChip(account: to),
                                const Gap(8),
@@ -163,17 +177,17 @@ class TransactionDetailsPage extends ConsumerWidget {
                   return Column(
                      crossAxisAlignment: CrossAxisAlignment.start,
                      children: [
-                        _DetailRow(icon: Symbols.account_balance_wallet, label: 'Account', customValue: valWidget),
+                        _DetailRow(icon: Icons.account_balance_wallet, label: 'Account', customValue: valWidget),
                         
                         const Divider(),
 
                         // Category / Transfer / Split Chips
-                        if (t.type == TransactionType.transfer)
-                           _DetailRow(
-                              icon: Symbols.swap_horiz,
-                              label: 'Category',
-                              customValue: _Chip(icon: Symbols.compare_arrows, label: 'Self Transfer', color: theme.colorScheme.outline),
-                           )
+                         if (t.type == TransactionType.transfer)
+                            _DetailRow(
+                               icon: Icons.swap_horiz,
+                               label: 'Category',
+                               customValue: _Chip(iconWidget: const Icon(Icons.compare_arrows, size: 16), label: 'Self Transfer'),
+                            )
                         else if (t.subTransactions != null && t.subTransactions!.isNotEmpty)
                            FutureBuilder<List<Category>>(
                               future: ref.read(categoriesRepositoryProvider).getAllCategories(),
@@ -190,12 +204,11 @@ class TransactionDetailsPage extends ConsumerWidget {
                                      // Check if it's a Settlement
                                      if (t.mode == TransactionMode.settlement || t.hasLedgerEntries) {
                                          return _DetailRow(
-                                            icon: Symbols.handshake,
+                                            icon: Icons.handshake,
                                             label: 'Category',
                                             customValue: _Chip(
-                                                icon: Symbols.handshake,
+                                                iconWidget: const Icon(Icons.handshake, size: 16, color: Colors.blue),
                                                 label: 'Settlement',
-                                                color: Colors.blue,
                                             )
                                          );
                                      }
@@ -206,7 +219,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
                                    child: Row(
                                         children: [
-                                          Icon(Symbols.category, size: 20, color: theme.colorScheme.secondary),
+                                          Icon(Icons.category, size: 20, color: theme.colorScheme.secondary),
                                           const Gap(16),
                                           Expanded(
                                             child: Column(
@@ -221,9 +234,8 @@ class TransactionDetailsPage extends ConsumerWidget {
                                                     final cat = allCats.where((c) => c.id == id).firstOrNull;
                                                     if (cat == null) return const SizedBox.shrink();
                                                     return _Chip(
-                                                        icon: IconData(cat.icon, fontFamily: 'MaterialIcons'), 
+                                                        iconWidget: buildIconWidget(cat.iconData, Color(cat.color), size: 24), 
                                                         label: cat.name,
-                                                        color: theme.colorScheme.primary.withOpacity(0.7)
                                                     );
                                                   }).toList(),
                                                 ),
@@ -248,34 +260,31 @@ class TransactionDetailsPage extends ConsumerWidget {
                                    // If no category, check if it's a Settlement or has Ledger Entries (implies settlement/loan)
                                    if (t.mode == TransactionMode.settlement || t.hasLedgerEntries) {
                                       return _DetailRow(
-                                         icon: Symbols.handshake,
+                                         icon: Icons.handshake,
                                          label: 'Category',
                                          customValue: _Chip(
-                                            icon: Symbols.handshake,
+                                            iconWidget: const Icon(Icons.handshake, size: 16, color: Colors.blue),
                                             label: 'Settlement',
-                                            color: Colors.blue,
                                          )
                                       );
                                    }
                                    // Fallback for purely Uncategorized
                                    return _DetailRow(
-                                      icon: Symbols.category,
+                                      icon: Icons.category,
                                       label: 'Category',
                                       customValue: _Chip(
-                                          icon: Symbols.help_outline,
+                                          iconWidget: const Icon(Icons.help_outline, size: 16, color: Colors.grey),
                                           label: 'Uncategorized',
-                                          color: Colors.grey,
                                       )
                                    );
                                 }
                                 
                                 return _DetailRow(
-                                  icon: Symbols.category, 
+                                  icon: Icons.category, 
                                   label: 'Category', 
                                   customValue: _Chip(
-                                     icon: IconData(cat.icon, fontFamily: 'MaterialIcons'), 
+                                     iconWidget: buildIconWidget(cat.iconData, Color(cat.color), size: 24), 
                                      label: cat.name,
-                                     color: theme.colorScheme.primary, 
                                   )
                                 );
                              }
@@ -300,7 +309,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                    children: [
                      Row(
                        children: [
-                         Icon(Symbols.notes, size: 20, color: theme.colorScheme.primary),
+                         Icon(Icons.notes, size: 20, color: theme.colorScheme.primary),
                          const Gap(8),
                          const Text('Note', style: TextStyle(fontWeight: FontWeight.bold)),
                        ],
@@ -329,131 +338,91 @@ class TransactionDetailsPage extends ConsumerWidget {
                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Original transaction not found')));
                     }
                  },
-                 icon: const Icon(Symbols.link),
+                 icon: const Icon(Icons.link),
                  label: const Text('View Original Transaction'),
                ),
              ),
              const Gap(16),
           ],
-          if (t.subTransactions != null && t.subTransactions!.isNotEmpty) ...[
-            Text('Split Details', style: theme.textTheme.titleMedium),
-            const Gap(8),
-            Card(
-              clipBehavior: Clip.hardEdge,
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: t.subTransactions!.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 16, endIndent: 16),
-                  itemBuilder: (context, index) {
-                    final split = t.subTransactions![index];
-                    final isRefunded = split.isRefunded; 
-                    
-                      return FutureBuilder<Category?>(
-                        future: split.categoryId != null 
-                           ? ref.read(categoriesRepositoryProvider).getCategory(split.categoryId!)
-                           : Future.value(null),
-                        builder: (context, catSnapshot) {
-                           final category = catSnapshot.data;
+          FutureBuilder<List<Expense>>(
+            future: ref.read(expensesRepositoryProvider).getAllExpenses(),
+            builder: (context, expSnapshot) {
+               if (!expSnapshot.hasData) return const SizedBox.shrink();
+               final expenses = expSnapshot.data!.where((e) => e.transactionId == t.id).toList();
+               if (expenses.isEmpty) return const SizedBox.shrink();
+               
+               return FutureBuilder<List<ExpenseSplit>>(
+                  future: ref.read(expensesRepositoryProvider).getAllExpenseSplits(),
+                  builder: (context, splitSnapshot) {
+                     if (!splitSnapshot.hasData) return const SizedBox.shrink();
+                     final allSplits = splitSnapshot.data!;
+                     
+                     final peopleMap = ref.watch(peopleStreamProvider).value?.fold<Map<int, String>>({}, (map, p) {
+                        map[p.id] = p.name;
+                        return map;
+                     }) ?? {};
 
-                           // Determine Icon / Label
-                           // If Category is null, check if it's settlement or just "No Category"
-                           // We generally treat party-splits without category as "Settlement" or "Split"
-                           // User asked: "in split details it should display settlement icon not any general category icon" if settlement.
-                           
-                           final isSettlement = split.categoryId == null; // Simple heuristic if no other flag
-                           final displayIcon = category != null 
-                               ? IconData(category.icon, fontFamily: 'MaterialIcons') 
-                               : (isSettlement ? Symbols.handshake : Symbols.category);
-                           
-                           final iconColor = category != null ? theme.colorScheme.primary : (isSettlement ? Colors.blue : Colors.grey);
-                           final title = category?.name ?? (isSettlement ? 'Settlement' : 'Uncategorized');
-
-                           return FutureBuilder<Party?>(
-                             future: split.partyId != null 
-                                 ? ref.read(partyRepositoryProvider).getAllParties().then((list) => list.where((p) => p.id == split.partyId).firstOrNull)
-                                 : Future.value(null),
-                             builder: (context, snapshot) {
-                                 final partyName = snapshot.data?.name;
-                                 
-                                 return Padding(
-                                    padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
-                                    child: Row(
+                     return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                           Text('Split Details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                           const Gap(8),
+                           Card(
+                             elevation: 0,
+                             color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                             child: Padding(
+                               padding: const EdgeInsets.all(16.0),
+                               child: Column(
+                                 children: expenses.map((e) {
+                                    final splits = allSplits.where((s) => s.expenseId == e.id).toList();
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                         // Leading Icon (Category or Settlement)
-                                         Container(
-                                           width: 40, height: 40,
-                                           decoration: BoxDecoration(
-                                             color: iconColor.withOpacity(0.1),
-                                             borderRadius: BorderRadius.circular(12),
-                                           ),
-                                           child: Icon(displayIcon, color: iconColor, size: 20),
-                                         ),
-                                         const Gap(16),
-                                         
-                                         // Content
-                                         Expanded(
-                                           child: Column(
-                                             crossAxisAlignment: CrossAxisAlignment.start,
-                                             children: [
-                                                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                                
-                                                // Subtitle: Person Name + Note (bullet separated)
-                                                if (partyName != null || (split.note?.isNotEmpty == true))
-                                                  Row(
-                                                    children: [
-                                                       if (partyName != null) ...[
-                                                          Icon(Symbols.person, size: 12, color: theme.colorScheme.onSurfaceVariant),
-                                                          const Gap(4),
-                                                          Text(partyName, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
-                                                       ],
-                                                       
-                                                       if (partyName != null && (split.note?.isNotEmpty == true)) ...[
-                                                          const Gap(6),
-                                                          Text('•', style: TextStyle(fontSize: 10, color: theme.colorScheme.outline)),
-                                                          const Gap(6),
-                                                       ],
-
-                                                       if (split.note?.isNotEmpty == true)
-                                                          Expanded(child: Text(split.note!, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant), overflow: TextOverflow.ellipsis)),
-                                                    ],
-                                                  )
-                                                else 
-                                                  Text(split.isMine ? 'My Share' : 'Their Share', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
-                                             ],
-                                           ),
-                                         ),
-                                         
-                                         // Amount (Formatted)
-                                         Consumer(
-                                           builder: (context, ref, _) {
-                                              return Column(
-                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                         if (expenses.length > 1) ...[
+                                            FutureBuilder<Category?>(
+                                               future: e.categoryId != null ? ref.read(categoriesRepositoryProvider).getCategory(e.categoryId!) : Future.value(null),
+                                               builder: (context, catSnap) {
+                                                  final c = catSnap.data;
+                                                  return Row(
+                                                     children: [
+                                                        if (c != null) buildIconWidget(c.iconData, Color(c.color), size: 16),
+                                                        if (c != null) const Gap(8),
+                                                        Text(e.note?.isNotEmpty == true ? e.note! : (c?.name ?? 'Item'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                        const Spacer(),
+                                                        Consumer(builder: (ctx, r, _) => Text('${r.read(currencyProvider)}${formatAmount(e.totalAmount)}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                                                     ],
+                                                  );
+                                               }
+                                            ),
+                                            const Gap(8),
+                                         ],
+                                         ...splits.map((s) {
+                                            final personName = s.personId == 0 ? 'Me' : (peopleMap[s.personId] ?? 'Person ${s.personId}');
+                                            return Padding(
+                                              padding: const EdgeInsets.symmetric(vertical: 4),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                 children: [
-                                                  Text(
-                                                     CurrencyFormatter.format(split.amount, symbol: ref.read(currencyProvider)), 
-                                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)
-                                                  ),
-                                                  if (isRefunded)
-                                                    const Padding(padding: EdgeInsets.only(top: 2), child: Icon(Symbols.check_circle, size: 12, color: Colors.green))
+                                                  Text(personName),
+                                                  Consumer(builder: (ctx, r, _) => Text('${r.read(currencyProvider)}${formatAmount(s.amount)}')),
                                                 ],
-                                              );
-                                           }
-                                         )
+                                              ),
+                                            );
+                                         }),
+                                         if (e != expenses.last) const Divider(height: 16),
                                       ],
-                                    ),
-                                 );
-                             }
-                           );
-                        }
-                      );
-                  },
-                ),
-            ),
-          ],
+                                    );
+                                 }).toList(),
+                               ),
+                             ),
+                           ),
+                        ],
+                     );
+                  }
+               );
+            }
+          ),
           
           const Gap(32),
           // Related Refunds Section (Show if any refunds exist, partial or full)
@@ -469,7 +438,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                       const Gap(8),
                       ...snapshot.data!.map((r) => Card(
                          child: ListTile(
-                            leading: const Icon(Symbols.reply, color: Colors.green),
+                            leading: const Icon(Icons.reply, color: Colors.green),
                             title: Text(r.note ?? 'Refund'),
                             subtitle: Text(DateFormat.yMMMd().format(r.date)),
                             trailing: Text('+ \$${r.amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
@@ -487,7 +456,7 @@ class TransactionDetailsPage extends ConsumerWidget {
              Center(
                child: Chip(
                  label: const Text('Settlement Transaction'),
-                 avatar: const Icon(Symbols.handshake, size: 16),
+                 avatar: const Icon(Icons.handshake, size: 16),
                  backgroundColor: theme.colorScheme.primaryContainer,
                ),
              ),
@@ -497,7 +466,7 @@ class TransactionDetailsPage extends ConsumerWidget {
              Center(
                child: Chip(
                  label: const Text('Refund (Skipped from Stats)'),
-                 avatar: const Icon(Symbols.replay, size: 16),
+                 avatar: const Icon(Icons.replay, size: 16),
                ),
              ),
           // Ledger Entries Section
@@ -576,7 +545,7 @@ class _AccountChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Symbols.account_balance_wallet, size: 14),
+          buildIconWidget(account.iconData, Color(account.color), size: 24),
           const Gap(8),
           Text(account.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         ],
@@ -586,10 +555,9 @@ class _AccountChip extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.label, this.color});
-  final IconData icon;
+  const _Chip({required this.iconWidget, required this.label});
+  final Widget iconWidget;
   final String label;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -603,7 +571,7 @@ class _Chip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color ?? Theme.of(context).iconTheme.color),
+          iconWidget,
           const Gap(8),
           Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         ],

@@ -1,4 +1,3 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -225,7 +224,7 @@ class _AccountChartState extends State<AccountChart> {
           radius: 50, 
           titleStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12),
           badgeWidget: _Badge(
-             icon: Symbols.arrow_downward, 
+             icon: Icons.arrow_downward, 
              color: Colors.teal, 
              text: '${widget.currency}${totalIncome.toStringAsFixed(0)}'
           ),
@@ -239,7 +238,7 @@ class _AccountChartState extends State<AccountChart> {
           radius: 50, 
           titleStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12),
           badgeWidget: _Badge(
-             icon: Symbols.arrow_upward, 
+             icon: Icons.arrow_upward, 
              color: Colors.red, 
              text: '${widget.currency}${totalExpense.toStringAsFixed(0)}'
           ),
@@ -281,7 +280,7 @@ class _AccountChartState extends State<AccountChart> {
                    items: ['Bar', 'Line', 'Pie'].map((s) => DropdownMenuItem(value: s, child: Row(
                      mainAxisSize: MainAxisSize.min,
                      children: [
-                       Icon(s == 'Bar' ? Symbols.bar_chart : (s == 'Line' ? Symbols.show_chart : Symbols.pie_chart), size: 18, color: Theme.of(context).colorScheme.primary),
+                       Icon(s == 'Bar' ? Icons.bar_chart : (s == 'Line' ? Icons.show_chart : Icons.pie_chart), size: 18, color: Theme.of(context).colorScheme.primary),
                        const Gap(8),
                        Text(s, style: const TextStyle(fontSize: 12)),
                      ],
@@ -380,9 +379,9 @@ class _AccountChartState extends State<AccountChart> {
         const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Symbols.circle, color: Colors.teal, size: 12), SizedBox(width: 4), Text('Income'),
+            Icon(Icons.circle, color: Colors.teal, size: 12), SizedBox(width: 4), Text('Income'),
             SizedBox(width: 16),
-            Icon(Symbols.circle, color: Colors.red, size: 12), SizedBox(width: 4), Text('Expense'),
+            Icon(Icons.circle, color: Colors.red, size: 12), SizedBox(width: 4), Text('Expense'),
           ],
         )
       ],

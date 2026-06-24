@@ -9,12 +9,13 @@ class Transaction {
   String? note;
   DateTime date = DateTime.now();
   bool isSettlement = false;
+  double? principalAmount;
   DateTime? createdAt;
   DateTime? updatedAt;
 
   // --- Legacy UI Stubs ---
   String? title;
-  List<SubTransaction>? subTransactions;
+  List<dynamic>? subTransactions;
   bool hasTime = true;
   bool skipFromStats = false;
   bool isRefunded = false;
@@ -26,7 +27,9 @@ class Transaction {
 enum TransactionType {
   income,
   expense,
-  transfer
+  transfer,
+  buyInvestment,
+  sellInvestment
 }
 
 enum TransactionMode { regular, settlement }

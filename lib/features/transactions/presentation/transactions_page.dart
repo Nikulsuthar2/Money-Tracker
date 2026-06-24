@@ -1,16 +1,23 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
+import 'package:money_manager/features/transactions/application/timeline_provider.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
+import 'package:money_manager/features/transactions/domain/timeline_entry.dart';
 import 'package:money_manager/features/accounts/application/accounts_providers.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
-import 'package:money_manager/features/transactions/presentation/widgets/transaction_tile.dart';
+import 'package:money_manager/features/transactions/presentation/widgets/timeline_entry_tile.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
 import 'package:gap/gap.dart';
+
+final timelineFiltersProvider = StateProvider<Map<String, bool>>((ref) => {
+  'transactions': true,
+  'settlements': true,
+  'friend_paid': false,
+});
 
 class TransactionsPage extends ConsumerStatefulWidget {
   const TransactionsPage({super.key});
@@ -24,9 +31,10 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch all transactions
-    final transactionsAsync = ref.watch(transactionsStreamProvider);
+    final timelineAsync = ref.watch(timelineProvider);
+    final filters = ref.watch(timelineFiltersProvider);
     final accountsAsync = ref.watch(accountsWithBalanceProvider);
+
     final categoriesAsync = ref.watch(categoriesStreamProvider);
 
     return Scaffold(
@@ -34,26 +42,48 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
         title: const Text('Transactions'),
         actions: [
           IconButton(
-            icon: const Icon(Symbols.subscriptions),
-            tooltip: 'Subscriptions',
-            onPressed: () => context.push('/subscriptions'),
-          ),
-          IconButton(
-            icon: Icon(_isCompact ? Symbols.view_agenda : Symbols.view_headline),
+            icon: Icon(_isCompact ? Icons.view_agenda : Icons.view_headline),
             tooltip: _isCompact ? 'Comfortable View' : 'Concise View',
             onPressed: () => setState(() => _isCompact = !_isCompact),
           ),
-          IconButton(
-            icon: const Icon(Symbols.table_chart),
-            tooltip: 'Table View',
-            onPressed: () => context.push('/transactions-table'),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Filters',
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'transactions',
+                child: Row(children: [
+                  Checkbox(value: filters['transactions'], onChanged: null),
+                  const Text('Transactions'),
+                ]),
+              ),
+              PopupMenuItem(
+                value: 'settlements',
+                child: Row(children: [
+                  Checkbox(value: filters['settlements'], onChanged: null),
+                  const Text('Settlements'),
+                ]),
+              ),
+              PopupMenuItem(
+                value: 'friend_paid',
+                child: Row(children: [
+                  Checkbox(value: filters['friend_paid'], onChanged: null),
+                  const Text('Expenses Paid By Others'),
+                ]),
+              ),
+            ],
+            onSelected: (value) {
+              ref.read(timelineFiltersProvider.notifier).update((state) {
+                return {...state, value: !(state[value] ?? false)};
+              });
+            },
           ),
           if (!Platform.isAndroid)
             IconButton(
-              icon: const Icon(Symbols.refresh),
+              icon: const Icon(Icons.refresh),
               tooltip: 'Refresh',
               onPressed: () {
-                 ref.invalidate(transactionsStreamProvider);
+                 ref.invalidate(timelineProvider);
                  ref.invalidate(accountsWithBalanceProvider);
               },
             ),
@@ -61,31 +91,43 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-           ref.invalidate(transactionsStreamProvider);
+           ref.invalidate(timelineProvider);
            ref.invalidate(accountsWithBalanceProvider);
            await Future.delayed(const Duration(milliseconds: 300));
         },
-        child: transactionsAsync.when(
-          data: (transactions) {
-          if (transactions.isEmpty) {
-            return const Center(child: Text('No transactions yet'));
+        child: timelineAsync.when(
+          data: (allEntries) {
+          
+          final entries = allEntries.where((e) {
+             if (e is TransactionTimelineEntry) return filters['transactions'] == true;
+             if (e is SettlementTimelineEntry) return filters['settlements'] == true;
+             if (e is ExpenseOnlyTimelineEntry) return filters['friend_paid'] == true;
+             return true;
+          }).toList();
+
+          if (entries.isEmpty) {
+            return const Center(child: Text('No activity found'));
           }
           
-          // Group transactions by date
-          final grouped = <DateTime, List<Transaction>>{};
+          // Group entries by date
+          final grouped = <DateTime, List<TimelineEntry>>{};
           double totalIncome = 0;
           double totalExpense = 0;
 
-          for (var t in transactions) {
-            if (t.skipFromStats) continue; 
-            if (t.type == TransactionType.income) totalIncome += t.amount;
-            if (t.type == TransactionType.expense) totalExpense += t.amount;
+          for (var e in entries) {
+            if (e is TransactionTimelineEntry) {
+               final t = e.transaction;
+               if (!t.skipFromStats) {
+                  if (t.type == TransactionType.income) totalIncome += t.amount;
+                  if (t.type == TransactionType.expense) totalExpense += t.amount;
+               }
+            }
 
-            final date = DateTime(t.date.year, t.date.month, t.date.day);
+            final date = DateTime(e.date.year, e.date.month, e.date.day);
             if (grouped.containsKey(date)) {
-              grouped[date]!.add(t);
+              grouped[date]!.add(e);
             } else {
-              grouped[date] = [t];
+              grouped[date] = [e];
             }
           }
           final sortedDates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
@@ -116,7 +158,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                                    child: Column(
                                      crossAxisAlignment: CrossAxisAlignment.center, // Centered
                                      children: [
-                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Symbols.arrow_downward, size: 16, color: Colors.teal), Gap(8), Text('Total Income', style: TextStyle(color: Colors.teal))]),
+                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_downward, size: 16, color: Colors.teal), Gap(8), Text('Total Income', style: TextStyle(color: Colors.teal))]),
                                        const Gap(8),
                                        Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalIncome.toStringAsFixed(0)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal))),
                                      ],
@@ -128,7 +170,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                                    child: Column(
                                      crossAxisAlignment: CrossAxisAlignment.center, // Centered
                                      children: [
-                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Symbols.arrow_upward, size: 16, color: Colors.red), Gap(8), Text('Total Expense', style: TextStyle(color: Colors.red))]),
+                                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_upward, size: 16, color: Colors.red), Gap(8), Text('Total Expense', style: TextStyle(color: Colors.red))]),
                                        const Gap(8),
                                        Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${totalExpense.toStringAsFixed(0)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red))),
                                      ],
@@ -141,15 +183,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                       }
 
                       final date = sortedDates[index - 1];
-                      final dayTransactions = grouped[date]!;
-                      
-                      // Sort: Timed (Desc) -> Untimed (Desc)
-                      dayTransactions.sort((a, b) {
-                         if (a.hasTime && !b.hasTime) return -1; // a (timed) before b (untimed)
-                         if (!a.hasTime && b.hasTime) return 1;  // b (timed) before a (untimed)
-                         // Both timed or both untimed -> Sort by date (descending)
-                         return b.date.compareTo(a.date);
-                      });
+                      final dayEntries = grouped[date]!;
                       
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,7 +196,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                               decoration: BoxDecoration(
                                 color: Theme.of(context).brightness == Brightness.dark 
                                     ? Theme.of(context).colorScheme.surfaceContainerHighest 
-                                    : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                                    : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
@@ -175,17 +209,13 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                               ),
                             ),
                           ),
-                          ...dayTransactions.map((t) {
-                            final accountId = t.type == TransactionType.income ? t.toAccountId : t.fromAccountId;
-                            final accountName = accountId != null ? accountMap[accountId]?.name ?? 'Unknown' : 'Unknown';
-                            final category = t.categoryId != null ? catMap[t.categoryId] : null;
-
-                            return TransactionTile(
-                              transaction: t,
-                              accountName: accountName,
-                              category: category,
+                          ...dayEntries.map((e) {
+                            return TimelineEntryTile(
+                              entry: e,
+                              accountMap: accountMap,
+                              categoryMap: catMap,
                               compact: _isCompact,
-                              onTap: () {
+                              onTapTransaction: (t) {
                                  context.push('/transaction-details', extra: t);
                               },
                             );
@@ -209,8 +239,9 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
       ),
 
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: () => context.push('/add-transaction'),
-        icon: const Icon(Symbols.add),
+        icon: const Icon(Icons.add),
         label: const Text('Add Transaction'),
       ),
     );

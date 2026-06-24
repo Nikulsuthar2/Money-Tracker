@@ -1,4 +1,3 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +10,16 @@ import 'package:gap/gap.dart';
 
 import 'package:money_manager/features/transactions/presentation/widgets/transaction_tile.dart';
 import 'package:money_manager/features/accounts/presentation/widgets/account_chart.dart';
+import 'package:money_manager/features/accounts/presentation/widgets/holdings_card.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:money_manager/features/accounts/application/accounts_providers.dart';
+import 'package:money_manager/features/goals/application/goals_providers.dart';
+import 'package:money_manager/features/categories/application/categories_providers.dart';
+import 'package:money_manager/features/categories/domain/category.dart';
+import 'package:collection/collection.dart';
+import 'package:money_manager/features/goals/domain/goal.dart';
+import 'package:money_manager/features/goals/presentation/widgets/contribute_sheet.dart';
+import 'package:money_manager/features/goals/presentation/widgets/goal_icon_widget.dart';
 
 class AccountDetailsPage extends ConsumerStatefulWidget {
   const AccountDetailsPage({super.key, required this.account});
@@ -71,6 +79,8 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
   Widget build(BuildContext context) {
     final account = widget.account;
     final transactionsAsync = ref.watch(transactionsStreamProvider);
+    final categoriesAsync = ref.watch(categoriesStreamProvider);
+    final goalContributionsAsync = ref.watch(totalContributionsForAccountProvider(account.id));
     final theme = Theme.of(context);
     final currency = ref.watch(currencyProvider);
     
@@ -85,49 +95,50 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
         actions: [
           IconButton(
             tooltip: 'Add Transaction',
-            icon: const Icon(Symbols.add),
+            icon: const Icon(Icons.add),
             onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id}), 
           ),
           IconButton(
             tooltip: 'Transfer',
-            icon: const Icon(Symbols.swap_horiz),
+            icon: const Icon(Icons.swap_horiz),
             onPressed: () => context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.transfer}),
           ),
-           IconButton(
-             tooltip: 'Manage Reserved',
-             icon: const Icon(Symbols.lock_outline),
-             onPressed: () {
-                 final controller = TextEditingController(text: account.reservedBalance.toString());
-                 showDialog(context: context, builder: (d) => AlertDialog(
-                    title: const Text('Manage Reserved Savings'),
-                    content: Column(
-                       mainAxisSize: MainAxisSize.min,
-                       children: [
-                          const Text('Adjust amount reserved safely from spending.'),
-                          const Gap(16),
-                          TextField(
-                             controller: controller,
-                             decoration: InputDecoration(
-                               labelText: 'Reserved Amount',
-                               prefixText: currency,
-                               border: const OutlineInputBorder(),
-                             ),
-                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          ),
-                       ],
-                    ),
-                    actions: [
-                       TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
-                       FilledButton(onPressed: () async {
-                          final val = double.tryParse(controller.text) ?? 0.0;
-                          final updated = account..reservedBalance = val;
-                          await ref.read(accountsRepositoryProvider).updateAccount(updated);
-                          if (context.mounted) Navigator.pop(d);
-                       }, child: const Text('Save')),
-                    ]
-                 ));
-             },
-           ),
+           if (account.isCash)
+             IconButton(
+               tooltip: 'Manage Reserved',
+               icon: const Icon(Icons.lock_outline),
+               onPressed: () {
+                   final controller = TextEditingController(text: account.reservedBalance.toString());
+                   showDialog(context: context, builder: (d) => AlertDialog(
+                      title: const Text('Manage Reserved Savings'),
+                      content: Column(
+                         mainAxisSize: MainAxisSize.min,
+                         children: [
+                            const Text('Adjust amount reserved safely from spending.'),
+                            const Gap(16),
+                            TextField(
+                               controller: controller,
+                               decoration: InputDecoration(
+                                 labelText: 'Reserved Amount',
+                                 prefixText: currency,
+                                 border: const OutlineInputBorder(),
+                               ),
+                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            ),
+                         ],
+                      ),
+                      actions: [
+                         TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+                         FilledButton(onPressed: () async {
+                            final val = double.tryParse(controller.text) ?? 0.0;
+                            final updated = account..reservedBalance = val;
+                            await ref.read(accountsRepositoryProvider).updateAccount(updated);
+                            if (context.mounted) Navigator.pop(d);
+                         }, child: const Text('Save')),
+                      ]
+                   ));
+               },
+             ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'edit') {
@@ -150,8 +161,8 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
               }
             },
             itemBuilder: (context) => [
-               const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Symbols.edit, size: 20), Gap(12), Text('Edit Account')])),
-               const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Symbols.delete, size: 20, color: Colors.red), Gap(12), Text('Delete Account', style: TextStyle(color: Colors.red))])),
+               const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 20), Gap(12), Text('Edit Account')])),
+               const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 20, color: Colors.red), Gap(12), Text('Delete Account', style: TextStyle(color: Colors.red))])),
             ],
           ),
         ],
@@ -209,9 +220,9 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                IconButton(onPressed: _prevPeriod, icon: const Icon(Symbols.chevron_left)),
+                                IconButton(onPressed: _prevPeriod, icon: const Icon(Icons.chevron_left)),
                                 Text(dateLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                IconButton(onPressed: _nextPeriod, icon: const Icon(Symbols.chevron_right)),
+                                IconButton(onPressed: _nextPeriod, icon: const Icon(Icons.chevron_right)),
                               ],
                            ),
                          ),
@@ -231,14 +242,40 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                           padding: const EdgeInsets.all(20),
                           child: Column(
                             children: [
-                              Text('Current Balance', style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimaryContainer.withOpacity(0.8))),
+                              Text(account.isCash ? 'Current Balance' : 'Current Value', style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimaryContainer.withOpacity(0.8))),
                               const Gap(4),
-                              Text('$currency${_calculateBalance(account, accountTransactions).toStringAsFixed(2)}', 
-                                style: theme.textTheme.displaySmall?.copyWith(
-                                  color: theme.colorScheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.w900
-                                )
-                              ),
+                              Consumer(builder: (ctx, ref, _) {
+                                final statsList = ref.watch(accountsWithBalanceProvider).valueOrNull;
+                                final stats = statsList?.firstWhere((s) => s.account.id == account.id, orElse: () => AccountStats(account, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+                                final headline = account.isCash ? (stats?.balance ?? 0) : (stats?.totalContributionToNetWorth.abs() ?? 0);
+                                
+                                return Column(
+                                  children: [
+                                    Text('$currency${headline.toStringAsFixed(2)}', 
+                                      style: theme.textTheme.displaySmall?.copyWith(
+                                        color: theme.colorScheme.onPrimaryContainer,
+                                        fontWeight: FontWeight.w900
+                                      )
+                                    ),
+                                    if (!account.isCash) ...[
+                                      const Gap(8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: (stats?.pl ?? 0) >= 0 ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text('P/L: ${(stats?.pl ?? 0) >= 0 ? '+' : '-'}${(stats?.pl.abs() ?? 0).toStringAsFixed(2)}%',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: (stats?.pl ?? 0) >= 0 ? Colors.green.shade800 : Colors.red.shade800,
+                                          )
+                                        ),
+                                      ),
+                                    ],
+                                  ]
+                                );
+                              }),
                               const Gap(24),
                               // Line 2: Total In vs Out (Cash Flow)
                               Container(
@@ -286,7 +323,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Symbols.undo, size: 12, color: theme.colorScheme.onSurface),
+                                    Icon(Icons.undo, size: 12, color: theme.colorScheme.onSurface),
                                     const Gap(8),
                                     Text('Reimbursed: $currency${_calculateReimbursements(account, timeFilteredTransactions).toStringAsFixed(2)}',
                                        style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface)), 
@@ -300,7 +337,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
         
                       const Gap(16),
         
-                      // Funds Status Card (Spendable vs Reserved)
+                      // Funds Status Card (Spendable vs Reserved & Goal Contributions)
                       Card(
                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: theme.colorScheme.outlineVariant)),
                          child: Padding(
@@ -310,45 +347,110 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                                children: [
                                   Row(
                                     children: [
-                                       Icon(Symbols.account_balance_wallet, color: theme.colorScheme.primary),
+                                       Icon(Icons.account_balance_wallet, color: theme.colorScheme.primary),
                                        const Gap(12),
                                        const Text('Funds Allocation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                     ],
                                   ),
                                   const Gap(16),
-                                  // Spendable & Reserved
-                                  Builder(
-                                    builder: (context) {
-                                      final balance = _calculateBalance(account, accountTransactions);
-                                      final spendable = balance - (account.reservedBalance.isNaN ? 0.0 : account.reservedBalance);
-                                      return Row(
-                                         children: [
-                                            Expanded(
-                                               child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                                  children: [
-                                                     const Text('Spendable', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                                     Text(
-                                                        '$currency${(spendable < 0 ? 0.0 : spendable).toStringAsFixed(2)}',
-                                                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
-                                                     ),
-                                                  ],
-                                               ),
-                                            ),
-                                            Container(width: 1, height: 30, color: theme.colorScheme.outlineVariant),
-                                            Expanded(
-                                               child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                                  children: [
-                                                     const Text('Reserved', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                                     Text(
-                                                        '$currency${(account.reservedBalance.isNaN ? 0.0 : account.reservedBalance).toStringAsFixed(2)}',
-                                                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange),
-                                                     ),
-                                                  ],
-                                               ),
-                                            ),
-                                         ],
+                                  
+                                  if (account.isCash) ...[
+                                    // Spendable & Reserved
+                                    Builder(
+                                      builder: (context) {
+                                        final balance = _calculateBalance(account, accountTransactions);
+                                        final goalContributions = goalContributionsAsync.value ?? 0.0;
+                                        final spendable = balance - (account.reservedBalance.isNaN ? 0.0 : account.reservedBalance) - goalContributions;
+                                        return Row(
+                                           children: [
+                                              Expanded(
+                                                 child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                                    children: [
+                                                       const Text('Spendable', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                                       Text(
+                                                          '$currency${(spendable < 0 ? 0.0 : spendable).toStringAsFixed(2)}',
+                                                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                                                       ),
+                                                    ],
+                                                 ),
+                                              ),
+                                              Container(width: 1, height: 30, color: theme.colorScheme.outlineVariant),
+                                              Expanded(
+                                                 child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                                    children: [
+                                                       const Text('Reserved', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                                       Text(
+                                                          '$currency${(account.reservedBalance.isNaN ? 0.0 : account.reservedBalance).toStringAsFixed(2)}',
+                                                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange),
+                                                       ),
+                                                    ],
+                                                 ),
+                                              ),
+                                           ],
+                                        );
+                                      }
+                                    ),
+                                    const Gap(16),
+                                  ],
+                                  
+                                  // Goals Contributions List
+                                  Consumer(
+                                    builder: (ctx, ref, _) {
+                                      final allGoals = ref.watch(goalsStreamProvider).valueOrNull ?? [];
+                                      final accountContributions = ref.watch(totalContributionsForAccountProvider(account.id)).valueOrNull ?? 0.0;
+                                      
+                                      if (accountContributions == 0) {
+                                        if (!account.isCash) return const Center(child: Text('No allocations to display.'));
+                                        return const SizedBox();
+                                      }
+                                      
+                                      // We need to group contributions by Goal manually to get total per goal
+                                      // Or we can just show a prompt: 'Contributed to Goals'
+                                      // Let's get all contributions for this account to compute goal totals
+                                      final allContributions = ref.watch(allGoalContributionsProvider).valueOrNull ?? [];
+                                      final myContributions = allContributions.where((c) => c.accountId == account.id);
+                                      
+                                      final goalTotals = <int, double>{};
+                                      for (var c in myContributions) {
+                                        goalTotals[c.goalId] = (goalTotals[c.goalId] ?? 0) + c.amount;
+                                      }
+                                      
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          if (account.isCash) const Divider(),
+                                          if (account.isCash) const Gap(8),
+                                          const Text('Goals & Targets', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                          const Gap(12),
+                                          ...goalTotals.entries.where((e) => e.value > 0).map((entry) {
+                                            final goal = allGoals.firstWhere((g) => g.id == entry.key, orElse: () => Goal()..name = 'Unknown Goal');
+                                            return Padding(
+                                              padding: const EdgeInsets.only(bottom: 8.0),
+                                              child: Row(
+                                                children: [
+                                                  GoalIconWidget(iconData: goal.iconData, color: Color(goal.color), iconSize: 20),
+                                                  const Gap(12),
+                                                  Expanded(child: Text(goal.name, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                                  Text('$currency${entry.value.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                  const Gap(8),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.account_balance_wallet, size: 20),
+                                                    color: theme.colorScheme.primary,
+                                                    onPressed: () {
+                                                      showModalBottomSheet(
+                                                        context: context,
+                                                        isScrollControlled: true,
+                                                        builder: (ctx) => ContributeSheet(goal: goal, preselectedAccountId: account.id),
+                                                      );
+                                                    },
+                                                  )
+                                                ],
+                                              )
+                                            );
+                                          }).toList()
+                                        ]
                                       );
                                     }
                                   ),
@@ -359,6 +461,10 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                       ),
         
                        const Gap(16),
+
+                       // Holdings Card
+                       if (!account.isCash) HoldingsCard(account: account),
+                       if (!account.isCash) const Gap(16),
         
                        // Chart
                       Container( 
@@ -452,12 +558,16 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> with Ti
                                           ),
                                        ),
                                      ),
-                                     ...grouped[date]!.map((t) => TransactionTile(
-                                        transaction: t, 
-                                        accountName: account.name,
-                                        compact: false, // User requested full view
-                                        onTap: () => context.push('/transaction-details', extra: t),
-                                     )),
+                                     ...grouped[date]!.map((t) {
+                                          final category = t.categoryId != null ? categoriesAsync.value?.firstWhereOrNull((c) => c.id == t.categoryId) : null;
+                                          return TransactionTile(
+                                            transaction: t, 
+                                            accountName: account.name,
+                                            category: category,
+                                            compact: false, // User requested full view
+                                            onTap: () => context.push('/transaction-details', extra: t),
+                                          );
+                                       }),
                                      const Gap(8),
                                   ],
                                 );

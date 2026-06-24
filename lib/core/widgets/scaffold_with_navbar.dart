@@ -1,13 +1,10 @@
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
+import 'package:money_manager/features/transactions/domain/transaction.dart';
 
 class ScaffoldWithNavbar extends StatefulWidget {
-  const ScaffoldWithNavbar({
-    required this.navigationShell,
-    super.key,
-  });
+  const ScaffoldWithNavbar({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
 
@@ -25,95 +22,319 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
         final useRail = constraints.maxWidth >= 800;
 
         if (useRail) {
-           return Scaffold(
-             body: Row(
-               children: [
-                 NavigationRail(
-                   extended: _isRailExtended,
-                   minWidth: 72,
-                   leading: Column(
-                     children: [
-                        IconButton(
-                          icon: Icon(_isRailExtended ? Symbols.menu_open : Symbols.menu),
-                          onPressed: () => setState(() => _isRailExtended = !_isRailExtended),
+          return Scaffold(
+            body: Row(
+              children: [
+                NavigationRail(
+                  extended: _isRailExtended,
+                  minWidth: 72,
+                  leading: Column(
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          _isRailExtended ? Icons.menu_open : Icons.menu,
                         ),
-                        const Gap(16),
-                        FloatingActionButton(
-                          onPressed: () => context.push('/add-transaction'),
-                          elevation: 0,
-                          tooltip: 'Add Transaction',
-                          child: const Icon(Symbols.add),
-                        ),
-                     ],
-                   ),
-                   selectedIndex: widget.navigationShell.currentIndex,
-                   onDestinationSelected: (index) => _onTap(index),
-                   labelType: _isRailExtended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
-                   groupAlignment: -0.9,
-                   destinations: const [
-                       NavigationRailDestination(icon: Icon(Symbols.dashboard), selectedIcon: Icon(Symbols.dashboard), label: Text('Home')),
-                       NavigationRailDestination(icon: Icon(Symbols.receipt_long), selectedIcon: Icon(Symbols.receipt_long), label: Text('History')),
-                       NavigationRailDestination(icon: Icon(Symbols.people), selectedIcon: Icon(Symbols.people), label: Text('Parties')),
-                       NavigationRailDestination(icon: Icon(Symbols.analytics), selectedIcon: Icon(Symbols.analytics), label: Text('Analysis')),
-                       NavigationRailDestination(icon: Icon(Symbols.settings), selectedIcon: Icon(Symbols.settings), label: Text('Settings')),
-                   ],
-                 ),
-                 const VerticalDivider(thickness: 1, width: 1),
-                 Expanded(child: widget.navigationShell),
-               ],
-             ),
-           );
+                        onPressed: () =>
+                            setState(() => _isRailExtended = !_isRailExtended),
+                      ),
+                      const Gap(16),
+                      FloatingActionButton(
+                        heroTag: null,
+                        onPressed: () => context.push('/add-transaction'),
+                        elevation: 0,
+                        tooltip: 'Add Transaction',
+                        child: const Icon(Icons.add),
+                      ),
+                    ],
+                  ),
+                  selectedIndex: widget.navigationShell.currentIndex,
+                  onDestinationSelected: (index) => _onTap(index),
+                  labelType: _isRailExtended
+                      ? NavigationRailLabelType.none
+                      : NavigationRailLabelType.all,
+                  groupAlignment: -0.9,
+                  destinations: const [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.dashboard),
+                      selectedIcon: Icon(Icons.dashboard),
+                      label: Text('Home'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.receipt_long),
+                      selectedIcon: Icon(Icons.receipt_long),
+                      label: Text('History'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.people),
+                      selectedIcon: Icon(Icons.people),
+                      label: Text('Parties'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.analytics),
+                      selectedIcon: Icon(Icons.analytics),
+                      label: Text('Analysis'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.apps),
+                      selectedIcon: Icon(Icons.apps),
+                      label: Text('More'),
+                    ),
+                  ],
+                ),
+                const VerticalDivider(thickness: 1, width: 1),
+                Expanded(child: widget.navigationShell),
+              ],
+            ),
+          );
         }
 
         return Scaffold(
           body: widget.navigationShell,
-          bottomNavigationBar: NavigationBar(
-            // Logic for Bottom Bar (Mobile)
-            // 0: Home, 1: History, 2: Add (Action), 3: People, 4: Analysis, 5: Settings
-            // Need to map Shell Index (0-4) to UI Index (0-5)
-            // Shell: Home(0), History(1), People(2), Analysis(3), Settings(4)
-            // UI: Home, History, ADD, People, Analysis, Settings (6 items? That's too crowded)
-            // Let's keep 5 items + Add in middle? 
-            // Home, History, ADD, People, Settings. (Drop Analysis for mobile? Or generic 'Menu'?)
-            // User asked for "Standard Bottom Navbar". 
-            // Let's put People in place of Analysis for now, or just have 5 items.
-            // Items: Home, History, Add, People, Settings.
-            // Shell indices mapping:
-            // 0 -> 0 (Home)
-            // 1 -> 1 (History)
-            // 2 (People) -> 3 (UI Index)
-            // Mobile Bottom Bar
-            // Shell Index Mapping:
-            // 0: Home -> 0
-            // 1: History -> 1
-            // 2: People -> 2
-            // 3: Analytics -> 3
-            // 4: Settings -> 4
-            selectedIndex: widget.navigationShell.currentIndex,
-            onDestinationSelected: (index) => _onTap(index),
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: const [
-               NavigationDestination(icon: Icon(Symbols.dashboard), selectedIcon: Icon(Symbols.dashboard), label: 'Home'),
-               NavigationDestination(icon: Icon(Symbols.receipt_long), selectedIcon: Icon(Symbols.receipt_long), label: 'History'),
-               NavigationDestination(icon: Icon(Symbols.people), selectedIcon: Icon(Symbols.people), label: 'Parties'),
-               NavigationDestination(icon: Icon(Symbols.analytics), selectedIcon: Icon(Symbols.analytics), label: 'Analytics'),
-               NavigationDestination(icon: Icon(Symbols.settings), selectedIcon: Icon(Symbols.settings), label: 'Settings'),
-            ],
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: NavigationBar(
+              selectedIndex: _getUIIndex(widget.navigationShell.currentIndex),
+              onDestinationSelected: (index) => _onTap(index),
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              destinations: [
+                const NavigationDestination(
+                  icon: Icon(Icons.dashboard_outlined),
+                  selectedIcon: Icon(Icons.dashboard),
+                  label: 'Home',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  selectedIcon: Icon(Icons.receipt_long),
+                  label: 'History',
+                ),
+                NavigationDestination(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.add,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ),
+                  label: 'Add',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.analytics_outlined),
+                  selectedIcon: Icon(Icons.analytics),
+                  label: 'Analytics',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.apps),
+                  selectedIcon: Icon(Icons.apps),
+                  label: 'More',
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  // No longer needed as mapping is 1:1
-  // int _getMobileSelectedIndex(int shellIndex) ...
-  // int _getShellIndexFromMobile(int uiIndex) ...
+  int _getUIIndex(int shellIndex) {
+    if (shellIndex == 0) return 0; // Home
+    if (shellIndex == 1) return 1; // History
+    if (shellIndex == 3) return 3; // Analytics
+    if (shellIndex == 4) return 4; // More
+    return 0;
+  }
 
-  void _onTap(int index) {
-     widget.navigationShell.goBranch(
-            index,
-            initialLocation: index == widget.navigationShell.currentIndex,
-          );
+  void _onTap(int uiIndex) {
+    if (uiIndex == 2) {
+      _showAddBottomSheet(context);
+      return;
+    }
+
+    int shellIndex = 0;
+    if (uiIndex == 0) shellIndex = 0;
+    if (uiIndex == 1) shellIndex = 1;
+    if (uiIndex == 3) shellIndex = 3;
+    if (uiIndex == 4) shellIndex = 4;
+
+    widget.navigationShell.goBranch(
+      shellIndex,
+      initialLocation: shellIndex == widget.navigationShell.currentIndex,
+    );
+  }
+
+  void _showAddBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Gap(24),
+                GridView.count(
+                  crossAxisCount: 4,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 20,
+                  crossAxisSpacing: 12,
+                  children: [
+                    _buildQuickActionButton(
+                      ctx,
+                      Icons.arrow_downward,
+                      'Income',
+                      Colors.teal,
+                      () {
+                        Navigator.pop(ctx);
+                        context.push('/add-transaction', extra: {'type': TransactionType.income});
+                      },
+                    ),
+                    _buildQuickActionButton(
+                      ctx,
+                      Icons.arrow_upward,
+                      'Expense',
+                      Colors.red,
+                      () {
+                        Navigator.pop(ctx);
+                        context.push('/add-transaction', extra: {'type': TransactionType.expense});
+                      },
+                    ),
+                    _buildQuickActionButton(
+                      ctx,
+                      Icons.sync_alt,
+                      'Transfer',
+                      Colors.blue,
+                      () {
+                        Navigator.pop(ctx);
+                        context.push('/add-transaction', extra: {'type': TransactionType.transfer});
+                      },
+                    ),
+                    _buildQuickActionButton(
+                      ctx,
+                      Icons.handshake,
+                      'Settlement',
+                      Colors.indigo,
+                      () {
+                        Navigator.pop(ctx);
+                        context.push('/add-transaction', extra: {'type': 'settlement'});
+                      },
+                    ),
+                    _buildQuickActionButton(
+                      ctx,
+                      Icons.wallet,
+                      'Account',
+                      Colors.orange,
+                      () {
+                        Navigator.pop(ctx);
+                        context.push('/add-account');
+                      },
+                    ),
+                    _buildQuickActionButton(
+                      ctx,
+                      Icons.category,
+                      'Category',
+                      Colors.purple,
+                      () {
+                        Navigator.pop(ctx);
+                        context.push('/add-category');
+                      },
+                    ),
+                    _buildQuickActionButton(
+                      ctx,
+                      Icons.flag,
+                      'Goal',
+                      Colors.pink,
+                      () {
+                        Navigator.pop(ctx);
+                        context.push('/add-goal');
+                      },
+                    ),
+                    _buildQuickActionButton(
+                      ctx,
+                      Icons.people,
+                      'Person',
+                      Colors.brown,
+                      () {
+                        Navigator.pop(ctx);
+                        context.push('/parties'); // Or push to a specific add-person if available, but /parties is the list. Let's push to parties for now since there's no direct add-person route, wait, Add Person is a bottom sheet in Parties. So going to /parties is best.
+                      },
+                    ),
+                  ],
+                ),
+                const Gap(16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickActionButton(
+    BuildContext ctx,
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(
+            ctx,
+          ).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(ctx).colorScheme.outlineVariant),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const Gap(4),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
-
