@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:money_manager/core/widgets/scaffold_with_navbar.dart';
 import 'package:money_manager/features/dashboard/presentation/dashboard_page.dart';
 import 'package:money_manager/features/transactions/presentation/transactions_page.dart';
-import 'package:money_manager/features/analytics/presentation/analytics_page.dart';
+import 'package:money_manager/features/analytics/presentation/insights_page.dart';
 import 'package:money_manager/features/settings/presentation/settings_page.dart';
 import 'package:money_manager/features/accounts/presentation/add_account_page.dart';
 import 'package:money_manager/features/transactions/presentation/add_transaction_page.dart';
@@ -28,6 +28,11 @@ import 'package:money_manager/features/goals/domain/goal.dart';
 import 'package:money_manager/features/goals/presentation/goals_page.dart';
 import 'package:money_manager/features/goals/presentation/add_goal_page.dart';
 import 'package:money_manager/features/goals/presentation/goal_details_page.dart';
+import 'package:money_manager/features/budgets/presentation/budgets_page.dart';
+import 'package:money_manager/features/budgets/presentation/add_edit_budget_page.dart';
+import 'package:money_manager/features/budgets/presentation/budget_details_page.dart';
+import 'package:money_manager/features/budgets/domain/budget.dart';
+import 'package:money_manager/features/analytics/presentation/spend_analysis_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -60,21 +65,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           
-          // Index 2: People
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/parties',
-                builder: (context, state) => const PeoplePage(),
-              ),
-            ],
-          ),
-
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/analytics',
-                builder: (context, state) => const AnalyticsPage(),
+                path: '/analytics', // keeping path same for now, or change to /insights
+                builder: (context, state) => const InsightsPage(),
               ),
             ],
           ),
@@ -135,9 +130,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/transaction-details',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final transaction = state.extra as Transaction;
-          return TransactionDetailsPage(transaction: transaction);
+          final tx = state.extra as Transaction;
+          return TransactionDetailsPage(transaction: tx);
         },
+      ),
+      GoRoute(
+        path: '/parties',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const PeoplePage(),
       ),
       GoRoute(
         path: '/account-details',
@@ -201,8 +201,31 @@ final routerProvider = Provider<GoRouter>((ref) {
           return GoalDetailsPage(goal: goal);
         },
       ),
-
+      GoRoute(
+        path: '/budgets',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const BudgetsPage(),
+      ),
+      GoRoute(
+        path: '/budgets/add',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => AddEditBudgetPage(budget: state.extra as Budget?),
+      ),
+      GoRoute(
+        path: '/spend-analysis',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const SpendAnalysisPage(),
+      ),
+      GoRoute(
+        path: '/budgets/details/:id',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return BudgetDetailsPage(budgetId: id);
+        },
+      ),
 
     ],
   );
 });
+

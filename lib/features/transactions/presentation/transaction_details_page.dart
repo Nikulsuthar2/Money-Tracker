@@ -86,18 +86,23 @@ class TransactionDetailsPage extends ConsumerWidget {
                   builder: (context, snapshot) {
                      final cat = snapshot.data;
                      if (cat != null) {
-                         return buildIconWidget(cat.iconData, Color(cat.color), size: 72);
+                         return buildIconWidget(cat.iconData, Color(cat.color), size: 84);
                      } else {
+                         IconData iconData = t.type == TransactionType.income ? Icons.arrow_downward : 
+                                             t.type == TransactionType.expense ? Icons.arrow_upward : Icons.compare_arrows;
+                         if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
+                            iconData = Icons.call_split;
+                         }
                          return Container(
-                           padding: const EdgeInsets.all(16),
+                           width: 84,
+                           height: 84,
                            decoration: BoxDecoration(
-                             color: color.withValues(alpha: 0.1),
+                             color: color.withValues(alpha: 0.15),
                              shape: BoxShape.circle,
                            ),
                            child: Icon(
-                             t.type == TransactionType.income ? Icons.arrow_downward : 
-                             t.type == TransactionType.expense ? Icons.arrow_upward : Icons.compare_arrows,
-                             size: 48,
+                             iconData,
+                             size: 84 * 0.6,
                              color: color,
                            ),
                          );
@@ -143,7 +148,7 @@ class TransactionDetailsPage extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _DetailRow(icon: Icons.calendar_today, label: 'Date', value: DateFormat.yMMMd().format(t.date)),
+                  _DetailRow(icon: Icons.calendar_today, label: 'Date', value: t.hasTime ? DateFormat.yMMMd().add_jm().format(t.date) : DateFormat.yMMMd().format(t.date)),
                   const Divider(),
                   // Ideally we show account/category names here too by fetching them
                   FutureBuilder(
@@ -155,7 +160,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                        
                        Widget valWidget;
                        // Always show Account Chip logic
-                       if (t.type == TransactionType.transfer) {
+                       if (t.type == TransactionType.transfer && !t.isSettlement) {
                           valWidget = Wrap(
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
@@ -169,8 +174,8 @@ class TransactionDetailsPage extends ConsumerWidget {
                             ],
                           );
                        } else {
-                         // Income/Expense
-                         final account = t.type == TransactionType.income ? to : from;
+                         // Income/Expense or Legacy Settlement
+                         final account = (t.type == TransactionType.income || (t.isSettlement && t.toAccountId != null)) ? to : from;
                          valWidget = _AccountChip(account: account);
                        }
                        
@@ -188,105 +193,111 @@ class TransactionDetailsPage extends ConsumerWidget {
                                label: 'Category',
                                customValue: _Chip(iconWidget: const Icon(Icons.compare_arrows, size: 16), label: 'Self Transfer'),
                             )
-                        else if (t.subTransactions != null && t.subTransactions!.isNotEmpty)
-                           FutureBuilder<List<Category>>(
-                              future: ref.read(categoriesRepositoryProvider).getAllCategories(),
-                              builder: (context, snapshot) {
-                                 final allCats = snapshot.data ?? [];
-                                 // Get unique category IDs from splits
-                                 final splitCatIds = t.subTransactions!
-                                    .map((s) => s.categoryId)
-                                    .whereType<int>()
-                                    .toSet();
-                                 
-                                 // If no categories found in splits
-                                 if (splitCatIds.isEmpty) {
-                                     // Check if it's a Settlement
-                                     if (t.mode == TransactionMode.settlement || t.hasLedgerEntries) {
-                                         return _DetailRow(
-                                            icon: Icons.handshake,
-                                            label: 'Category',
-                                            customValue: _Chip(
+                        else
+                           FutureBuilder<List<Expense>>(
+                             future: ref.read(expensesRepositoryProvider).getAllExpenses(),
+                             builder: (context, expSnapshot) {
+                               final expenses = expSnapshot.data?.where((e) => e.transactionId == t.id).toList() ?? [];
+                               if (expenses.isNotEmpty) {
+                                  return FutureBuilder<List<Category>>(
+                                     future: ref.read(categoriesRepositoryProvider).getAllCategories(),
+                                     builder: (context, catSnapshot) {
+                                        final allCats = catSnapshot.data ?? [];
+                                        final splitCatIds = expenses.map((s) => s.categoryId).whereType<int>().toSet();
+                                        
+                                        if (splitCatIds.isEmpty) {
+                                            if (t.isSettlement) {
+                                                return _DetailRow(
+                                                   icon: Icons.handshake,
+                                                   label: 'Category',
+                                                   customValue: _Chip(
+                                                       iconWidget: const Icon(Icons.handshake, size: 16, color: Colors.blue),
+                                                       label: 'Settlement',
+                                                   )
+                                                );
+                                            }
+                                            return _DetailRow(
+                                              icon: Icons.category,
+                                              label: 'Category',
+                                              customValue: _Chip(
+                                                  iconWidget: const Icon(Icons.help_outline, size: 16, color: Colors.grey),
+                                                  label: 'Uncategorized',
+                                              )
+                                            );
+                                        }
+
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                          child: Row(
+                                               children: [
+                                                 Icon(Icons.category, size: 20, color: theme.colorScheme.secondary),
+                                                 const Gap(16),
+                                                 Expanded(
+                                                   child: Column(
+                                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                                     children: [
+                                                       Text('Categories', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
+                                                       const Gap(8),
+                                                       Wrap(
+                                                         spacing: 8,
+                                                         runSpacing: 8,
+                                                         children: splitCatIds.map((id) {
+                                                           final cat = allCats.where((c) => c.id == id).firstOrNull;
+                                                           if (cat == null) return const SizedBox.shrink();
+                                                           return _Chip(
+                                                               iconWidget: buildIconWidget(cat.iconData, Color(cat.color), size: 20, circle: false), 
+                                                               label: cat.name,
+                                                           );
+                                                         }).toList(),
+                                                       ),
+                                                     ],
+                                                   ),
+                                                 ),
+                                               ],
+                                             ),
+                                        );
+                                     }
+                                  );
+                               }
+
+                               // Single Category
+                               return FutureBuilder<Category?>(
+                                 future: t.categoryId != null 
+                                    ? ref.read(categoriesRepositoryProvider).getCategory(t.categoryId!) 
+                                    : Future.value(null),
+                                 builder: (context, snapshot) {
+                                    final cat = snapshot.data;
+                                    if (cat == null) {
+                                       if (t.isSettlement || t.mode == TransactionMode.settlement || t.hasLedgerEntries) {
+                                          return _DetailRow(
+                                             icon: Icons.handshake,
+                                             label: 'Category',
+                                             customValue: _Chip(
                                                 iconWidget: const Icon(Icons.handshake, size: 16, color: Colors.blue),
                                                 label: 'Settlement',
-                                            )
-                                         );
-                                     }
-                                     return const SizedBox.shrink(); 
-                                 }
-
-                                 return Padding(
-                                   padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                   child: Row(
-                                        children: [
-                                          Icon(Icons.category, size: 20, color: theme.colorScheme.secondary),
-                                          const Gap(16),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text('Categories', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
-                                                const Gap(8),
-                                                Wrap(
-                                                  spacing: 8,
-                                                  runSpacing: 8,
-                                                  children: splitCatIds.map((id) {
-                                                    final cat = allCats.where((c) => c.id == id).firstOrNull;
-                                                    if (cat == null) return const SizedBox.shrink();
-                                                    return _Chip(
-                                                        iconWidget: buildIconWidget(cat.iconData, Color(cat.color), size: 24), 
-                                                        label: cat.name,
-                                                    );
-                                                  }).toList(),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                 );
-                              }
-                           )
-                        else
-                           // Single Category
-                           FutureBuilder<Category?>(
-                             future: t.categoryId != null 
-                                ? ref.read(categoriesRepositoryProvider).getCategory(t.categoryId!) 
-                                : Future.value(null),
-                             builder: (context, snapshot) {
-                                final cat = snapshot.data;
-                                // If Category is null, check if it's a Settlement
-                                if (cat == null) {
-                                   // If no category, check if it's a Settlement or has Ledger Entries (implies settlement/loan)
-                                   if (t.mode == TransactionMode.settlement || t.hasLedgerEntries) {
-                                      return _DetailRow(
-                                         icon: Icons.handshake,
-                                         label: 'Category',
-                                         customValue: _Chip(
-                                            iconWidget: const Icon(Icons.handshake, size: 16, color: Colors.blue),
-                                            label: 'Settlement',
-                                         )
-                                      );
-                                   }
-                                   // Fallback for purely Uncategorized
+                                             )
+                                          );
+                                       }
+                                       return _DetailRow(
+                                          icon: Icons.category,
+                                          label: 'Category',
+                                          customValue: _Chip(
+                                              iconWidget: const Icon(Icons.help_outline, size: 16, color: Colors.grey),
+                                              label: 'Uncategorized',
+                                          )
+                                       );
+                                    }
+                                    
                                    return _DetailRow(
-                                      icon: Icons.category,
-                                      label: 'Category',
+                                      icon: Icons.category, 
+                                      label: 'Category', 
                                       customValue: _Chip(
-                                          iconWidget: const Icon(Icons.help_outline, size: 16, color: Colors.grey),
-                                          label: 'Uncategorized',
+                                         iconWidget: buildIconWidget(cat.iconData, Color(cat.color), size: 20, circle: false), 
+                                         label: cat.name,
                                       )
-                                   );
-                                }
-                                
-                                return _DetailRow(
-                                  icon: Icons.category, 
-                                  label: 'Category', 
-                                  customValue: _Chip(
-                                     iconWidget: buildIconWidget(cat.iconData, Color(cat.color), size: 24), 
-                                     label: cat.name,
-                                  )
-                                );
+                                    );
+                                 }
+                               );
                              }
                            ),
                      ],
@@ -367,56 +378,84 @@ class TransactionDetailsPage extends ConsumerWidget {
                         children: [
                            Text('Split Details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                            const Gap(8),
-                           Card(
-                             elevation: 0,
-                             color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                             child: Padding(
-                               padding: const EdgeInsets.all(16.0),
-                               child: Column(
-                                 children: expenses.map((e) {
-                                    final splits = allSplits.where((s) => s.expenseId == e.id).toList();
-                                    return Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                         if (expenses.length > 1) ...[
-                                            FutureBuilder<Category?>(
-                                               future: e.categoryId != null ? ref.read(categoriesRepositoryProvider).getCategory(e.categoryId!) : Future.value(null),
-                                               builder: (context, catSnap) {
-                                                  final c = catSnap.data;
-                                                  return Row(
-                                                     children: [
-                                                        if (c != null) buildIconWidget(c.iconData, Color(c.color), size: 16),
-                                                        if (c != null) const Gap(8),
-                                                        Text(e.note?.isNotEmpty == true ? e.note! : (c?.name ?? 'Item'), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                                        const Spacer(),
-                                                        Consumer(builder: (ctx, r, _) => Text('${r.read(currencyProvider)}${formatAmount(e.totalAmount)}', style: const TextStyle(fontWeight: FontWeight.bold))),
-                                                     ],
-                                                  );
-                                               }
-                                            ),
-                                            const Gap(8),
-                                         ],
-                                         ...splits.map((s) {
-                                            final personName = s.personId == 0 ? 'Me' : (peopleMap[s.personId] ?? 'Person ${s.personId}');
-                                            return Padding(
-                                              padding: const EdgeInsets.symmetric(vertical: 4),
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Text(personName),
-                                                  Consumer(builder: (ctx, r, _) => Text('${r.read(currencyProvider)}${formatAmount(s.amount)}')),
-                                                ],
-                                              ),
-                                            );
-                                         }),
-                                         if (e != expenses.last) const Divider(height: 16),
-                                      ],
-                                    );
-                                 }).toList(),
-                               ),
-                             ),
-                           ),
+                            Card(
+                              elevation: 0,
+                              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: expenses.length,
+                                separatorBuilder: (c, i) => const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                   final e = expenses[index];
+                                   final splits = allSplits.where((s) => s.expenseId == e.id).toList();
+                                   
+                                   return FutureBuilder<Category?>(
+                                      future: e.categoryId != null ? ref.read(categoriesRepositoryProvider).getCategory(e.categoryId!) : Future.value(null),
+                                      builder: (context, catSnap) {
+                                         final c = catSnap.data;
+                                         final title = e.note?.isNotEmpty == true ? e.note! : (c?.name ?? 'Item');
+                                         final iconWidget = c != null 
+                                            ? buildIconWidget(c.iconData, Color(c.color), size: 36, circle: true)
+                                            : const CircleAvatar(radius: 18, child: Icon(Icons.receipt_long, size: 20));
+                                            
+                                         return Padding(
+                                           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                           child: Row(
+                                             crossAxisAlignment: CrossAxisAlignment.start,
+                                             children: [
+                                               iconWidget,
+                                               const Gap(16),
+                                               Expanded(
+                                                 child: Column(
+                                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                                   children: [
+                                                     Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                                     const Gap(8),
+                                                     Wrap(
+                                                       spacing: 6,
+                                                       runSpacing: 6,
+                                                       children: splits.map((s) {
+                                                         final personName = s.personId == 0 ? 'Me' : (peopleMap[s.personId] ?? 'Person ${s.personId}');
+                                                         // If there's only one split and it matches the total, the chip is redundant unless we want to show who paid it
+                                                         // But chips look nice anyway, so we show it.
+                                                         return Container(
+                                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                                           decoration: BoxDecoration(
+                                                             color: theme.colorScheme.surface,
+                                                             borderRadius: BorderRadius.circular(6),
+                                                             border: Border.all(color: theme.colorScheme.outlineVariant),
+                                                           ),
+                                                           child: Row(
+                                                             mainAxisSize: MainAxisSize.min,
+                                                             children: [
+                                                               Icon(s.personId == 0 ? Icons.person : Icons.person_outline, size: 12, color: theme.colorScheme.primary),
+                                                               const Gap(4),
+                                                               Text(personName, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+                                                               const Gap(4),
+                                                               Consumer(builder: (ctx, r, _) => Text(
+                                                                 '${r.read(currencyProvider)}${formatAmount(s.amount)}', 
+                                                                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)
+                                                               )),
+                                                             ],
+                                                           ),
+                                                         );
+                                                       }).toList(),
+                                                     ),
+                                                   ],
+                                                 ),
+                                               ),
+                                               const Gap(16),
+                                               Consumer(builder: (ctx, r, _) => Text('${r.read(currencyProvider)}${formatAmount(e.totalAmount)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                                             ],
+                                           ),
+                                         );
+                                      }
+                                   );
+                                },
+                              ),
+                            ),
                         ],
                      );
                   }
@@ -544,6 +583,7 @@ class _AccountChip extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           buildIconWidget(account.iconData, Color(account.color), size: 24),
           const Gap(8),
@@ -570,6 +610,7 @@ class _Chip extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           iconWidget,
           const Gap(8),

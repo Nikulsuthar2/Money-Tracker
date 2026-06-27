@@ -14,6 +14,7 @@ import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:collection/collection.dart';
 import 'package:money_manager/features/accounts/presentation/widgets/account_card.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:money_manager/core/widgets/custom_refresh_indicator.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -47,116 +48,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(
-                    Icons.wallet,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                  const Gap(8),
-                  Text(
-                    'Money Tracker',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Dashboard'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.list),
-              title: const Text('All Transactions'),
-              onTap: () {
-                Navigator.pop(context);
-                context.go('/transactions');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/settings');
-              },
-            ),
-          ],
-        ),
-      ),
-      appBar: AppBar(
-        centerTitle: true,
-        title: accountsWithBalance.when(
-          data: (stats) {
-            double totalBalance = 0;
-            for (var s in stats) {
-              totalBalance += s.totalContributionToNetWorth;
-            }
-            return Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => context.push('/accounts'),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Total Balance',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      Consumer(
-                        builder: (c, ref, _) => Text(
-                          '${ref.watch(currencyProvider)}${totalBalance.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-          loading: () => const Text('Loading...'),
-          error: (_, __) => const Text('Dashboard'),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              context.push('/settings');
-            },
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
+      body: CustomRefreshIndicator(
         onRefresh: () async {
           ref.invalidate(accountsWithBalanceProvider);
           ref.invalidate(transactionsStreamProvider);
@@ -250,6 +142,78 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => const SizedBox(),
+            ),
+            const Gap(16),
+            rawTransactionsAsync.when(
+              data: (txs) {
+                final now = DateTime.now();
+                double monthIncome = 0;
+                double monthExpense = 0;
+                for (var t in txs) {
+                  if (t.date.year == now.year && t.date.month == now.month) {
+                    if (t.type == TransactionType.income || t.type == TransactionType.sellInvestment) {
+                       monthIncome += t.amount;
+                    } else if (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment) {
+                       monthExpense += t.amount;
+                    }
+                  }
+                }
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Card(
+                        elevation: 0,
+                        color: Theme.of(context).colorScheme.surfaceContainer,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.arrow_downward, color: Colors.teal, size: 20),
+                                  const Gap(8),
+                                  Text('Income', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                ],
+                              ),
+                              const Gap(8),
+                              Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${monthIncome.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Gap(12),
+                    Expanded(
+                      child: Card(
+                        elevation: 0,
+                        color: Theme.of(context).colorScheme.surfaceContainer,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.arrow_upward, color: Colors.red, size: 20),
+                                  const Gap(8),
+                                  Text('Expense', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                ],
+                              ),
+                              const Gap(8),
+                              Consumer(builder: (c, ref, _) => Text('${ref.watch(currencyProvider)}${monthExpense.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+              loading: () => const SizedBox(),
               error: (_, __) => const SizedBox(),
             ),
             const Gap(24),

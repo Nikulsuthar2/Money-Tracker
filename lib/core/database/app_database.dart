@@ -100,6 +100,15 @@ class Settlements extends Table {
   DateTimeColumn get createdAt => dateTime()();
 }
 
+
+@DataClassName('BudgetAllocationData')
+class BudgetAllocations extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get periodType => text()(); // weekly, monthly, yearly
+  TextColumn get periodKey => text()(); // e.g. "2026-06" for Monthly, "2026-W24" for Weekly
+  RealColumn get amount => real()();
+}
+
 @DataClassName('GoalData')
 class Goals extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -132,6 +141,16 @@ class GoalContributions extends Table {
   TextColumn get note => text().nullable()();
 }
 
+@DataClassName('BudgetData')
+class Budgets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get categoryId => integer()(); // Linked to category
+  RealColumn get amount => real()(); // Budget limit
+  TextColumn get period => text().withDefault(const Constant('monthly'))(); // 'weekly', 'monthly', 'yearly'
+  DateTimeColumn get startDate => dateTime().nullable()(); // Optional custom start date
+  DateTimeColumn get createdAt => dateTime()();
+}
+
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
@@ -151,12 +170,14 @@ LazyDatabase _openConnection() {
   Goals,
   GoalContributions,
   InvestmentHoldings,
+  Budgets,
+  BudgetAllocations,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration {
@@ -193,6 +214,12 @@ class AppDatabase extends _$AppDatabase {
         if (from < 9) {
           await m.addColumn(transactions, transactions.title);
         }
+        if (from < 10) {
+          await m.createTable(budgets);
+        }
+        if (from < 11) {
+          await m.createTable(budgetAllocations);
+        }
       },
     );
   }
@@ -209,6 +236,7 @@ class AppDatabase extends _$AppDatabase {
       await delete(goals).go();
       await delete(goalContributions).go();
       await delete(investmentHoldings).go();
+      await delete(budgets).go();
     });
   }
 

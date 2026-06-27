@@ -51,10 +51,6 @@ class GoalDetailsPage extends ConsumerWidget {
         title: const Text('Goal Details'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => context.push('/add-goal', extra: liveGoal),
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Recalculate Amounts',
             onPressed: () async {
@@ -77,6 +73,58 @@ class GoalDetailsPage extends ConsumerWidget {
                 }
               }
             },
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'edit') {
+                context.push('/add-goal', extra: liveGoal);
+              } else if (value == 'delete') {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete Goal'),
+                    content: const Text('Are you sure you want to delete this goal? This action cannot be undone.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true && context.mounted) {
+                  await ref.read(goalsRepositoryProvider).deleteGoal(liveGoal.id);
+                  if (context.mounted) {
+                    context.pop();
+                  }
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    Gap(12),
+                    Text('Edit Goal'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, color: Colors.red, size: 20),
+                    Gap(12),
+                    Text('Delete Goal', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
           ),
           SizedBox(width: 10),
         ],

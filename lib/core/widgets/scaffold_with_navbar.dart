@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
+import 'package:money_manager/core/widgets/global_app_bar.dart';
+import 'package:money_manager/core/widgets/main_drawer.dart';
 
 class ScaffoldWithNavbar extends StatefulWidget {
   const ScaffoldWithNavbar({required this.navigationShell, super.key});
@@ -23,6 +25,7 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
 
         if (useRail) {
           return Scaffold(
+            appBar: const GlobalAppBar(),
             body: Row(
               children: [
                 NavigationRail(
@@ -65,11 +68,6 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                       label: Text('History'),
                     ),
                     NavigationRailDestination(
-                      icon: Icon(Icons.people),
-                      selectedIcon: Icon(Icons.people),
-                      label: Text('Parties'),
-                    ),
-                    NavigationRailDestination(
                       icon: Icon(Icons.analytics),
                       selectedIcon: Icon(Icons.analytics),
                       label: Text('Analysis'),
@@ -89,13 +87,15 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
         }
 
         return Scaffold(
+          appBar: const GlobalAppBar(),
+          drawer: const MainDrawer(),
           body: widget.navigationShell,
           bottomNavigationBar: Container(
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(
                   color: Theme.of(context).colorScheme.outlineVariant,
-                  width: 1,
+                  width: 0.5,
                 ),
               ),
             ),
@@ -129,9 +129,9 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                   label: 'Add',
                 ),
                 const NavigationDestination(
-                  icon: Icon(Icons.analytics_outlined),
-                  selectedIcon: Icon(Icons.analytics),
-                  label: 'Analytics',
+                  icon: Icon(Icons.pie_chart_outline),
+                  selectedIcon: Icon(Icons.pie_chart),
+                  label: 'Insights',
                 ),
                 const NavigationDestination(
                   icon: Icon(Icons.apps),
@@ -146,29 +146,28 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
     );
   }
 
-  int _getUIIndex(int shellIndex) {
-    if (shellIndex == 0) return 0; // Home
-    if (shellIndex == 1) return 1; // History
-    if (shellIndex == 3) return 3; // Analytics
-    if (shellIndex == 4) return 4; // More
-    return 0;
+
+
+  int _getUIIndex(int branchIndex) {
+    if (branchIndex >= 2) {
+      return branchIndex + 1;
+    }
+    return branchIndex;
   }
 
-  void _onTap(int uiIndex) {
-    if (uiIndex == 2) {
+  void _onTap(int index) {
+    int branchIndex = index;
+    if (index == 2) {
       _showAddBottomSheet(context);
       return;
     }
-
-    int shellIndex = 0;
-    if (uiIndex == 0) shellIndex = 0;
-    if (uiIndex == 1) shellIndex = 1;
-    if (uiIndex == 3) shellIndex = 3;
-    if (uiIndex == 4) shellIndex = 4;
+    if (index > 2) {
+      branchIndex = index - 1;
+    }
 
     widget.navigationShell.goBranch(
-      shellIndex,
-      initialLocation: shellIndex == widget.navigationShell.currentIndex,
+      branchIndex,
+      initialLocation: branchIndex == widget.navigationShell.currentIndex,
     );
   }
 
@@ -198,7 +197,7 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                 ),
                 const Gap(24),
                 GridView.count(
-                  crossAxisCount: 4,
+                  crossAxisCount: 3,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   mainAxisSpacing: 20,

@@ -28,10 +28,13 @@ final timelineProvider = StreamProvider<List<TimelineEntry>>((ref) {
            linkedSplits[e.id] = allSplits.where((s) => s.expenseId == e.id).toList();
         }
         
+        final settlement = settlements.where((s) => s.transactionId == tx.id).firstOrNull;
+        
         entries.add(TransactionTimelineEntry(
           transaction: tx,
           expenses: linkedExpenses,
           splits: linkedSplits,
+          settlement: settlement,
         ));
       }
 
@@ -62,12 +65,14 @@ final timelineProvider = StreamProvider<List<TimelineEntry>>((ref) {
       }
 
       // 3. Process Settlements
-      for (final settlement in settlements) {
-        entries.add(SettlementTimelineEntry(settlement: settlement));
-      }
+      // Removed because settlements are already handled as TransactionTimelineEntry since they are saved as transactions with isSettlement = true.
 
-      // Sort all entries by date descending
-      entries.sort((a, b) => b.date.compareTo(a.date));
+      // Sort all entries by date descending (ignoring time)
+      entries.sort((a, b) {
+         final aDay = DateTime(a.date.year, a.date.month, a.date.day);
+         final bDay = DateTime(b.date.year, b.date.month, b.date.day);
+         return bDay.compareTo(aDay);
+      });
 
       return entries;
     },

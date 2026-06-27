@@ -8,12 +8,18 @@ class MorePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('More'),
-        centerTitle: false,
-      ),
       body: ListView(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('More', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text('Features', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -24,6 +30,13 @@ class MorePage extends StatelessWidget {
             subtitle: const Text('Track saving goals and debts'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/goals'),
+          ),
+          ListTile(
+            leading: const CircleAvatar(backgroundColor: Colors.teal, child: Icon(Icons.account_balance_wallet, color: Colors.white)),
+            title: const Text('Budgets'),
+            subtitle: const Text('Set spending limits for categories'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/budgets'),
           ),
           ListTile(
             leading: const CircleAvatar(backgroundColor: Colors.green, child: Icon(Icons.people, color: Colors.white)),

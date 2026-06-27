@@ -5,6 +5,7 @@ import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/accounts/presentation/widgets/account_card.dart';
 import 'package:gap/gap.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:money_manager/core/widgets/custom_refresh_indicator.dart';
 import 'package:go_router/go_router.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
@@ -50,9 +51,21 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       ),
       body: accountsAsync.when(
         data: (accounts) {
+          AccountType? targetType;
+          switch (_selectedType) {
+             case 'Cash': targetType = AccountType.cash; break;
+             case 'Bank Account': targetType = AccountType.bank; break;
+             case 'Credit Card': targetType = AccountType.creditCard; break;
+             case 'PF Account': targetType = AccountType.pf; break;
+             case 'Investment': targetType = AccountType.investment; break;
+             case 'Loan': targetType = AccountType.loan; break;
+             case 'E-Wallet': targetType = AccountType.eWallet; break;
+             case 'Other': targetType = AccountType.other; break;
+          }
+
           final filteredAccounts = _selectedType == 'All'
               ? accounts
-              : accounts.where((a) => a.account.type == _selectedType).toList();
+              : accounts.where((a) => a.account.type == targetType).toList();
 
           return Column(
             children: [
@@ -88,21 +101,37 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                   context,
                 ).colorScheme.outlineVariant.withOpacity(0.5),
               ),
-              // const Gap(8),
               Expanded(
                 child: filteredAccounts.isEmpty
-                    ? const Center(child: Text('No accounts found.'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(
-                          top: 10,
-                          left: 16,
-                          right: 16,
-                          bottom: 80,
-                        ),
-                        itemCount: filteredAccounts.length,
-                        itemBuilder: (context, index) {
-                          return AccountCard(item: filteredAccounts[index]);
+                    ? CustomRefreshIndicator(
+                        onRefresh: () async {
+                           ref.invalidate(accountsWithBalanceProvider);
+                           await Future.delayed(const Duration(milliseconds: 300));
                         },
+                        child: ListView(
+                           children: const [
+                              SizedBox(height: 100),
+                              Center(child: Text('No accounts found.')),
+                           ]
+                        )
+                      )
+                    : CustomRefreshIndicator(
+                        onRefresh: () async {
+                           ref.invalidate(accountsWithBalanceProvider);
+                           await Future.delayed(const Duration(milliseconds: 300));
+                        },
+                        child: ListView.builder(
+                          padding: const EdgeInsets.only(
+                            top: 10,
+                            left: 16,
+                            right: 16,
+                            bottom: 80,
+                          ),
+                          itemCount: filteredAccounts.length,
+                          itemBuilder: (context, index) {
+                            return AccountCard(item: filteredAccounts[index]);
+                          },
+                        ),
                       ),
               ),
             ],

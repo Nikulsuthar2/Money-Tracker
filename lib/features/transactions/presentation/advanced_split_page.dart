@@ -27,12 +27,14 @@ class AdvancedSplitPage extends ConsumerStatefulWidget {
   final List<AdvancedExpenseItem> initialItems;
   final List<Person> people;
   final List<Category> categories;
+  final bool isIncome;
 
   const AdvancedSplitPage({
     super.key,
     required this.initialItems,
     required this.people,
     required this.categories,
+    this.isIncome = false,
   });
 
   @override
@@ -41,6 +43,7 @@ class AdvancedSplitPage extends ConsumerStatefulWidget {
 
 class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
   late List<AdvancedExpenseItem> _items;
+  bool _isMultiplePersons = false;
 
   @override
   void initState() {
@@ -48,6 +51,11 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
     _items = widget.initialItems.isNotEmpty 
         ? widget.initialItems 
         : [AdvancedExpenseItem()];
+        
+    // Auto-detect if multi-person is needed
+    if (!widget.isIncome && _items.any((i) => i.paidByPersonId != 0 || i.splits.length > 1 || i.splits.any((s) => s.personId != 0))) {
+      _isMultiplePersons = true;
+    }
   }
 
   void _addItem() {
@@ -60,6 +68,18 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
     setState(() {
       _items.removeAt(index);
     });
+  }
+
+  void _autoDistributeSplits(AdvancedExpenseItem item) {
+    if (item.splits.isEmpty || item.amount <= 0) return;
+    final amountPerSplit = (item.amount / item.splits.length).toStringAsFixed(2);
+    double sum = 0;
+    for (int i = 0; i < item.splits.length - 1; i++) {
+      item.splits[i].amountController.text = amountPerSplit;
+      sum += double.parse(amountPerSplit);
+    }
+    final lastAmount = (item.amount - sum).toStringAsFixed(2);
+    item.splits.last.amountController.text = lastAmount;
   }
 
   void _submit() {
@@ -313,9 +333,40 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _items.length + 1,
+        itemCount: _items.length + 2,
         itemBuilder: (context, index) {
-          if (index == _items.length) {
+          if (index == 0) {
+             if (widget.isIncome) return const SizedBox.shrink();
+             return Padding(
+               padding: const EdgeInsets.only(bottom: 24),
+               child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Categorize Only', style: TextStyle(fontSize: 13)), icon: Icon(Icons.category)),
+                    ButtonSegment(value: true, label: Text('Split with Friends', style: TextStyle(fontSize: 13)), icon: Icon(Icons.group)),
+                  ],
+                  selected: {_isMultiplePersons},
+                  onSelectionChanged: (set) {
+                     setState(() {
+                        _isMultiplePersons = set.first;
+                        if (!_isMultiplePersons) {
+                           // Reset all to Me
+                           for (var item in _items) {
+                              item.paidByPersonId = 0;
+                              item.splits = [ExpenseSplitInput()..personId = 0..amountController.text = item.amount.toString()];
+                           }
+                        } else {
+                           for (var item in _items) {
+                              _autoDistributeSplits(item);
+                           }
+                        }
+                     });
+                  },
+               ),
+             );
+          }
+          final itemIndex = index - 1;
+          
+          if (itemIndex == _items.length) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: FilledButton.icon(
@@ -330,7 +381,7 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
             );
           }
 
-          final item = _items[index];
+          final item = _items[itemIndex];
           final category = item.categoryId != null ? widget.categories.where((c) => c.id == item.categoryId).firstOrNull : null;
           final whoPaid = item.paidByPersonId == 0 ? null : widget.people.where((p) => p.id == item.paidByPersonId).firstOrNull;
 
@@ -356,10 +407,10 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
                           color: theme.colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text('Item ${index + 1}', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onPrimaryContainer)),
+                        child: Text('Item ${itemIndex + 1}', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onPrimaryContainer)),
                       ),
                       if (_items.length > 1)
-                        IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _removeItem(index)),
+                        IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _removeItem(itemIndex)),
                     ],
                   ),
                   const Gap(16),
@@ -373,7 +424,10 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
                        fillColor: theme.colorScheme.surface,
                     ),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (v) => item.amount = double.tryParse(v) ?? 0.0,
+                    onChanged: (v) {
+                       item.amount = double.tryParse(v) ?? 0.0;
+                       _autoDistributeSplits(item);
+                    },
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                   const Gap(12),
@@ -398,33 +452,36 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
                           leading: category != null 
                              ? _buildIcon(category.iconData, Color(category.color), size: 36)
                              : Container(width: 36, height: 36, decoration: BoxDecoration(shape: BoxShape.circle, color: theme.colorScheme.surfaceContainerHighest), child: const Icon(Icons.do_not_disturb_alt, size: 18)),
-                          onTap: () => _showCategoryPicker(index),
+                          onTap: () => _showCategoryPicker(itemIndex),
                         ),
                       ),
-                      const Gap(12),
-                      Expanded(
-                        child: _buildSelector(
-                          label: 'Paid By',
-                          title: whoPaid?.name ?? 'Me',
-                          leading: CircleAvatar(
-                             radius: 18,
-                             backgroundColor: whoPaid != null ? theme.colorScheme.surfaceContainerHighest : theme.colorScheme.primaryContainer,
-                             child: whoPaid != null 
-                               ? Text(whoPaid.name[0].toUpperCase())
-                               : const Icon(Icons.account_balance_wallet, size: 18),
+                      if (_isMultiplePersons) ...[
+                        const Gap(12),
+                        Expanded(
+                          child: _buildSelector(
+                            label: 'Paid By',
+                            title: whoPaid?.name ?? 'Me',
+                            leading: CircleAvatar(
+                               radius: 18,
+                               backgroundColor: whoPaid != null ? theme.colorScheme.surfaceContainerHighest : theme.colorScheme.primaryContainer,
+                               child: whoPaid != null 
+                                 ? Text(whoPaid.name[0].toUpperCase())
+                                 : const Icon(Icons.account_balance_wallet, size: 18),
+                            ),
+                            onTap: () => _showPersonPicker(itemIndex, true, null),
                           ),
-                          onTap: () => _showPersonPicker(index, true, null),
                         ),
-                      ),
+                      ],
                     ],
                   ),
-                  const Gap(24),
-                  const Divider(),
-                  const Gap(8),
-                  const Text('Split Between', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const Gap(12),
-                  ...item.splits.asMap().entries.map((entry) {
-                    final splitIndex = entry.key;
+                  if (_isMultiplePersons) ...[
+                    const Gap(24),
+                    const Divider(),
+                    const Gap(8),
+                    const Text('Split Between', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Gap(12),
+                    ...item.splits.asMap().entries.map((entry) {
+                      final splitIndex = entry.key;
                     final split = entry.value;
                     final splitPerson = split.personId == 0 ? null : widget.people.where((p) => p.id == split.personId).firstOrNull;
                     
@@ -444,7 +501,7 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
                                    ? Text(splitPerson.name[0].toUpperCase(), style: const TextStyle(fontSize: 14))
                                    : const Icon(Icons.account_balance_wallet, size: 16),
                               ),
-                              onTap: () => _showPersonPicker(index, false, splitIndex),
+                              onTap: () => _showPersonPicker(itemIndex, false, splitIndex),
                             ),
                           ),
                           const Gap(8),
@@ -469,6 +526,7 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
                               onPressed: () {
                                 setState(() {
                                   item.splits.removeAt(splitIndex);
+                                  _autoDistributeSplits(item);
                                 });
                               },
                             ),
@@ -484,10 +542,12 @@ class _AdvancedSplitPageState extends ConsumerState<AdvancedSplitPage> {
                       onPressed: () {
                         setState(() {
                           item.splits.add(ExpenseSplitInput());
+                          _autoDistributeSplits(item);
                         });
                       },
                     ),
                   ),
+                  ],
                 ],
               ),
             ),

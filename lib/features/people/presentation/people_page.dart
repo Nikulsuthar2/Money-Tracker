@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:money_manager/features/people/domain/person.dart';
 import 'package:money_manager/features/people/data/people_repository.dart';
 import 'package:go_router/go_router.dart';
+import 'package:money_manager/core/widgets/custom_refresh_indicator.dart';
 
 class PeoplePage extends ConsumerWidget {
   const PeoplePage({super.key});
@@ -18,11 +19,12 @@ class PeoplePage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('People & Debts'),
+        centerTitle: true,
         actions: [
-           IconButton(
-             icon: const Icon(Icons.refresh),
-             onPressed: () => ref.invalidate(peopleBalancesProvider),
-           )
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.invalidate(peopleBalancesProvider),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -30,8 +32,13 @@ class PeoplePage extends ConsumerWidget {
         onPressed: () => _showAddPersonDialog(context, ref),
         child: const Icon(Icons.person_add),
       ),
-      body: balancesAsync.when(
-        data: (people) {
+      body: CustomRefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(peopleBalancesProvider);
+          await Future.delayed(const Duration(milliseconds: 300));
+        },
+        child: balancesAsync.when(
+          data: (people) {
           if (people.isEmpty) {
             return const Center(
               child: Text('No people added yet.\nSplit a transaction or add a settlement to see balances.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
@@ -48,6 +55,7 @@ class PeoplePage extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              const Gap(16),
               // Summary Cards
               Row(
                 children: [
@@ -97,7 +105,7 @@ class PeoplePage extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Error: $e')),
-      ),
+      )),
     );
   }
 
@@ -152,6 +160,7 @@ class _PersonTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
       child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onTap: () => context.push('/person-details/${personBalance.person.id}', extra: personBalance.person),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(

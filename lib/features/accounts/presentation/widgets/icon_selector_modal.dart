@@ -13,6 +13,7 @@ class IconSelectorModal extends StatefulWidget {
 class _IconSelectorModalState extends State<IconSelectorModal>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final TextEditingController _customEmojiController = TextEditingController();
 
   final List<IconData> _symbols = [
     Icons.account_balance_wallet,
@@ -272,6 +273,7 @@ class _IconSelectorModalState extends State<IconSelectorModal>
   @override
   void dispose() {
     _tabController.dispose();
+    _customEmojiController.dispose();
     super.dispose();
   }
 
@@ -353,35 +355,69 @@ class _IconSelectorModalState extends State<IconSelectorModal>
                   },
                 ),
                 // Emoji Tab
-                GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 6,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: _emojis.length,
-                  itemBuilder: (context, index) {
-                    final emj = _emojis[index];
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        widget.onIconSelected('emoji:$emj');
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest
-                              .withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(12),
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: TextField(
+                        controller: _customEmojiController,
+                        decoration: InputDecoration(
+                          hintText: 'Enter custom emoji (e.g. 🐶)',
+                          prefixIcon: const Icon(Icons.emoji_emotions),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.check),
+                            onPressed: () {
+                               final val = _customEmojiController.text.trim();
+                               if (val.isNotEmpty) {
+                                  widget.onIconSelected('emoji:$val');
+                                  Navigator.pop(context);
+                               }
+                            }
+                          )
                         ),
-                        alignment: Alignment.center,
-                        child: Text(emj, style: const TextStyle(fontSize: 28)),
+                        maxLength: 1,
+                        onSubmitted: (val) {
+                          if (val.trim().isNotEmpty) {
+                             widget.onIconSelected('emoji:${val.trim()}');
+                             Navigator.pop(context);
+                          }
+                        },
                       ),
-                    );
-                  },
+                    ),
+                    Expanded(
+                      child: GridView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 6,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                        itemCount: _emojis.length,
+                        itemBuilder: (context, index) {
+                          final emj = _emojis[index];
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              widget.onIconSelected('emoji:$emj');
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(emj, style: const TextStyle(fontSize: 28)),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 // Assets Tab
                 GridView.builder(

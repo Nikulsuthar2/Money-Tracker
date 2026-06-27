@@ -273,19 +273,19 @@ class _AccountChartState extends State<AccountChart> {
            mainAxisAlignment: MainAxisAlignment.spaceBetween,
            children: [
               const Text('Analysis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              DropdownButton<String>(
-                   value: _chartType,
-                   underline: const SizedBox(),
-                   isDense: true,
-                   items: ['Bar', 'Line', 'Pie'].map((s) => DropdownMenuItem(value: s, child: Row(
-                     mainAxisSize: MainAxisSize.min,
-                     children: [
-                       Icon(s == 'Bar' ? Icons.bar_chart : (s == 'Line' ? Icons.show_chart : Icons.pie_chart), size: 18, color: Theme.of(context).colorScheme.primary),
-                       const Gap(8),
-                       Text(s, style: const TextStyle(fontSize: 12)),
-                     ],
-                   ))).toList(),
-                   onChanged: (v) => setState(() => _chartType = v!),
+              SegmentedButton<String>(
+                   segments: const [
+                     ButtonSegment(value: 'Bar', icon: Icon(Icons.bar_chart, size: 16)),
+                     ButtonSegment(value: 'Line', icon: Icon(Icons.show_chart, size: 16)),
+                     ButtonSegment(value: 'Pie', icon: Icon(Icons.pie_chart, size: 16)),
+                   ],
+                   selected: {_chartType},
+                   onSelectionChanged: (v) => setState(() => _chartType = v.first),
+                   showSelectedIcon: false,
+                   style: const ButtonStyle(
+                     visualDensity: VisualDensity.compact,
+                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                   ),
                ),
            ],
         ),

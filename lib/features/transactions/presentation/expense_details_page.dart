@@ -118,7 +118,7 @@ class ExpenseDetailsPage extends ConsumerWidget {
             ),
             const Gap(8),
             Text(
-              DateFormat('MMMM d, yyyy - h:mm a').format(date),
+              !(date.hour == 0 && date.minute == 0 && date.second == 0) ? DateFormat('MMMM d, yyyy - h:mm a').format(date) : DateFormat('MMMM d, yyyy').format(date),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -178,7 +178,8 @@ class ExpenseDetailsPage extends ConsumerWidget {
                                child: Row(
                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                  children: [
-                                   Text(sName),
+                                   Expanded(child: Text(sName, overflow: TextOverflow.ellipsis)),
+                                   const Gap(16),
                                    Text('$currency${formatAmount(s.amount)}'),
                                  ],
                                ),

@@ -19,7 +19,7 @@ class ContributeSheet extends ConsumerStatefulWidget {
 
 class _ContributeSheetState extends ConsumerState<ContributeSheet> {
   final _amountController = TextEditingController();
-  Account? _selectedAccount;
+  int? _selectedAccountId;
   int _tabIndex = 0; // 0 = Contribute, 1 = Withdraw
 
   @override
@@ -39,7 +39,7 @@ class _ContributeSheetState extends ConsumerState<ContributeSheet> {
 
   void _save() async {
     final amount = double.tryParse(_amountController.text);
-    if (amount == null || amount <= 0 || _selectedAccount == null) {
+    if (amount == null || amount <= 0 || _selectedAccountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid amount and select an account')));
       return;
     }
@@ -48,7 +48,7 @@ class _ContributeSheetState extends ConsumerState<ContributeSheet> {
 
     final contribution = GoalContribution()
       ..goalId = widget.goal.id
-      ..accountId = _selectedAccount!.id
+      ..accountId = _selectedAccountId!
       ..amount = isWithdrawal ? -amount : amount
       ..date = DateTime.now();
 
@@ -68,10 +68,10 @@ class _ContributeSheetState extends ConsumerState<ContributeSheet> {
     final cashAccounts = accountsList.where((s) => s.account.isCash).toList();
 
     // Set preselected account if not already set
-    if (_selectedAccount == null && widget.preselectedAccountId != null) {
+    if (_selectedAccountId == null && widget.preselectedAccountId != null) {
       final match = cashAccounts.where((s) => s.account.id == widget.preselectedAccountId).firstOrNull;
       if (match != null) {
-        _selectedAccount = match.account;
+        _selectedAccountId = match.account.id;
       }
     }
 
@@ -125,8 +125,8 @@ class _ContributeSheetState extends ConsumerState<ContributeSheet> {
             ),
             const Gap(16),
 
-            DropdownButtonFormField<Account>(
-              value: _selectedAccount,
+            DropdownButtonFormField<int>(
+              value: _selectedAccountId,
               decoration: InputDecoration(
                 labelText: _tabIndex == 0 ? 'From Account' : 'Return to Account',
                 filled: true,
@@ -134,13 +134,13 @@ class _ContributeSheetState extends ConsumerState<ContributeSheet> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
               ),
               items: cashAccounts.map((stats) {
-                return DropdownMenuItem<Account>(
-                  value: stats.account,
+                return DropdownMenuItem<int>(
+                  value: stats.account.id,
                   child: Text('${stats.account.name} (Spendable: ${ref.watch(currencyProvider)}${stats.spendableBalance.toStringAsFixed(0)})'),
                 );
               }).toList(),
               onChanged: (val) {
-                setState(() => _selectedAccount = val);
+                setState(() => _selectedAccountId = val);
               },
             ),
             const Gap(32),

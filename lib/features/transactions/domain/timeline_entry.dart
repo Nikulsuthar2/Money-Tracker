@@ -10,11 +10,13 @@ class TransactionTimelineEntry extends TimelineEntry {
   final Transaction transaction;
   final List<Expense> expenses;
   final Map<int, List<ExpenseSplit>> splits;
+  final Settlement? settlement;
   
   TransactionTimelineEntry({
     required this.transaction,
     required this.expenses,
     required this.splits,
+    this.settlement,
   }) : super(transaction.date);
 }
 

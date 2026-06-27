@@ -29,7 +29,9 @@ extension TransactionDataMapper on TransactionData {
       ..categoryId = categoryId
       ..title = title
       ..note = note
+      ..date = date
       ..isSettlement = isSettlement
+      ..hasTime = (date.toLocal().hour != 0 || date.toLocal().minute != 0 || date.toLocal().second != 0)
       ..principalAmount = principalAmount
       ..createdAt = createdAt
       ..updatedAt = updatedAt;
@@ -42,13 +44,13 @@ class TransactionsRepository {
   TransactionsRepository(this._db);
 
   Stream<List<Transaction>> watchRecentTransactions() {
-    return (_db.select(_db.transactions)..orderBy([(t) => drift.OrderingTerm.desc(t.date)])..limit(20))
+    return (_db.select(_db.transactions)..orderBy([(t) => drift.OrderingTerm.desc(t.date), (t) => drift.OrderingTerm.desc(t.id)])..limit(20))
         .watch()
         .map((list) => list.map((e) => e.toDomain()).toList());
   }
 
   Stream<List<Transaction>> watchAllTransactions() {
-    return (_db.select(_db.transactions)..orderBy([(t) => drift.OrderingTerm.desc(t.date)]))
+    return (_db.select(_db.transactions)..orderBy([(t) => drift.OrderingTerm.desc(t.date), (t) => drift.OrderingTerm.desc(t.id)]))
         .watch()
         .map((list) => list.map((e) => e.toDomain()).toList());
   }

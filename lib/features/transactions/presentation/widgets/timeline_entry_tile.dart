@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
@@ -36,20 +37,25 @@ class TimelineEntryTile extends ConsumerWidget {
       final category = t.categoryId != null ? categoryMap[t.categoryId] : null;
 
       // Group multiple expenses
-      if (tEntry.expenses.length > 1) {
-         // It's a grouped transaction
-         final title = t.title?.isNotEmpty == true ? t.title! : '${category?.name ?? 'Multiple Items'} + ${tEntry.expenses.length - 1} more';
-         return _buildCard(
-           context,
-           ref,
-           icon: Icons.receipt_long,
-           color: Colors.purple,
-           title: title,
-           subtitle: accountName,
-           amount: t.amount,
-           isIncome: false,
-           onTap: () => onTapTransaction(t),
-         );
+      bool isSplit = false;
+      bool hasMultipleCategories = false;
+      if (tEntry.expenses.isNotEmpty) {
+         isSplit = tEntry.expenses.length > 1;
+         if (!isSplit) {
+            final eSplits = tEntry.splits[tEntry.expenses.first.id];
+            isSplit = eSplits != null && eSplits.any((s) => s.personId != 0);
+         } else {
+            // Check if there are multiple unique categories
+            final catIds = tEntry.expenses.map((e) => e.categoryId).where((id) => id != null).toSet();
+            hasMultipleCategories = catIds.length > 1;
+         }
+      }
+      if (!isSplit && t.subTransactions != null && t.subTransactions!.isNotEmpty) {
+         isSplit = t.subTransactions!.length > 1 || t.subTransactions!.any((s) => s.partyId != null);
+         if (t.subTransactions!.length > 1) {
+             final catIds = t.subTransactions!.map((s) => s.categoryId).where((id) => id != null).toSet();
+             hasMultipleCategories = catIds.length > 1;
+         }
       }
 
       return TransactionTile(
@@ -57,6 +63,8 @@ class TimelineEntryTile extends ConsumerWidget {
         accountName: accountName,
         category: category,
         compact: compact,
+        isSplit: isSplit,
+        hasMultipleCategories: hasMultipleCategories,
         onTap: () => onTapTransaction(t),
       );
     } 
@@ -79,6 +87,7 @@ class TimelineEntryTile extends ConsumerWidget {
          color: Colors.orange,
          title: title,
          subtitle: 'Paid by Friend',
+         date: firstExp.date,
          amount: totalAmount,
          isIncome: false,
          onTap: () {
@@ -87,40 +96,7 @@ class TimelineEntryTile extends ConsumerWidget {
       );
     }
     
-    if (entry is SettlementTimelineEntry) {
-      final sEntry = entry as SettlementTimelineEntry;
-      return _buildCard(
-         context,
-         ref,
-         icon: Icons.handshake,
-         color: Colors.blue,
-         title: 'Settlement',
-         subtitle: 'Debt cleared',
-         amount: sEntry.settlement.amount,
-         isIncome: true, // or neutral
-         onTap: () {
-            final peopleMap = ref.read(peopleStreamProvider).value?.fold<Map<int, String>>({}, (map, p) {
-               map[p.id] = p.name;
-               return map;
-            }) ?? {};
-            
-            final fromName = sEntry.settlement.fromPersonId == 0 ? 'Me' : (peopleMap[sEntry.settlement.fromPersonId] ?? 'Person ${sEntry.settlement.fromPersonId}');
-            final toName = sEntry.settlement.toPersonId == 0 ? 'Me' : (peopleMap[sEntry.settlement.toPersonId] ?? 'Person ${sEntry.settlement.toPersonId}');
-
-            showDialog(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('Settlement Details'),
-                content: Text('$fromName paid $toName\n${ref.read(currencyProvider)}${formatAmount(sEntry.settlement.amount)}'),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))
-                ],
-              ),
-            );
-         },
-      );
-    }
-
+    // Settlement entries are now rendered by TransactionTile since they use TransactionTimelineEntry
     return const SizedBox.shrink();
   }
 
@@ -129,6 +105,7 @@ class TimelineEntryTile extends ConsumerWidget {
     required Color color,
     required String title,
     required String subtitle,
+    required DateTime date,
     required double amount,
     required bool isIncome,
     required VoidCallback onTap,
@@ -162,15 +139,38 @@ class TimelineEntryTile extends ConsumerWidget {
                     Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: compact ? 15 : 17), maxLines: 1, overflow: TextOverflow.ellipsis),
                     if (!compact) ...[
                       const Gap(4),
-                      Text(subtitle, style: TextStyle(color: theme.colorScheme.outline, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Row(
+                        children: [
+                          Text(
+                            DateFormat('MMM d, y').format(date),
+                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
                     ],
                   ],
                 ),
               ),
               const Gap(8),
-              Text(
-                '${isIncome ? '+' : '-'}$currency${formatAmount(amount)}',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: compact ? 15 : 17, color: color),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${isIncome ? '+' : '-'}$currency${formatAmount(amount)}',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: compact ? 15 : 18, color: color),
+                  ),
+                  if (!compact) ...[
+                    const Gap(6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(subtitle, style: TextStyle(fontSize: 10, color: theme.colorScheme.primary, fontWeight: FontWeight.w500)),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),

@@ -134,7 +134,7 @@ class AccountCard extends ConsumerWidget {
                 ],
               ),
 
-              if (account.isCash && account.reservedBalance > 0) ...[
+              if (account.isCash && (account.reservedBalance > 0 || item.balance > item.spendableBalance)) ...[
                  const Gap(12),
                  Container(
                    padding: const EdgeInsets.all(12),
@@ -148,9 +148,9 @@ class AccountCard extends ConsumerWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Reserved Amount', style: TextStyle(fontSize: 11)),
+                            const Text('Reserved / Goals', style: TextStyle(fontSize: 11)),
                             const Gap(4),
-                            Text('${ref.watch(currencyProvider)}${account.reservedBalance.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text('${ref.watch(currencyProvider)}${(item.balance - item.spendableBalance).toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           ],
                         ),
                         Container(color: theme.colorScheme.outlineVariant, width: 1, height: 30),

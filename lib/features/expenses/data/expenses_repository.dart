@@ -8,6 +8,14 @@ final expensesRepositoryProvider = Provider<ExpensesRepository>((ref) {
   return ExpensesRepository(ref.watch(databaseProvider));
 });
 
+final expensesStreamProvider = StreamProvider<List<Expense>>((ref) {
+  return ref.watch(expensesRepositoryProvider).watchAllExpenses();
+});
+
+final expenseSplitsStreamProvider = StreamProvider<List<ExpenseSplit>>((ref) {
+  return ref.watch(expensesRepositoryProvider).watchAllExpenseSplits();
+});
+
 extension ExpenseDataMapper on ExpenseData {
   Expense toDomain() {
     return Expense()
@@ -115,6 +123,16 @@ class ExpensesRepository {
     return list.map((e) => e.toDomain()).toList();
   }
 
+  Future<List<Expense>> getExpensesForTransaction(int transactionId) async {
+    final list = await (_db.select(_db.expenses)..where((e) => e.transactionId.equals(transactionId))).get();
+    return list.map((e) => e.toDomain()).toList();
+  }
+
+  Future<List<ExpenseSplit>> getSplitsForExpense(int expenseId) async {
+    final list = await (_db.select(_db.expenseSplits)..where((s) => s.expenseId.equals(expenseId))).get();
+    return list.map((e) => e.toDomain()).toList();
+  }
+
   Future<List<ExpenseSplit>> getSplitsForPerson(int personId) async {
     final list = await (_db.select(_db.expenseSplits)..where((s) => s.personId.equals(personId))).get();
     return list.map((e) => e.toDomain()).toList();
@@ -123,6 +141,12 @@ class ExpensesRepository {
   Future<List<Settlement>> getSettlementsForPerson(int personId) async {
     final list = await (_db.select(_db.settlements)
       ..where((s) => s.fromPersonId.equals(personId) | s.toPersonId.equals(personId))).get();
+    return list.map((e) => e.toDomain()).toList();
+  }
+
+  Future<List<Settlement>> getSettlementsForTransaction(int transactionId) async {
+    final list = await (_db.select(_db.settlements)
+      ..where((s) => s.transactionId.equals(transactionId))).get();
     return list.map((e) => e.toDomain()).toList();
   }
 
