@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/accounts/application/accounts_providers.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
+import 'dart:ui';
 
 class GlobalAppBar extends ConsumerWidget implements PreferredSizeWidget {
   const GlobalAppBar({super.key});
@@ -12,6 +13,13 @@ class GlobalAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final accountsWithBalance = ref.watch(accountsWithBalanceProvider);
 
     return AppBar(
+      backgroundColor: Theme.of(context).appBarTheme.backgroundColor?.withOpacity(0.7) ?? Theme.of(context).scaffoldBackgroundColor.withOpacity(0.7),
+      flexibleSpace: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(color: Colors.transparent),
+        ),
+      ),
       leading: IconButton(
         icon: const Icon(Icons.menu),
         onPressed: () => Scaffold.of(context).openDrawer(),

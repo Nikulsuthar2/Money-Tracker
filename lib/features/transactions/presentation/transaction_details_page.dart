@@ -15,6 +15,7 @@ import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/data/categories_repository.dart';
 import 'package:money_manager/features/expenses/data/expenses_repository.dart';
 import 'package:money_manager/features/people/data/people_repository.dart';
+import 'package:money_manager/features/people/domain/person.dart';
 import 'package:money_manager/features/expenses/domain/expense.dart';
 import 'package:money_manager/core/utils/currency_formatter.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
@@ -22,14 +23,28 @@ import 'package:money_manager/features/ledger/presentation/widgets/ledger_entry_
 
 import 'package:money_manager/core/widgets/icon_utils.dart';
 
-class TransactionDetailsPage extends ConsumerWidget {
+class TransactionDetailsPage extends ConsumerStatefulWidget {
   const TransactionDetailsPage({super.key, required this.transaction});
 
   final Transaction transaction;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = transaction;
+  ConsumerState<TransactionDetailsPage> createState() => _TransactionDetailsPageState();
+}
+
+class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage> {
+  late Transaction _transaction;
+  int _refreshKey = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _transaction = widget.transaction;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = _transaction;
     final theme = Theme.of(context);
     
     // Fetch Category Name (Tricky since we only have ID)
@@ -49,8 +64,18 @@ class TransactionDetailsPage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () {
-              context.push('/add-transaction', extra: t);
+            onPressed: () async {
+              final result = await context.push('/add-transaction', extra: t);
+              if (result == true) {
+                // If the transaction was updated, refresh the page
+                final updatedTransaction = await ref.read(transactionsRepositoryProvider).getTransaction(t.id);
+                if (updatedTransaction != null) {
+                   setState(() {
+                      _transaction = updatedTransaction;
+                      _refreshKey++;
+                   });
+                }
+              }
             },
           ),
           IconButton(
@@ -75,6 +100,7 @@ class TransactionDetailsPage extends ConsumerWidget {
         ],
       ),
       body: ListView(
+        key: ValueKey(_refreshKey),
         padding: const EdgeInsets.all(24),
         children: [
           // Amount Header
@@ -86,7 +112,7 @@ class TransactionDetailsPage extends ConsumerWidget {
                   builder: (context, snapshot) {
                      final cat = snapshot.data;
                      if (cat != null) {
-                         return buildIconWidget(cat.iconData, Color(cat.color), size: 84);
+                         return buildIconWidget(cat.iconData, Color(cat.color), size: 112);
                      } else {
                          IconData iconData = t.type == TransactionType.income ? Icons.arrow_downward : 
                                              t.type == TransactionType.expense ? Icons.arrow_upward : Icons.compare_arrows;
@@ -94,15 +120,15 @@ class TransactionDetailsPage extends ConsumerWidget {
                             iconData = Icons.call_split;
                          }
                          return Container(
-                           width: 84,
-                           height: 84,
+                           width: 112,
+                           height: 112,
                            decoration: BoxDecoration(
                              color: color.withValues(alpha: 0.15),
                              shape: BoxShape.circle,
                            ),
                            child: Icon(
                              iconData,
-                             size: 84 * 0.6,
+                             size: 112 * 0.6,
                              color: color,
                            ),
                          );
@@ -143,7 +169,10 @@ class TransactionDetailsPage extends ConsumerWidget {
           Card(
             color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.colorScheme.outlineVariant.withOpacity(0.5), width: 1),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -528,6 +557,64 @@ class TransactionDetailsPage extends ConsumerWidget {
                 }
              ),
           ],
+
+          if (t.mode == TransactionMode.settlement || t.isSettlement)
+             FutureBuilder<List<Settlement>>(
+                future: ref.read(expensesRepositoryProvider).getSettlementsForTransaction(t.id),
+                builder: (context, snapshot) {
+                   if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
+                   final s = snapshot.data!.first;
+                   return FutureBuilder<List<Person>>(
+                      future: ref.read(peopleRepositoryProvider).getAllPeople(),
+                      builder: (context, peopleSnapshot) {
+                         final people = peopleSnapshot.data ?? [];
+                         String fromName = s.fromPersonId == 0 ? 'Me' : (people.where((p) => p.id == s.fromPersonId).firstOrNull?.name ?? 'Person ${s.fromPersonId}');
+                         String toName = s.toPersonId == 0 ? 'Me' : (people.where((p) => p.id == s.toPersonId).firstOrNull?.name ?? 'Person ${s.toPersonId}');
+                         
+                         return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                               const Gap(24),
+                               Text('Settlement Details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                               const Gap(8),
+                               Card(
+                                 elevation: 0,
+                                 color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                                 shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: BorderSide(color: theme.colorScheme.outlineVariant.withOpacity(0.5), width: 1),
+                                 ),
+                                 child: Padding(
+                                   padding: const EdgeInsets.all(16.0),
+                                   child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                         Expanded(child: Text(fromName, textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                         const Gap(16),
+                                         Column(
+                                            children: [
+                                               const Text('paid', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                               Icon(Icons.arrow_forward_rounded, color: theme.colorScheme.primary),
+                                               Consumer(
+                                                  builder: (context, ref, _) => Text(
+                                                     '${ref.watch(currencyProvider)}${formatAmount(s.amount)}',
+                                                     style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                                                  ),
+                                               ),
+                                            ],
+                                         ),
+                                         const Gap(16),
+                                         Expanded(child: Text(toName, textAlign: TextAlign.left, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                      ],
+                                   ),
+                                 ),
+                               ),
+                            ],
+                         );
+                      }
+                   );
+                }
+             ),
 
           const Gap(40),
         ],

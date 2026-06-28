@@ -6,6 +6,7 @@ import 'package:money_manager/features/budgets/data/budget_repository.dart';
 import 'package:money_manager/features/categories/data/categories_repository.dart';
 import 'package:money_manager/features/categories/domain/category.dart';
 import 'package:money_manager/features/categories/presentation/category_icon_widget.dart';
+import 'package:money_manager/core/widgets/custom_amount_keyboard.dart';
 
 class AddEditBudgetPage extends ConsumerStatefulWidget {
   final Budget? budget;
@@ -99,7 +100,19 @@ class _AddEditBudgetPageState extends ConsumerState<AddEditBudgetPage> {
               // Amount Input
               TextFormField(
                 controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                readOnly: true,
+                onTap: () async {
+                  final result = await CustomAmountKeyboard.show(
+                    context,
+                    initialValue: _amountController.text,
+                  );
+                  if (result != null) {
+                    setState(() {
+                       _amountController.text = result;
+                    });
+                  }
+                },
+                keyboardType: TextInputType.none,
                 decoration: InputDecoration(
                   labelText: 'Budget Limit',
                   prefixText: '₹ ',

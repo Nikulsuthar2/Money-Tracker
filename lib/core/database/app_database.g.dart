@@ -4772,6 +4772,16 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Equity'),
+  );
   static const VerificationMeta _quantityMeta = const VerificationMeta(
     'quantity',
   );
@@ -4821,6 +4831,7 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
     id,
     accountId,
     symbol,
+    type,
     quantity,
     averageBuyPrice,
     currentPrice,
@@ -4856,6 +4867,12 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
       );
     } else if (isInserting) {
       context.missing(_symbolMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
     }
     if (data.containsKey('quantity')) {
       context.handle(
@@ -4916,6 +4933,10 @@ class $InvestmentHoldingsTable extends InvestmentHoldings
         DriftSqlType.string,
         data['${effectivePrefix}symbol'],
       )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
       quantity: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}quantity'],
@@ -4946,6 +4967,7 @@ class InvestmentHoldingData extends DataClass
   final int id;
   final int accountId;
   final String symbol;
+  final String type;
   final double quantity;
   final double averageBuyPrice;
   final double currentPrice;
@@ -4954,6 +4976,7 @@ class InvestmentHoldingData extends DataClass
     required this.id,
     required this.accountId,
     required this.symbol,
+    required this.type,
     required this.quantity,
     required this.averageBuyPrice,
     required this.currentPrice,
@@ -4965,6 +4988,7 @@ class InvestmentHoldingData extends DataClass
     map['id'] = Variable<int>(id);
     map['account_id'] = Variable<int>(accountId);
     map['symbol'] = Variable<String>(symbol);
+    map['type'] = Variable<String>(type);
     map['quantity'] = Variable<double>(quantity);
     map['average_buy_price'] = Variable<double>(averageBuyPrice);
     map['current_price'] = Variable<double>(currentPrice);
@@ -4977,6 +5001,7 @@ class InvestmentHoldingData extends DataClass
       id: Value(id),
       accountId: Value(accountId),
       symbol: Value(symbol),
+      type: Value(type),
       quantity: Value(quantity),
       averageBuyPrice: Value(averageBuyPrice),
       currentPrice: Value(currentPrice),
@@ -4993,6 +5018,7 @@ class InvestmentHoldingData extends DataClass
       id: serializer.fromJson<int>(json['id']),
       accountId: serializer.fromJson<int>(json['accountId']),
       symbol: serializer.fromJson<String>(json['symbol']),
+      type: serializer.fromJson<String>(json['type']),
       quantity: serializer.fromJson<double>(json['quantity']),
       averageBuyPrice: serializer.fromJson<double>(json['averageBuyPrice']),
       currentPrice: serializer.fromJson<double>(json['currentPrice']),
@@ -5006,6 +5032,7 @@ class InvestmentHoldingData extends DataClass
       'id': serializer.toJson<int>(id),
       'accountId': serializer.toJson<int>(accountId),
       'symbol': serializer.toJson<String>(symbol),
+      'type': serializer.toJson<String>(type),
       'quantity': serializer.toJson<double>(quantity),
       'averageBuyPrice': serializer.toJson<double>(averageBuyPrice),
       'currentPrice': serializer.toJson<double>(currentPrice),
@@ -5017,6 +5044,7 @@ class InvestmentHoldingData extends DataClass
     int? id,
     int? accountId,
     String? symbol,
+    String? type,
     double? quantity,
     double? averageBuyPrice,
     double? currentPrice,
@@ -5025,6 +5053,7 @@ class InvestmentHoldingData extends DataClass
     id: id ?? this.id,
     accountId: accountId ?? this.accountId,
     symbol: symbol ?? this.symbol,
+    type: type ?? this.type,
     quantity: quantity ?? this.quantity,
     averageBuyPrice: averageBuyPrice ?? this.averageBuyPrice,
     currentPrice: currentPrice ?? this.currentPrice,
@@ -5035,6 +5064,7 @@ class InvestmentHoldingData extends DataClass
       id: data.id.present ? data.id.value : this.id,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       symbol: data.symbol.present ? data.symbol.value : this.symbol,
+      type: data.type.present ? data.type.value : this.type,
       quantity: data.quantity.present ? data.quantity.value : this.quantity,
       averageBuyPrice: data.averageBuyPrice.present
           ? data.averageBuyPrice.value
@@ -5052,6 +5082,7 @@ class InvestmentHoldingData extends DataClass
           ..write('id: $id, ')
           ..write('accountId: $accountId, ')
           ..write('symbol: $symbol, ')
+          ..write('type: $type, ')
           ..write('quantity: $quantity, ')
           ..write('averageBuyPrice: $averageBuyPrice, ')
           ..write('currentPrice: $currentPrice, ')
@@ -5065,6 +5096,7 @@ class InvestmentHoldingData extends DataClass
     id,
     accountId,
     symbol,
+    type,
     quantity,
     averageBuyPrice,
     currentPrice,
@@ -5077,6 +5109,7 @@ class InvestmentHoldingData extends DataClass
           other.id == this.id &&
           other.accountId == this.accountId &&
           other.symbol == this.symbol &&
+          other.type == this.type &&
           other.quantity == this.quantity &&
           other.averageBuyPrice == this.averageBuyPrice &&
           other.currentPrice == this.currentPrice &&
@@ -5088,6 +5121,7 @@ class InvestmentHoldingsCompanion
   final Value<int> id;
   final Value<int> accountId;
   final Value<String> symbol;
+  final Value<String> type;
   final Value<double> quantity;
   final Value<double> averageBuyPrice;
   final Value<double> currentPrice;
@@ -5096,6 +5130,7 @@ class InvestmentHoldingsCompanion
     this.id = const Value.absent(),
     this.accountId = const Value.absent(),
     this.symbol = const Value.absent(),
+    this.type = const Value.absent(),
     this.quantity = const Value.absent(),
     this.averageBuyPrice = const Value.absent(),
     this.currentPrice = const Value.absent(),
@@ -5105,6 +5140,7 @@ class InvestmentHoldingsCompanion
     this.id = const Value.absent(),
     required int accountId,
     required String symbol,
+    this.type = const Value.absent(),
     required double quantity,
     required double averageBuyPrice,
     required double currentPrice,
@@ -5119,6 +5155,7 @@ class InvestmentHoldingsCompanion
     Expression<int>? id,
     Expression<int>? accountId,
     Expression<String>? symbol,
+    Expression<String>? type,
     Expression<double>? quantity,
     Expression<double>? averageBuyPrice,
     Expression<double>? currentPrice,
@@ -5128,6 +5165,7 @@ class InvestmentHoldingsCompanion
       if (id != null) 'id': id,
       if (accountId != null) 'account_id': accountId,
       if (symbol != null) 'symbol': symbol,
+      if (type != null) 'type': type,
       if (quantity != null) 'quantity': quantity,
       if (averageBuyPrice != null) 'average_buy_price': averageBuyPrice,
       if (currentPrice != null) 'current_price': currentPrice,
@@ -5139,6 +5177,7 @@ class InvestmentHoldingsCompanion
     Value<int>? id,
     Value<int>? accountId,
     Value<String>? symbol,
+    Value<String>? type,
     Value<double>? quantity,
     Value<double>? averageBuyPrice,
     Value<double>? currentPrice,
@@ -5148,6 +5187,7 @@ class InvestmentHoldingsCompanion
       id: id ?? this.id,
       accountId: accountId ?? this.accountId,
       symbol: symbol ?? this.symbol,
+      type: type ?? this.type,
       quantity: quantity ?? this.quantity,
       averageBuyPrice: averageBuyPrice ?? this.averageBuyPrice,
       currentPrice: currentPrice ?? this.currentPrice,
@@ -5166,6 +5206,9 @@ class InvestmentHoldingsCompanion
     }
     if (symbol.present) {
       map['symbol'] = Variable<String>(symbol.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
     }
     if (quantity.present) {
       map['quantity'] = Variable<double>(quantity.value);
@@ -5188,6 +5231,7 @@ class InvestmentHoldingsCompanion
           ..write('id: $id, ')
           ..write('accountId: $accountId, ')
           ..write('symbol: $symbol, ')
+          ..write('type: $type, ')
           ..write('quantity: $quantity, ')
           ..write('averageBuyPrice: $averageBuyPrice, ')
           ..write('currentPrice: $currentPrice, ')
@@ -8310,6 +8354,7 @@ typedef $$InvestmentHoldingsTableCreateCompanionBuilder =
       Value<int> id,
       required int accountId,
       required String symbol,
+      Value<String> type,
       required double quantity,
       required double averageBuyPrice,
       required double currentPrice,
@@ -8320,6 +8365,7 @@ typedef $$InvestmentHoldingsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<int> accountId,
       Value<String> symbol,
+      Value<String> type,
       Value<double> quantity,
       Value<double> averageBuyPrice,
       Value<double> currentPrice,
@@ -8347,6 +8393,11 @@ class $$InvestmentHoldingsTableFilterComposer
 
   ColumnFilters<String> get symbol => $composableBuilder(
     column: $table.symbol,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8395,6 +8446,11 @@ class $$InvestmentHoldingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get quantity => $composableBuilder(
     column: $table.quantity,
     builder: (column) => ColumnOrderings(column),
@@ -8433,6 +8489,9 @@ class $$InvestmentHoldingsTableAnnotationComposer
 
   GeneratedColumn<String> get symbol =>
       $composableBuilder(column: $table.symbol, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
 
   GeneratedColumn<double> get quantity =>
       $composableBuilder(column: $table.quantity, builder: (column) => column);
@@ -8494,6 +8553,7 @@ class $$InvestmentHoldingsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int> accountId = const Value.absent(),
                 Value<String> symbol = const Value.absent(),
+                Value<String> type = const Value.absent(),
                 Value<double> quantity = const Value.absent(),
                 Value<double> averageBuyPrice = const Value.absent(),
                 Value<double> currentPrice = const Value.absent(),
@@ -8502,6 +8562,7 @@ class $$InvestmentHoldingsTableTableManager
                 id: id,
                 accountId: accountId,
                 symbol: symbol,
+                type: type,
                 quantity: quantity,
                 averageBuyPrice: averageBuyPrice,
                 currentPrice: currentPrice,
@@ -8512,6 +8573,7 @@ class $$InvestmentHoldingsTableTableManager
                 Value<int> id = const Value.absent(),
                 required int accountId,
                 required String symbol,
+                Value<String> type = const Value.absent(),
                 required double quantity,
                 required double averageBuyPrice,
                 required double currentPrice,
@@ -8520,6 +8582,7 @@ class $$InvestmentHoldingsTableTableManager
                 id: id,
                 accountId: accountId,
                 symbol: symbol,
+                type: type,
                 quantity: quantity,
                 averageBuyPrice: averageBuyPrice,
                 currentPrice: currentPrice,

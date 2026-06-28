@@ -21,6 +21,8 @@ import 'package:money_manager/features/expenses/domain/expense.dart';
 import 'package:money_manager/features/expenses/data/expenses_repository.dart';
 import 'package:money_manager/features/transactions/presentation/advanced_split_page.dart';
 import 'package:money_manager/core/utils/math_evaluator.dart';
+import 'package:money_manager/core/widgets/custom_amount_keyboard.dart';
+import 'package:money_manager/features/people/application/people_balances_provider.dart';
 
 class AddTransactionPage extends ConsumerStatefulWidget {
   const AddTransactionPage({super.key, this.extra});
@@ -763,6 +765,14 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage>
 
           if (isUpdate) {
             await txRepo.updateTransaction(transaction);
+            final settlements = await expRepo.getSettlementsForTransaction(txId!);
+            if (settlements.isNotEmpty) {
+              final s = settlements.first;
+              s.fromPersonId = _settlementIPaid ? 0 : _settlementPartyId!;
+              s.toPersonId = _settlementIPaid ? _settlementPartyId! : 0;
+              s.amount = amount;
+              await expRepo.updateSettlement(s);
+            }
           } else {
             txId = await txRepo.addTransaction(transaction);
             final s = Settlement()
@@ -880,6 +890,8 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage>
         }
 
         if (mounted) {
+          // Invalidate balances
+          ref.invalidate(peopleBalancesProvider);
           context.pop(true);
         }
       } catch (e, stack) {
@@ -911,8 +923,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage>
       categoriesAsync = ref.watch(expenseCategoriesProvider);
     }
 
-    // Load People for Splits
-    final peopleAsync = ref.watch(peopleStreamProvider);
+    // Accounts with Balance
 
     // Accounts with Balance
     final accountsAsync = ref.watch(accountsWithBalanceProvider);
@@ -1006,34 +1017,41 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage>
                     ),
                     const Gap(16),
                     // Party Selector
-                    peopleAsync.when(
-                      data: (people) {
-                        // Ensure the selected party ID actually exists in the list to avoid crash
-                        int? validPartyId = _settlementPartyId;
-                        if (validPartyId != null && !people.any((p) => p.id == validPartyId)) {
-                          validPartyId = null;
-                        }
-                        
-                        return DropdownButtonFormField<int>(
-                          value: validPartyId,
-                          decoration: inputDecoration.copyWith(
-                            labelText: 'Select Person',
-                            prefixIcon: const Icon(Icons.person),
-                          ),
-                          items: people
-                              .map(
-                                (p) => DropdownMenuItem(
-                                  value: p.id,
-                                  child: Text(p.name),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) =>
-                              setState(() => _settlementPartyId = v),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final peopleAsync = ref.watch(peopleStreamProvider);
+                        return peopleAsync.when(
+                          data: (people) {
+                            // Ensure the selected party ID actually exists in the list to avoid crash
+                            int? validPartyId = _settlementPartyId;
+                            if (validPartyId != null && !people.any((p) => p.id == validPartyId)) {
+                              validPartyId = null;
+                            }
+                            
+                            return DropdownButtonFormField<int>(
+                              value: validPartyId,
+                              decoration: inputDecoration.copyWith(
+                                labelText: 'Select Person',
+                                prefixIcon: const Icon(Icons.person),
+                              ),
+                              items: people
+                                  .map(
+                                    (p) => DropdownMenuItem(
+                                      value: p.id,
+                                      child: Text(p.name),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) {
+                                // Since we are inside Consumer, we must tell the StatefulWidget that state changed
+                                setState(() => _settlementPartyId = v);
+                              },
+                            );
+                          },
+                          loading: () => const LinearProgressIndicator(),
+                          error: (_, __) => const Text('Error loading people'),
                         );
-                      },
-                      loading: () => const LinearProgressIndicator(),
-                      error: (_, __) => const Text('Error loading people'),
+                      }
                     ),
                   ],
                 ),
@@ -1049,7 +1067,19 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage>
                   // Amount
                   TextFormField(
                     controller: _amountController,
-                    readOnly: _isRefundMode,
+                    readOnly: true, // Uses custom keyboard
+                    onTap: () async {
+                      if (_isRefundMode) return;
+                      final result = await CustomAmountKeyboard.show(
+                        context,
+                        initialValue: _amountController.text,
+                      );
+                      if (result != null) {
+                        setState(() {
+                           _amountController.text = result;
+                        });
+                      }
+                    },
                     decoration: inputDecoration.copyWith(
                       labelText: 'Amount',
                       prefixText: '${ref.watch(currencyProvider)} ',
@@ -1058,7 +1088,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage>
                           : null,
                       filled: _isRefundMode,
                     ),
-                    keyboardType: TextInputType.text,
+                    keyboardType: TextInputType.none,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,

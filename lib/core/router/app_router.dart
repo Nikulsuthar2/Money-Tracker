@@ -212,6 +212,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => AddEditBudgetPage(budget: state.extra as Budget?),
       ),
       GoRoute(
+        path: '/budgets/edit',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => AddEditBudgetPage(budget: state.extra as Budget?),
+      ),
+      GoRoute(
         path: '/spend-analysis',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SpendAnalysisPage(),

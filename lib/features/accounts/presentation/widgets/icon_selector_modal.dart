@@ -257,11 +257,31 @@ class _IconSelectorModalState extends State<IconSelectorModal>
     'assets/banks/SBI.png',
     'assets/banks/HDFC.png',
     'assets/banks/BOB.png',
+    'assets/banks/AXIS.png',
+    'assets/banks/KOTAK.png',
+    'assets/banks/KOTAKTITLE.png',
+    'assets/banks/PNB.png',
+    'assets/banks/YESB.png',
+    'assets/banks/RRB.png',
     'assets/banks/EPFO.png',
+    'assets/banks/GROWW.png',
     'assets/banks/KITE.png',
     'assets/banks/ANGELONE.png',
+    'assets/banks/DHAN.png',
+    'assets/banks/BINANCE.png',
+    'assets/banks/INDMONEY.webp',
+    'assets/banks/INDMONEYBG.avif',
+    'assets/banks/TRADINGVIEWBG.png',
+    'assets/banks/TRADINGVIEW.webp',
     'assets/banks/PHONEPE.png',
     'assets/banks/GPAY.png',
+    'assets/banks/FLIPKART.png',
+    'assets/banks/ZOMATO.png',
+    'assets/banks/ZOMATOBG.png',
+    'assets/banks/SWIGGY.png',
+    'assets/banks/SWIGGYTITLE.png',
+    'assets/banks/BLINKIT.png',
+    'assets/banks/BLINKITTITLE.png',
   ];
 
   @override
@@ -364,23 +384,25 @@ class _IconSelectorModalState extends State<IconSelectorModal>
                         decoration: InputDecoration(
                           hintText: 'Enter custom emoji (e.g. 🐶)',
                           prefixIcon: const Icon(Icons.emoji_emotions),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           suffixIcon: IconButton(
                             icon: const Icon(Icons.check),
                             onPressed: () {
-                               final val = _customEmojiController.text.trim();
-                               if (val.isNotEmpty) {
-                                  widget.onIconSelected('emoji:$val');
-                                  Navigator.pop(context);
-                               }
-                            }
-                          )
+                              final val = _customEmojiController.text.trim();
+                              if (val.isNotEmpty) {
+                                widget.onIconSelected('emoji:$val');
+                                Navigator.pop(context);
+                              }
+                            },
+                          ),
                         ),
                         maxLength: 1,
                         onSubmitted: (val) {
                           if (val.trim().isNotEmpty) {
-                             widget.onIconSelected('emoji:${val.trim()}');
-                             Navigator.pop(context);
+                            widget.onIconSelected('emoji:${val.trim()}');
+                            Navigator.pop(context);
                           }
                         },
                       ),
@@ -388,11 +410,12 @@ class _IconSelectorModalState extends State<IconSelectorModal>
                     Expanded(
                       child: GridView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 6,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 6,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
                         itemCount: _emojis.length,
                         itemBuilder: (context, index) {
                           final emj = _emojis[index];
@@ -411,7 +434,10 @@ class _IconSelectorModalState extends State<IconSelectorModal>
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               alignment: Alignment.center,
-                              child: Text(emj, style: const TextStyle(fontSize: 28)),
+                              child: Text(
+                                emj,
+                                style: const TextStyle(fontSize: 28),
+                              ),
                             ),
                           );
                         },

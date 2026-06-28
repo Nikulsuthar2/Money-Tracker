@@ -10,6 +10,7 @@ class TransactionFilters {
   final bool showTransactions;
   final bool showSettlements;
   final bool showFriendPaid;
+  final bool showInvestments;
 
   const TransactionFilters({
     this.startDate,
@@ -20,6 +21,7 @@ class TransactionFilters {
     this.showTransactions = true,
     this.showSettlements = true,
     this.showFriendPaid = false,
+    this.showInvestments = false,
   });
 
   TransactionFilters copyWith({
@@ -31,6 +33,7 @@ class TransactionFilters {
     bool? showTransactions,
     bool? showSettlements,
     bool? showFriendPaid,
+    bool? showInvestments,
     bool clearDates = false,
     bool clearMonth = false,
   }) {
@@ -43,6 +46,7 @@ class TransactionFilters {
       showTransactions: showTransactions ?? this.showTransactions,
       showSettlements: showSettlements ?? this.showSettlements,
       showFriendPaid: showFriendPaid ?? this.showFriendPaid,
+      showInvestments: showInvestments ?? this.showInvestments,
     );
   }
 }

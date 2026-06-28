@@ -96,6 +96,12 @@ class _TransactionsFilterSheetState extends ConsumerState<TransactionsFilterShee
                   onChanged: (v) => setState(() => _filters = _filters.copyWith(showFriendPaid: v)),
                   dense: true,
                 ),
+                CheckboxListTile(
+                  title: const Text('Investment Transactions'),
+                  value: _filters.showInvestments,
+                  onChanged: (v) => setState(() => _filters = _filters.copyWith(showInvestments: v)),
+                  dense: true,
+                ),
                 const Gap(16),
 
                 // Date Range

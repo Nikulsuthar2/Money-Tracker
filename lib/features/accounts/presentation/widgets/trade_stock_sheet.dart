@@ -8,6 +8,9 @@ import 'package:money_manager/features/accounts/domain/investment_holding.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
+import 'package:money_manager/features/categories/data/categories_repository.dart';
+import 'package:collection/collection.dart';
+import 'package:intl/intl.dart' as intl;
 
 class TradeStockSheet extends ConsumerStatefulWidget {
   const TradeStockSheet({super.key, required this.account, required this.fundBalance});
@@ -21,12 +24,13 @@ class TradeStockSheet extends ConsumerStatefulWidget {
 
 class _TradeStockSheetState extends ConsumerState<TradeStockSheet> {
   bool _isBuy = true;
+  String _holdingType = 'Equity';
   
   final _formKey = GlobalKey<FormState>();
   final _symbolController = TextEditingController();
   final _quantityController = TextEditingController();
   final _priceController = TextEditingController();
-  final _chargesController = TextEditingController();
+  DateTime _date = DateTime.now();
 
   InvestmentHolding? _selectedHolding;
 
@@ -35,7 +39,7 @@ class _TradeStockSheetState extends ConsumerState<TradeStockSheet> {
     _symbolController.dispose();
     _quantityController.dispose();
     _priceController.dispose();
-    _chargesController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -44,24 +48,28 @@ class _TradeStockSheetState extends ConsumerState<TradeStockSheet> {
     
     final quantity = double.tryParse(_quantityController.text) ?? 0.0;
     final price = double.tryParse(_priceController.text) ?? 0.0;
-    final charges = double.tryParse(_chargesController.text) ?? 0.0;
     final tradeValue = quantity * price;
 
     if (_isBuy) {
-      final totalDeduction = tradeValue + charges;
-      if (totalDeduction > widget.fundBalance) {
+      if (tradeValue > widget.fundBalance) {
          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient funds in Fund Wallet')));
          return;
       }
       
       final symbol = _symbolController.text.toUpperCase();
       
+      final categoriesRepo = ref.read(categoriesRepositoryProvider);
+      final categories = await categoriesRepo.getAllCategories();
+      final investCategory = categories.firstWhereOrNull((c) => c.name.toLowerCase().contains('invest'));
+
       // 1. Create Transaction
       final t = Transaction()
         ..type = TransactionType.buyInvestment
-        ..amount = totalDeduction
-        ..date = DateTime.now()
-        ..note = 'Buy $quantity $symbol (Charges: $charges)'
+        ..amount = tradeValue
+        ..date = _date
+        ..title = 'Buy $quantity $symbol'
+        ..note = 'Buy $quantity $symbol'
+        ..categoryId = investCategory?.id
         ..fromAccountId = widget.account.id;
         
       await ref.read(transactionsRepositoryProvider).addTransaction(t);
@@ -81,6 +89,7 @@ class _TradeStockSheetState extends ConsumerState<TradeStockSheet> {
          final newHolding = InvestmentHolding()
            ..accountId = widget.account.id
            ..symbol = symbol
+           ..type = _holdingType
            ..quantity = quantity
            ..averageBuyPrice = price
            ..currentPrice = price; // Set initial current price to buy price
@@ -101,13 +110,18 @@ class _TradeStockSheetState extends ConsumerState<TradeStockSheet> {
        final symbol = _selectedHolding!.symbol;
        
        // 1. Create Transaction
-       final totalAddition = tradeValue - charges;
-       final t = Transaction()
-        ..type = TransactionType.sellInvestment
-        ..amount = totalAddition
-        ..date = DateTime.now()
-        ..note = 'Sell $quantity $symbol (Charges: $charges)'
-        ..toAccountId = widget.account.id;
+        final categoriesRepo = ref.read(categoriesRepositoryProvider);
+        final categories = await categoriesRepo.getAllCategories();
+        final investCategory = categories.firstWhereOrNull((c) => c.name.toLowerCase().contains('invest'));
+
+        final t = Transaction()
+         ..type = TransactionType.sellInvestment
+         ..amount = tradeValue
+         ..date = _date
+         ..title = 'Sell $quantity $symbol'
+         ..note = 'Sell $quantity $symbol'
+         ..categoryId = investCategory?.id
+         ..toAccountId = widget.account.id;
         
       await ref.read(transactionsRepositoryProvider).addTransaction(t);
       
@@ -169,7 +183,6 @@ class _TradeStockSheetState extends ConsumerState<TradeStockSheet> {
                        _selectedHolding = null;
                        _quantityController.clear();
                        _priceController.clear();
-                       _chargesController.clear();
                     }),
                     selectedColor: Colors.orange.withOpacity(0.2),
                   ),
@@ -184,6 +197,13 @@ class _TradeStockSheetState extends ConsumerState<TradeStockSheet> {
                  textCapitalization: TextCapitalization.characters,
                  decoration: const InputDecoration(labelText: 'Stock Symbol', hintText: 'e.g. AAPL', border: OutlineInputBorder()),
                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+               ),
+               const Gap(16),
+               DropdownButtonFormField<String>(
+                 value: _holdingType,
+                 decoration: const InputDecoration(labelText: 'Holding Type', border: OutlineInputBorder()),
+                 items: ['Equity', 'ETF', 'Index', 'Commodity', 'Crypto', 'Bonds'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                 onChanged: (v) => setState(() => _holdingType = v!),
                ),
             ] else ...[
                holdingsAsync.when(
@@ -228,11 +248,38 @@ class _TradeStockSheetState extends ConsumerState<TradeStockSheet> {
               ],
             ),
             const Gap(16),
-            TextFormField(
-              controller: _chargesController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: 'Brokerage / Charges', prefixText: '$currency ', border: const OutlineInputBorder()),
-              validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Invalid' : null,
+            InkWell(
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _date,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (date != null) {
+                  setState(() {
+                    _date = date;
+                  });
+                }
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).colorScheme.outline),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 20),
+                    const Gap(12),
+                    Text(
+                      'Date: ${intl.DateFormat.yMMMd().format(_date)}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const Gap(24),
 

@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/core/widgets/global_app_bar.dart';
 import 'package:money_manager/core/widgets/main_drawer.dart';
+import 'dart:ui';
 
 class ScaffoldWithNavbar extends StatefulWidget {
   const ScaffoldWithNavbar({required this.navigationShell, super.key});
@@ -87,21 +88,31 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
         }
 
         return Scaffold(
+          extendBody: true,
+          extendBodyBehindAppBar: true,
           appBar: const GlobalAppBar(),
           drawer: const MainDrawer(),
           body: widget.navigationShell,
-          bottomNavigationBar: Container(
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                  width: 0.5,
+          bottomNavigationBar: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: (Theme.of(context).navigationBarTheme.backgroundColor ?? Theme.of(context).colorScheme.surface).withOpacity(0.7),
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? Colors.grey.withOpacity(0.2)
+                          : Colors.white.withOpacity(0.1),
+                      width: 1,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            child: NavigationBar(
-              selectedIndex: _getUIIndex(widget.navigationShell.currentIndex),
-              onDestinationSelected: (index) => _onTap(index),
+                child: NavigationBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  selectedIndex: _getUIIndex(widget.navigationShell.currentIndex),
+                  onDestinationSelected: (index) => _onTap(index),
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               destinations: [
                 const NavigationDestination(
@@ -141,9 +152,11 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
+  },
+);
   }
 
 
@@ -281,6 +294,16 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                       () {
                         Navigator.pop(ctx);
                         context.push('/parties'); // Or push to a specific add-person if available, but /parties is the list. Let's push to parties for now since there's no direct add-person route, wait, Add Person is a bottom sheet in Parties. So going to /parties is best.
+                      },
+                    ),
+                    _buildQuickActionButton(
+                      ctx,
+                      Icons.account_balance_wallet,
+                      'Budget',
+                      Colors.cyan,
+                      () {
+                        Navigator.pop(ctx);
+                        context.push('/budgets/add');
                       },
                     ),
                   ],

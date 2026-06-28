@@ -64,6 +64,7 @@ class InvestmentHoldings extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get accountId => integer()();
   TextColumn get symbol => text()();
+  TextColumn get type => text().withDefault(const Constant('Equity'))(); // e.g., Equity, ETF, Index, Commodity
   RealColumn get quantity => real()();
   RealColumn get averageBuyPrice => real()();
   RealColumn get currentPrice => real()();
@@ -177,7 +178,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration {
@@ -219,6 +220,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 11) {
           await m.createTable(budgetAllocations);
+        }
+        if (from < 12) {
+          await m.addColumn(investmentHoldings, investmentHoldings.type);
         }
       },
     );

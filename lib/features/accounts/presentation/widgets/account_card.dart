@@ -207,7 +207,7 @@ class AccountCard extends ConsumerWidget {
                             Text(account.isLiability ? 'Interest / Fees' : 'P/L', style: const TextStyle(fontSize: 11)),
                             const Gap(4),
                               Text(
-                                '${item.pl >= 0 ? '+' : '-'}${item.pl.abs().toStringAsFixed(2)}%', 
+                                '${item.pl >= 0 ? '+' : '-'}${ref.watch(currencyProvider)}${item.pl.abs().toStringAsFixed(2)}', 
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold, 
                                   fontSize: 14,
@@ -359,13 +359,13 @@ Future<void> _showPLDialog(BuildContext context, WidgetRef ref, Account account)
   await showDialog(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Update Overall P/L (%)'),
+      title: const Text('Update Overall P/L Amount'),
       content: TextField(
         controller: controller,
         keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
         decoration: const InputDecoration(
-          labelText: 'Profit/Loss Percentage',
-          hintText: 'e.g. 5.5 or -2.3',
+          labelText: 'Profit/Loss Amount',
+          hintText: 'e.g. 500.00 or -250.00',
           border: OutlineInputBorder(),
         ),
       ),

@@ -65,7 +65,11 @@ final accountsWithBalanceProvider = StreamProvider.autoDispose<List<AccountStats
          totalContributionToNetWorth = balance;
        } else if (account.isAsset) {
          pl = account.interestRate ?? 0;
-         totalContributionToNetWorth = balance + investedBalance + (investedBalance * pl / 100);
+         if (account.type == AccountType.investment) {
+           totalContributionToNetWorth = balance + investedBalance + pl;
+         } else {
+           totalContributionToNetWorth = balance + investedBalance + (investedBalance * pl / 100);
+         }
        } else if (account.isLiability) {
          pl = account.interestRate ?? 0;
          totalContributionToNetWorth = -(balance + investedBalance + (investedBalance * pl / 100));

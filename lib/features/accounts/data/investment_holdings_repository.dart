@@ -18,6 +18,7 @@ extension InvestmentHoldingMapper on InvestmentHoldingData {
       ..id = id
       ..accountId = accountId
       ..symbol = symbol
+      ..type = type
       ..quantity = quantity
       ..averageBuyPrice = averageBuyPrice
       ..currentPrice = currentPrice
@@ -49,6 +50,7 @@ class InvestmentHoldingsRepository {
     await _db.into(_db.investmentHoldings).insert(InvestmentHoldingsCompanion.insert(
       accountId: holding.accountId,
       symbol: holding.symbol,
+      type: drift.Value(holding.type),
       quantity: holding.quantity,
       averageBuyPrice: holding.averageBuyPrice,
       currentPrice: holding.currentPrice,
@@ -61,6 +63,7 @@ class InvestmentHoldingsRepository {
       id: holding.id,
       accountId: holding.accountId,
       symbol: holding.symbol,
+      type: holding.type,
       quantity: holding.quantity,
       averageBuyPrice: holding.averageBuyPrice,
       currentPrice: holding.currentPrice,

@@ -29,7 +29,7 @@ class _InvestmentAccountDetailsPageState extends ConsumerState<InvestmentAccount
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this); // Holdings, Transactions
+    _tabController = TabController(length: 3, vsync: this); // Overview, Holdings, Transactions
   }
 
   @override
@@ -71,27 +71,33 @@ class _InvestmentAccountDetailsPageState extends ConsumerState<InvestmentAccount
             },
             itemBuilder: (context) => [
                const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 20), Gap(12), Text('Edit Account')])),
-               const PopupMenuItem(value: 'set_pl', child: Row(children: [Icon(Icons.percent, size: 20), Gap(12), Text('Set P/L')])),
+               const PopupMenuItem(value: 'set_pl', child: Row(children: [Icon(Icons.attach_money, size: 20), Gap(12), Text('Set P/L Amount')])),
                const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 20, color: Colors.red), Gap(12), Text('Delete Account', style: TextStyle(color: Colors.red))])),
             ],
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Overview'),
+            Tab(text: 'Holdings'),
+            Tab(text: 'Transactions'),
+          ],
+        ),
       ),
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverToBoxAdapter(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                color: theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
-                child: Column(
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+                // Overview Tab
+                ListView(
+                  padding: const EdgeInsets.all(20),
                   children: [
                     // Current Value
                     Builder(
                       builder: (context) {
-                        final currentValue = item.investedBalance * (1 + (item.pl / 100));
-                        final plAmount = currentValue - item.investedBalance;
+                        final plAmount = item.pl;
+                        final currentValue = item.investedBalance + plAmount;
+                        final plPercentage = item.investedBalance > 0 ? (plAmount / item.investedBalance) * 100 : 0.0;
                         return Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
@@ -111,45 +117,86 @@ class _InvestmentAccountDetailsPageState extends ConsumerState<InvestmentAccount
                               Text('Current Value', style: TextStyle(color: theme.colorScheme.onPrimary.withAlpha(200), fontSize: 14)),
                               const Gap(8),
                               Text('$currency${currentValue.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 36, color: theme.colorScheme.onPrimary)),
-                              const Gap(8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.onPrimary.withAlpha(40),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '${item.pl >= 0 ? '+' : ''}$currency${plAmount.toStringAsFixed(2)} (${item.pl >= 0 ? '+' : ''}${item.pl.toStringAsFixed(2)}%)',
-                                  style: TextStyle(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.w600),
-                                ),
-                              ),
                             ],
                           ),
                         );
                       }
                     ),
                     const Gap(24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Column(
+                    Card(
+                      elevation: 0,
+                      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
                           children: [
-                            Text('Fund Wallet', style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13)),
-                            const Gap(4),
-                            Text('$currency${item.balance.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Invested Value', style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13)),
+                                      const Gap(4),
+                                      Text('$currency${item.investedBalance.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                    ],
+                                  ),
+                                ),
+                                Container(width: 1, height: 40, color: theme.colorScheme.outlineVariant),
+                                const Gap(16),
+                                Expanded(
+                                  child: Builder(
+                                    builder: (context) {
+                                      final plAmount = item.pl;
+                                      final plPercentage = item.investedBalance > 0 ? (plAmount / item.investedBalance) * 100 : 0.0;
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text('Overall P/L', style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13)),
+                                          const Gap(4),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                '${plAmount >= 0 ? '+' : '-'}$currency${plAmount.abs().toStringAsFixed(2)} ', 
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: plAmount >= 0 ? Colors.green : Colors.red),
+                                              ),
+                                              Text(
+                                                '(${plPercentage >= 0 ? '+' : ''}${plPercentage.toStringAsFixed(2)}%)',
+                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: plAmount >= 0 ? Colors.green : Colors.red),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Gap(16),
+                            Divider(color: theme.colorScheme.outlineVariant.withOpacity(0.5), height: 1),
+                            const Gap(12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.account_balance_wallet, size: 18, color: theme.colorScheme.primary),
+                                    const Gap(8),
+                                    Text('Fund Wallet', style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14)),
+                                  ],
+                                ),
+                                Text('$currency${item.balance.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                              ],
+                            ),
                           ],
                         ),
-                        Container(width: 1, height: 40, color: theme.colorScheme.outlineVariant),
-                        Column(
-                          children: [
-                            Text('Invested Value', style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13)),
-                            const Gap(4),
-                            Text('$currency${item.investedBalance.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
-                    const Gap(24),
+                    const Gap(32),
                     // Action Buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -163,9 +210,6 @@ class _InvestmentAccountDetailsPageState extends ConsumerState<InvestmentAccount
                           icon: Icons.remove,
                           label: 'Withdraw',
                           onTap: () {
-                             // Transfer out: from this account
-                             // Wait, if it's from this account, `accountId` in add_transaction usually acts as the source for expense, 
-                             // but for transfer, we need to make sure the UI sets it as From Account.
                              context.push('/add-transaction', extra: {'accountId': account.id, 'type': TransactionType.transfer, 'isWithdrawal': true});
                           },
                         ),
@@ -183,33 +227,16 @@ class _InvestmentAccountDetailsPageState extends ConsumerState<InvestmentAccount
                              );
                           },
                         ),
+                        _ActionButton(
+                          icon: Icons.sync_alt,
+                          label: 'Correct Fund',
+                          onTap: () => _showFundCorrectionDialog(context, ref, account, item.balance),
+                        ),
                       ],
                     ),
                   ],
                 ),
-              ),
-            ),
-            
-            // Tabs
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _SliverAppBarDelegate(
-                minHeight: 48,
-                maxHeight: 48,
-                child: TabBar(
-                  controller: _tabController,
-                  tabs: const [
-                    Tab(text: 'Holdings'),
-                    Tab(text: 'Transactions'),
-                  ],
-                ),
-              ),
-            ),
-          ];
-        },
-        body: TabBarView(
-              controller: _tabController,
-              children: [
+                
                 // Holdings Tab
                 ListView(
                   padding: const EdgeInsets.all(16),
@@ -233,11 +260,14 @@ class _InvestmentAccountDetailsPageState extends ConsumerState<InvestmentAccount
                       itemCount: accountTransactions.length,
                       itemBuilder: (context, index) {
                          final t = accountTransactions[index];
-                         return TransactionTile(
-                           transaction: t,
-                           accountName: account.name,
-                           compact: true,
-                         );
+                         return InkWell(
+                            onTap: () => context.push('/transaction-details', extra: t),
+                            child: TransactionTile(
+                              transaction: t,
+                              accountName: account.name,
+                              compact: true,
+                            ),
+                          );
                       },
                     );
                   },
@@ -246,7 +276,6 @@ class _InvestmentAccountDetailsPageState extends ConsumerState<InvestmentAccount
                 )
               ],
             ),
-          ),
     );
   }
 }
@@ -290,13 +319,13 @@ Future<void> _showPLDialog(BuildContext context, WidgetRef ref, Account account)
   await showDialog(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Update Overall P/L (%)'),
+      title: const Text('Update Overall P/L Amount'),
       content: TextField(
         controller: controller,
         keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
         decoration: const InputDecoration(
-          labelText: 'Profit/Loss Percentage',
-          hintText: 'e.g. 5.5 or -2.3',
+          labelText: 'Profit/Loss Amount',
+          hintText: 'e.g. 500.00 or -250.00',
           border: OutlineInputBorder(),
         ),
       ),
@@ -318,35 +347,55 @@ Future<void> _showPLDialog(BuildContext context, WidgetRef ref, Account account)
   );
 }
 
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  _SliverAppBarDelegate({
-    required this.minHeight,
-    required this.maxHeight,
-    required this.child,
-  });
+Future<void> _showFundCorrectionDialog(BuildContext context, WidgetRef ref, Account account, double currentBalance) async {
+  final controller = TextEditingController(text: currentBalance.toString());
+  await showDialog(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('Correct Fund Balance'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Enter the actual fund wallet balance. A "Brokerage / Fund Correction" transaction will be created to adjust the difference.'),
+          const Gap(16),
+          TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Actual Fund Balance',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () async {
+            final val = double.tryParse(controller.text);
+            if (val != null && val != currentBalance) {
+              final diff = val - currentBalance;
+              final t = Transaction()
+                ..date = DateTime.now()
+                ..title = 'Brokerage / Fund Correction'
+                ..note = 'Manual fund correction'
+                ..amount = diff.abs();
 
-  final double minHeight;
-  final double maxHeight;
-  final Widget child;
-
-  @override
-  double get minExtent => minHeight;
-
-  @override
-  double get maxExtent => maxHeight;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: SizedBox.expand(child: child),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return maxHeight != oldDelegate.maxHeight ||
-        minHeight != oldDelegate.minHeight ||
-        child != oldDelegate.child;
-  }
+              if (diff < 0) {
+                 t.type = TransactionType.expense;
+                 t.fromAccountId = account.id;
+              } else {
+                 t.type = TransactionType.income;
+                 t.toAccountId = account.id;
+              }
+              
+              await ref.read(transactionsRepositoryProvider).addTransaction(t);
+              if (c.mounted) Navigator.pop(c);
+            }
+          },
+          child: const Text('Update'),
+        ),
+      ],
+    ),
+  );
 }

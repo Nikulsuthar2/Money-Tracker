@@ -359,8 +359,8 @@ class _AddAccountPageState extends ConsumerState<AddAccountPage> {
             TextFormField(
               controller: _interestRateController,
               decoration: inputDecoration.copyWith(
-                labelText: isInvestment ? 'Profit/Loss (%)' : 'Interest Rate (%)',
-                hintText: isInvestment ? 'e.g. 12.5' : 'e.g. 4.5',
+                labelText: isInvestment ? 'Profit/Loss (Amount)' : 'Interest Rate (%)',
+                hintText: isInvestment ? 'e.g. 1500 or -500' : 'e.g. 4.5',
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (v) => v != null && v.isNotEmpty && double.tryParse(v) == null ? 'Invalid number' : null,

@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:money_manager/core/database/database_provider.dart';
 import 'package:money_manager/core/database/app_database.dart';
 
@@ -77,6 +79,14 @@ class BackupService {
   }
 
   Future<void> setBackupDestination() async {
+    if (Platform.isAndroid) {
+      if (!await Permission.manageExternalStorage.request().isGranted) {
+        if (!await Permission.storage.request().isGranted) {
+          throw Exception('Storage permission required for auto backup');
+        }
+      }
+    }
+
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
     if (selectedDirectory != null) {
       final prefs = await SharedPreferences.getInstance();
@@ -88,11 +98,9 @@ class BackupService {
   }
 
   Future<void> exportData() async {
-    final dest = await backupDestinationPath;
     final dbFile = await _db.dbFile;
     if (await dbFile.exists()) {
-       final backupFile = File(p.join(dest, 'MoneyTrackerBackup.sqlite'));
-       await dbFile.copy(backupFile.path);
+       await Share.shareXFiles([XFile(dbFile.path)], text: 'Money Tracker Backup');
     } else {
        throw Exception('Database file not found');
     }

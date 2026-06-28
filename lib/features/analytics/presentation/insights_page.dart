@@ -6,23 +6,28 @@ import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/analytics/application/analytics_transactions_provider.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
 import 'package:gap/gap.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
-class InsightsPage extends ConsumerWidget {
+class InsightsPage extends ConsumerStatefulWidget {
   const InsightsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InsightsPage> createState() => _InsightsPageState();
+}
+
+class _InsightsPageState extends ConsumerState<InsightsPage> {
+  String _trendView = 'Monthly';
+  bool _isTotalView = true;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currency = ref.watch(currencyProvider);
     final accountsAsync = ref.watch(accountsWithBalanceProvider);
     final transactionsAsync = ref.watch(analyticsTransactionsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Insights', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: false,
-      ),
-      body: accountsAsync.when(
+    return accountsAsync.when(
         data: (accounts) {
           double netWorth = 0;
           for (var a in accounts) {
@@ -56,8 +61,15 @@ class InsightsPage extends ConsumerWidget {
               final savingsRate = avgMonthlyIncome > 0 ? ((avgMonthlyIncome - avgMonthlySpend) / avgMonthlyIncome) * 100 : 0.0;
 
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: MediaQuery.of(context).padding.top + 16,
+                  bottom: MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 80,
+                ),
                 children: [
+                  const Text('Insights', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                  const Gap(16),
                   // Net Worth Card
                   Card(
                     elevation: 0,
@@ -90,7 +102,7 @@ class InsightsPage extends ConsumerWidget {
                   
                   // Key Metrics Grid
                   const Text('Key Metrics', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  const Gap(16),
+                  const Gap(8),
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -129,7 +141,7 @@ class InsightsPage extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const Gap(24),
+                  const Gap(8),
 
                   // Spend Analysis Link
                   Card(
@@ -170,6 +182,7 @@ class InsightsPage extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  _buildChart(transactions, currency, theme),
                 ],
               );
             },
@@ -179,6 +192,239 @@ class InsightsPage extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error: $e')),
+      );
+  }
+
+  Widget _buildChart(List<Transaction> transactions, String currency, ThemeData theme) {
+    if (transactions.isEmpty) return const Center(child: Text('Not enough data'));
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Gap(24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Financial Trend',
+              style: theme.textTheme.titleLarge,
+            ),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: true, label: Text('Total I&E')),
+                ButtonSegment(value: false, label: Text('Net I&E')),
+              ],
+              selected: {_isTotalView},
+              onSelectionChanged: (s) => setState(() => _isTotalView = s.first),
+              showSelectedIcon: false,
+              style: ButtonStyle(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
+        ),
+        const Gap(12),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'Daily', label: Text('Daily')),
+              ButtonSegment(value: 'Monthly', label: Text('Monthly')),
+              ButtonSegment(value: 'Yearly', label: Text('Yearly')),
+            ],
+            selected: {_trendView},
+            onSelectionChanged: (s) => setState(() => _trendView = s.first),
+            showSelectedIcon: false,
+            style: ButtonStyle(
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ),
+        const Gap(16),
+        SizedBox(
+          height: 220,
+          child: _renderChartData(transactions, currency, theme),
+        ),
+        const Gap(16),
+      ],
+    );
+  }
+
+  Widget _renderChartData(List<Transaction> transactions, String currency, ThemeData theme) {
+    final now = DateTime.now();
+    List<FlSpot> incomeSpots = [];
+    List<FlSpot> expenseSpots = [];
+    double maxY = 0;
+    String Function(int) bottomLabel = (i) => '';
+
+    if (_trendView == 'Daily') {
+      for (int i = 29; i >= 0; i--) {
+        final date = now.subtract(Duration(days: i));
+        double income = 0;
+        double expense = 0;
+        for (var t in transactions) {
+          if (t.skipFromStats) continue;
+          if (t.date.year == date.year && t.date.month == date.month && t.date.day == date.day) {
+            if (_isTotalView) {
+              if (t.type == TransactionType.income) income += t.amount;
+              if (t.type == TransactionType.expense) expense += t.amount;
+              if (t.type == TransactionType.transfer) {
+                if (t.fromAccountId == null || t.isSettlement) income += t.amount;
+                if (t.toAccountId == null || t.isSettlement) expense += t.amount;
+              }
+            } else {
+              if (t.type == TransactionType.income) income += t.amount;
+              if (t.type == TransactionType.expense) expense += t.amount;
+            }
+          }
+        }
+        incomeSpots.add(FlSpot((29 - i).toDouble(), income));
+        expenseSpots.add(FlSpot((29 - i).toDouble(), expense));
+        if (income > maxY) maxY = income;
+        if (expense > maxY) maxY = expense;
+      }
+      bottomLabel = (val) {
+        if (val % 5 == 0 || val == 29) {
+          final date = now.subtract(Duration(days: 29 - val));
+          return DateFormat('d/M').format(date);
+        }
+        return '';
+      };
+    } else if (_trendView == 'Monthly') {
+      for (int i = 11; i >= 0; i--) {
+        final date = DateTime(now.year, now.month - i, 1);
+        double income = 0;
+        double expense = 0;
+        for (var t in transactions) {
+          if (t.skipFromStats) continue;
+          if (t.date.year == date.year && t.date.month == date.month) {
+            if (_isTotalView) {
+              if (t.type == TransactionType.income) income += t.amount;
+              if (t.type == TransactionType.expense) expense += t.amount;
+              if (t.type == TransactionType.transfer) {
+                if (t.fromAccountId == null || t.isSettlement) income += t.amount;
+                if (t.toAccountId == null || t.isSettlement) expense += t.amount;
+              }
+            } else {
+              if (t.type == TransactionType.income) income += t.amount;
+              if (t.type == TransactionType.expense) expense += t.amount;
+            }
+          }
+        }
+        incomeSpots.add(FlSpot((11 - i).toDouble(), income));
+        expenseSpots.add(FlSpot((11 - i).toDouble(), expense));
+        if (income > maxY) maxY = income;
+        if (expense > maxY) maxY = expense;
+      }
+      bottomLabel = (val) {
+        final date = DateTime(now.year, now.month - (11 - val), 1);
+        return DateFormat('MMM').format(date);
+      };
+    } else if (_trendView == 'Yearly') {
+      for (int i = 4; i >= 0; i--) {
+        final year = now.year - i;
+        double income = 0;
+        double expense = 0;
+        for (var t in transactions) {
+          if (t.skipFromStats) continue;
+          if (t.date.year == year) {
+            if (_isTotalView) {
+              if (t.type == TransactionType.income) income += t.amount;
+              if (t.type == TransactionType.expense) expense += t.amount;
+              if (t.type == TransactionType.transfer) {
+                if (t.fromAccountId == null || t.isSettlement) income += t.amount;
+                if (t.toAccountId == null || t.isSettlement) expense += t.amount;
+              }
+            } else {
+              if (t.type == TransactionType.income) income += t.amount;
+              if (t.type == TransactionType.expense) expense += t.amount;
+            }
+          }
+        }
+        incomeSpots.add(FlSpot((4 - i).toDouble(), income));
+        expenseSpots.add(FlSpot((4 - i).toDouble(), expense));
+        if (income > maxY) maxY = income;
+        if (expense > maxY) maxY = expense;
+      }
+      bottomLabel = (val) => (now.year - (4 - val)).toString();
+    }
+
+    if (maxY == 0) maxY = 100;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 16, top: 16, left: 16),
+      child: LineChart(
+        LineChartData(
+          gridData: const FlGridData(show: false),
+          titlesData: FlTitlesData(
+            show: true,
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final txt = bottomLabel(value.toInt());
+                  if (txt.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(txt, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  );
+                },
+                reservedSize: 30,
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: incomeSpots,
+              isCurved: true,
+              preventCurveOverShooting: true,
+              color: Colors.teal,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(show: true, color: Colors.teal.withOpacity(0.1)),
+            ),
+            LineChartBarData(
+              spots: expenseSpots,
+              isCurved: true,
+              preventCurveOverShooting: true,
+              color: Colors.red,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(show: true, color: Colors.red.withOpacity(0.1)),
+            ),
+          ],
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => theme.colorScheme.surface,
+              tooltipPadding: const EdgeInsets.all(8),
+              fitInsideHorizontally: true,
+              fitInsideVertically: true,
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  final isIncome = spot.barIndex == 0;
+                  return LineTooltipItem(
+                    '${isIncome ? "Income" : "Expense"}\n',
+                    TextStyle(color: isIncome ? Colors.teal : Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+                    children: [
+                      TextSpan(
+                        text: '$currency${spot.y.toStringAsFixed(0)}',
+                        style: TextStyle(color: isIncome ? Colors.teal : Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ],
+                  );
+                }).toList();
+              },
+            ),
+          ),
+        ),
       ),
     );
   }

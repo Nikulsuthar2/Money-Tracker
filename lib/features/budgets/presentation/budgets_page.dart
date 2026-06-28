@@ -8,6 +8,7 @@ import 'package:money_manager/features/budgets/domain/budget.dart';
 import 'package:money_manager/features/budgets/data/budget_allocation_repository.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/features/budgets/providers/budget_providers.dart';
+import 'package:money_manager/features/budgets/data/budget_repository.dart';
 
 class BudgetsPage extends ConsumerWidget {
   const BudgetsPage({super.key});
@@ -38,6 +39,47 @@ class BudgetsPage extends ConsumerWidget {
       nextDate = DateTime(current.year, current.month + 1);
     }
     ref.read(budgetSelectedDateProvider.notifier).state = nextDate;
+  }
+
+  void _showPeriodSelectorSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Select Period', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.view_week),
+              title: const Text('Weekly'),
+              onTap: () {
+                ref.read(budgetPeriodFilterProvider.notifier).state = BudgetPeriod.weekly;
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text('Monthly'),
+              onTap: () {
+                ref.read(budgetPeriodFilterProvider.notifier).state = BudgetPeriod.monthly;
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Yearly'),
+              onTap: () {
+                ref.read(budgetPeriodFilterProvider.notifier).state = BudgetPeriod.yearly;
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _formatDate(DateTime date, BudgetPeriod period) {
@@ -115,29 +157,9 @@ class BudgetsPage extends ConsumerWidget {
         data: (budgets) {
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<BudgetPeriod>(
-                    segments: const [
-                      ButtonSegment(value: BudgetPeriod.weekly, label: Text('Weekly')),
-                      ButtonSegment(value: BudgetPeriod.monthly, label: Text('Monthly')),
-                      ButtonSegment(value: BudgetPeriod.yearly, label: Text('Yearly')),
-                    ],
-                    selected: {selectedPeriod},
-                    onSelectionChanged: (set) {
-                      ref.read(budgetPeriodFilterProvider.notifier).state = set.first;
-                    },
-                    showSelectedIcon: false,
-                  ),
-                ),
-              ),
-
-              // Date Selector
+              // Combined Date & Period Selector
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(50),
@@ -148,20 +170,42 @@ class BudgetsPage extends ConsumerWidget {
                     IconButton.filledTonal(
                       onPressed: () => _prevMonth(ref),
                       icon: const Icon(Icons.chevron_left),
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                       padding: EdgeInsets.zero,
-                      iconSize: 18,
+                      iconSize: 20,
                     ),
-                    Text(
-                      _formatDate(selectedDate, selectedPeriod),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _showPeriodSelectorSheet(context, ref),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${selectedPeriod.name[0].toUpperCase()}${selectedPeriod.name.substring(1)}',
+                                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                                ),
+                                const Gap(2),
+                                Text(
+                                  _formatDate(selectedDate, selectedPeriod),
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     IconButton.filledTonal(
                       onPressed: () => _nextMonth(ref),
                       icon: const Icon(Icons.chevron_right),
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                       padding: EdgeInsets.zero,
-                      iconSize: 18,
+                      iconSize: 20,
                     ),
                   ],
                 ),
@@ -244,13 +288,48 @@ class BudgetsPage extends ConsumerWidget {
   }
 }
 
-class _BudgetCard extends StatelessWidget {
+class _BudgetCard extends ConsumerWidget {
   final BudgetWithConsumption budget;
 
   const _BudgetCard({required this.budget});
 
+  void _showEditAmountDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController(text: budget.amountLimit.toString());
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Update Budget Amount'),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Amount',
+            prefixText: '₹ ',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final val = double.tryParse(controller.text);
+              if (val != null && val > 0) {
+                final updated = budget.budget..amount = val;
+                await ref.read(budgetRepositoryProvider).updateBudget(updated);
+                // Also invalidate budgets if needed
+                ref.invalidate(budgetsWithConsumptionProvider);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isExceeded = budget.isExceeded;
     final progressColor = isExceeded ? Colors.redAccent : Colors.green;
@@ -306,7 +385,7 @@ class _BudgetCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             InkWell(
                               borderRadius: BorderRadius.circular(20),
-                              onTap: () => context.push('/budgets/edit', extra: budget.budget),
+                              onTap: () => _showEditAmountDialog(context, ref),
                               child: Padding(
                                 padding: const EdgeInsets.all(4.0),
                                 child: Icon(Icons.edit, size: 16, color: theme.colorScheme.primary),

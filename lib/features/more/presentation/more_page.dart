@@ -7,11 +7,14 @@ class MorePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: ListView(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+    return ListView(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 80,
+        top: MediaQuery.of(context).padding.top + 16,
+      ),
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(
               children: [
                 const Expanded(
@@ -72,7 +75,6 @@ class MorePage extends StatelessWidget {
             onTap: () => context.push('/settings'),
           ),
         ],
-      ),
     );
   }
 }

@@ -46,6 +46,47 @@ class _AccountAnalyticsTabState extends ConsumerState<AccountAnalyticsTab> {
     });
   }
 
+  void _showPeriodSelectorSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Select Period', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text('Month'),
+              onTap: () {
+                setState(() => _period = 'Month');
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Year'),
+              onTap: () {
+                setState(() => _period = 'Year');
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.all_inclusive),
+              title: const Text('All Time'),
+              onTap: () {
+                setState(() => _period = 'All');
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -58,7 +99,7 @@ class _AccountAnalyticsTabState extends ConsumerState<AccountAnalyticsTab> {
       timeFilteredTransactions = widget.transactions.where((t) => t.date.year == _selectedDate.year).toList();
     }
 
-    String dateLabel = '';
+    String dateLabel = 'All Time';
     if (_period == 'Month') dateLabel = DateFormat('MMMM yyyy').format(_selectedDate);
     if (_period == 'Year') dateLabel = DateFormat('yyyy').format(_selectedDate);
 
@@ -83,44 +124,59 @@ class _AccountAnalyticsTabState extends ConsumerState<AccountAnalyticsTab> {
       padding: const EdgeInsets.all(16),
       children: [
         // Period Selector
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'Month', label: Text('Month')),
-              ButtonSegment(value: 'Year', label: Text('Year')),
-              ButtonSegment(value: 'All', label: Text('All')),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(50),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton.filledTonal(
+                onPressed: _period == 'All' ? null : _prevPeriod, 
+                icon: const Icon(Icons.chevron_left),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                padding: EdgeInsets.zero,
+                iconSize: 20,
+              ),
+              Expanded(
+                child: InkWell(
+                  onTap: () => _showPeriodSelectorSheet(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _period,
+                            style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                          const Gap(2),
+                          Text(
+                            dateLabel,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              IconButton.filledTonal(
+                onPressed: _period == 'All' ? null : _nextPeriod, 
+                icon: const Icon(Icons.chevron_right),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                padding: EdgeInsets.zero,
+                iconSize: 20,
+              ),
             ],
-            selected: {_period},
-            showSelectedIcon: false,
-            onSelectionChanged: (newSelection) {
-              setState(() {
-                _period = newSelection.first;
-              });
-            },
           ),
         ),
-        
-        if (_period != 'All') ...[
-          const Gap(16),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(onPressed: _prevPeriod, icon: const Icon(Icons.chevron_left)),
-                Text(dateLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                IconButton(onPressed: _nextPeriod, icon: const Icon(Icons.chevron_right)),
-              ],
-            ),
-          ),
-        ],
-        const Gap(24),
+        const Gap(16),
 
         // Holdings Card
         if (!widget.account.isCash) ...[

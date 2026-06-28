@@ -56,6 +56,47 @@ class _SpendAnalysisPageState extends ConsumerState<SpendAnalysisPage> {
     }
   }
 
+  void _showPeriodSelectorSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Select Period', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text('Monthly'),
+              onTap: () {
+                setState(() => _period = 'Monthly');
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Yearly'),
+              onTap: () {
+                setState(() => _period = 'Yearly');
+                Navigator.pop(ctx);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.date_range),
+              title: const Text('Custom Range'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickCustomRange();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   List<Transaction> _filterTransactions(List<Transaction> all) {
     return all.where((t) {
       if (t.skipFromStats) return false;
@@ -118,60 +159,55 @@ class _SpendAnalysisPageState extends ConsumerState<SpendAnalysisPage> {
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // Filter Chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        ChoiceChip(
-                          label: const Text('Monthly'),
-                          selected: _period == 'Monthly',
-                          onSelected: (val) {
-                            if (val) setState(() => _period = 'Monthly');
-                          },
-                        ),
-                        const Gap(8),
-                        ChoiceChip(
-                          label: const Text('Yearly'),
-                          selected: _period == 'Yearly',
-                          onSelected: (val) {
-                            if (val) setState(() => _period = 'Yearly');
-                          },
-                        ),
-                        const Gap(8),
-                        ChoiceChip(
-                          label: const Text('Custom Range'),
-                          selected: _period == 'Custom',
-                          onSelected: (val) {
-                            if (val) _pickCustomRange();
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Gap(16),
-                  
-                  // Date Navigator
+                  // Combined Date & Period Navigator
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(50),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton(
+                        IconButton.filledTonal(
                           onPressed: _period == 'Custom' ? null : _prevPeriod, 
-                          icon: const Icon(Icons.chevron_left)
+                          icon: const Icon(Icons.chevron_left),
+                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                          padding: EdgeInsets.zero,
+                          iconSize: 20,
                         ),
-                        GestureDetector(
-                          onTap: _period == 'Custom' ? _pickCustomRange : null,
-                          child: Text(dateLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _showPeriodSelectorSheet(context),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _period,
+                                      style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                                    ),
+                                    const Gap(2),
+                                    Text(
+                                      dateLabel,
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                        IconButton(
+                        IconButton.filledTonal(
                           onPressed: _period == 'Custom' ? null : _nextPeriod, 
-                          icon: const Icon(Icons.chevron_right)
+                          icon: const Icon(Icons.chevron_right),
+                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                          padding: EdgeInsets.zero,
+                          iconSize: 20,
                         ),
                       ],
                     ),
@@ -240,6 +276,7 @@ class _SpendAnalysisPageState extends ConsumerState<SpendAnalysisPage> {
                                 Container(
                                   width: 40, height: 40,
                                   decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
+                                  alignment: Alignment.center,
                                   child: cat != null 
                                       ? CategoryIconWidget(iconData: cat.iconData, color: cat.color, size: 24)
                                       : Icon(Icons.help_outline, color: color),

@@ -30,6 +30,11 @@ class PeopleRepository {
     return _db.select(_db.people).watch().map((list) => list.map((e) => e.toDomain()).toList());
   }
 
+  Future<List<Person>> getAllPeople() async {
+    final list = await _db.select(_db.people).get();
+    return list.map((e) => e.toDomain()).toList();
+  }
+
   Future<void> addPerson(Person person) async {
     await _db.into(_db.people).insert(PeopleCompanion.insert(
       name: person.name,

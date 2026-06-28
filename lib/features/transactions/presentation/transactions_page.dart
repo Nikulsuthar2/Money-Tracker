@@ -30,6 +30,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (ctx) => const TransactionsFilterSheet(),
     );
   }
@@ -55,8 +56,23 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
               if (e is TransactionTimelineEntry) {
                 if (!filters.showTransactions) return false;
                 final t = e.transaction;
-                if (filters.startDate != null && t.date.isBefore(filters.startDate!)) return false;
-                if (filters.endDate != null && t.date.isAfter(filters.endDate!.add(const Duration(days: 1)))) return false;
+                
+                if (!filters.showInvestments) {
+                   if (t.type == TransactionType.buyInvestment || t.type == TransactionType.sellInvestment) return false;
+                   if (t.title != null && t.title!.contains('Brokerage / Fund Correction')) return false;
+                }
+                
+                // Compare only the date part so that transactions on the same day are included
+                final tDateOnly = DateTime(t.date.year, t.date.month, t.date.day);
+                if (filters.startDate != null) {
+                   final sDate = DateTime(filters.startDate!.year, filters.startDate!.month, filters.startDate!.day);
+                   if (tDateOnly.isBefore(sDate)) return false;
+                }
+                if (filters.endDate != null) {
+                   final eDate = DateTime(filters.endDate!.year, filters.endDate!.month, filters.endDate!.day);
+                   if (tDateOnly.isAfter(eDate)) return false;
+                }
+                
                 if (filters.types.isNotEmpty && !filters.types.contains(t.type)) return false;
                 if (filters.categoryIds.isNotEmpty) {
                   // Wait, how to filter by category if it's split?
@@ -115,11 +131,11 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                     final catMap = {for (var c in categories) c.id: c};
 
                     return ListView.builder(
-                      padding: const EdgeInsets.only(
+                      padding: EdgeInsets.only(
                         left: 16,
                         right: 16,
-                        top: 16,
-                        bottom: 80,
+                        top: MediaQuery.of(context).padding.top + 16,
+                        bottom: MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 80,
                       ),
                       itemCount: sortedDates.length + 1, // +1 for Header
                       itemBuilder: (context, index) {

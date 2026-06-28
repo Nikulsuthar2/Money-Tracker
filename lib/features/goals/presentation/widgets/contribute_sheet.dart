@@ -7,6 +7,7 @@ import 'package:money_manager/features/accounts/application/accounts_providers.d
 import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
 import 'package:gap/gap.dart';
+import 'package:money_manager/core/widgets/custom_amount_keyboard.dart';
 
 class ContributeSheet extends ConsumerStatefulWidget {
   final Goal goal;
@@ -113,6 +114,18 @@ class _ContributeSheetState extends ConsumerState<ContributeSheet> {
 
             TextField(
               controller: _amountController,
+              readOnly: true,
+              onTap: () async {
+                final result = await CustomAmountKeyboard.show(
+                  context,
+                  initialValue: _amountController.text,
+                );
+                if (result != null) {
+                  setState(() {
+                     _amountController.text = result;
+                  });
+                }
+              },
               decoration: InputDecoration(
                 labelText: 'Amount',
                 prefixText: ref.watch(currencyProvider) + ' ',
@@ -120,8 +133,7 @@ class _ContributeSheetState extends ConsumerState<ContributeSheet> {
                 fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              autofocus: true,
+              keyboardType: TextInputType.none,
             ),
             const Gap(16),
 

@@ -98,6 +98,17 @@ class ExpensesRepository {
       createdAt: DateTime.now(),
     ));
   }
+
+  Future<void> updateSettlement(Settlement settlement) async {
+    await _db.update(_db.settlements).replace(SettlementData(
+      id: settlement.id,
+      transactionId: settlement.transactionId,
+      fromPersonId: settlement.fromPersonId,
+      toPersonId: settlement.toPersonId,
+      amount: settlement.amount,
+      createdAt: settlement.createdAt ?? DateTime.now(),
+    ));
+  }
   
   // Queries
   // Queries
