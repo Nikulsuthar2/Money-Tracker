@@ -40,13 +40,22 @@ class AccountOverviewTab extends ConsumerWidget {
       if (t.date.year != now.year || t.date.month != now.month) continue;
       if (t.skipFromStats) continue;
 
+      final bool isSettlement = t.isSettlement || t.mode == TransactionMode.settlement;
+      final double effectiveAmt = t.effectiveAmount;
+
       if (t.type == TransactionType.income && t.toAccountId == account.id) {
         totalIn += t.amount;
-        netIn += t.amount; // Adjusted logic can be added here if needed
-      }
-      if (t.type == TransactionType.expense && t.fromAccountId == account.id) {
+        if (!isSettlement) netIn += effectiveAmt;
+      } else if (t.type == TransactionType.expense && t.fromAccountId == account.id) {
         totalOut += t.amount;
-        netSpend += t.amount;
+        if (!isSettlement) netSpend += effectiveAmt;
+      } else if (t.type == TransactionType.transfer) {
+        if (t.toAccountId == account.id) {
+          totalIn += t.amount;
+        }
+        if (t.fromAccountId == account.id) {
+          totalOut += t.amount;
+        }
       }
     }
 

@@ -33,6 +33,8 @@ import 'package:money_manager/features/budgets/presentation/add_edit_budget_page
 import 'package:money_manager/features/budgets/presentation/budget_details_page.dart';
 import 'package:money_manager/features/budgets/domain/budget.dart';
 import 'package:money_manager/features/analytics/presentation/spend_analysis_page.dart';
+import 'package:money_manager/features/analytics/presentation/category_spending_page.dart';
+import 'package:money_manager/features/assets/presentation/assets_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -228,6 +230,28 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = int.parse(state.pathParameters['id']!);
           return BudgetDetailsPage(budgetId: id);
         },
+      ),
+
+      GoRoute(
+        path: '/category-spending/:id',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          final period = state.uri.queryParameters['period'] ?? 'Monthly';
+          final start = state.uri.queryParameters['start'];
+          final end = state.uri.queryParameters['end'];
+          return CategorySpendingPage(
+            categoryId: id,
+            period: period,
+            startDateStr: start,
+            endDateStr: end,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/assets',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AssetsPage(),
       ),
 
     ],

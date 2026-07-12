@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -31,6 +32,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => const TransactionsFilterSheet(),
     );
   }
@@ -44,14 +46,8 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     final currency = ref.watch(currencyProvider);
 
     return Scaffold(
-      body: CustomRefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(timelineProvider);
-          ref.invalidate(accountsWithBalanceProvider);
-          await Future.delayed(const Duration(milliseconds: 300));
-        },
-        child: timelineAsync.when(
-          data: (allEntries) {
+      body: timelineAsync.when(
+        data: (allEntries) {
             final entries = allEntries.where((e) {
               if (e is TransactionTimelineEntry) {
                 if (!filters.showTransactions) return false;
@@ -130,252 +126,241 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                   data: (categories) {
                     final catMap = {for (var c in categories) c.id: c};
 
-                    return ListView.builder(
-                      padding: EdgeInsets.only(
-                        left: 16,
-                        right: 16,
-                        top: MediaQuery.of(context).padding.top + 16,
-                        bottom: MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 80,
-                      ),
-                      itemCount: sortedDates.length + 1, // +1 for Header
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          // Header & Stats
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Expanded(
-                                    child: Text(
-                                      'Transactions',
-                                      style: TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      _isCompact
-                                          ? Icons.view_agenda
-                                          : Icons.view_headline,
-                                    ),
-                                    tooltip: _isCompact
-                                        ? 'Comfortable View'
-                                        : 'Concise View',
-                                    onPressed: () => setState(
-                                      () => _isCompact = !_isCompact,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.filter_list),
-                                    tooltip: 'Filters',
-                                    onPressed: _openFilters,
-                                  ),
-                                  if (!Platform.isAndroid)
-                                    IconButton(
-                                      icon: const Icon(Icons.refresh),
-                                      tooltip: 'Refresh',
-                                      onPressed: () {
-                                        ref.invalidate(timelineProvider);
-                                        ref.invalidate(
-                                          accountsWithBalanceProvider,
-                                        );
-                                      },
-                                    ),
-                                ],
-                              ),
-                              const Gap(16),
-                              Card(
-                                elevation: 0,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainer,
-                                margin: const EdgeInsets.only(bottom: 24),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            const Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  Icons.arrow_downward,
-                                                  size: 16,
-                                                  color: Colors.teal,
-                                                ),
-                                                Gap(8),
-                                                Text(
-                                                  'Total Income',
-                                                  style: TextStyle(
-                                                    color: Colors.teal,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const Gap(8),
-                                            Text(
-                                              '$currency${totalIncome.toStringAsFixed(0)}',
-                                              style: const TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.teal,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 1,
-                                        height: 50,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .outlineVariant,
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            const Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  Icons.arrow_upward,
-                                                  size: 16,
-                                                  color: Colors.red,
-                                                ),
-                                                Gap(8),
-                                                Text(
-                                                  'Total Expense',
-                                                  style: TextStyle(
-                                                    color: Colors.red,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const Gap(8),
-                                            Text(
-                                              '$currency${totalExpense.toStringAsFixed(0)}',
-                                              style: const TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.red,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                    return CustomRefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(timelineProvider);
+                        ref.invalidate(accountsWithBalanceProvider);
+                        await Future.delayed(const Duration(milliseconds: 300));
+                      },
+                      child: CustomScrollView(
+                        slivers: [
+                          SliverAppBar(
+                            pinned: true,
+                            backgroundColor: Colors.transparent,
+                            expandedHeight: 180,
+                            flexibleSpace: ClipRRect(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                                child: Container(
+                                  color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
                                 ),
-                              ),
-                              if (entries.isEmpty)
-                                const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(32),
-                                    child: Text('No activity found'),
-                                  ),
-                                ),
-                            ],
-                          );
-                        }
-
-                        final date = sortedDates[index - 1];
-                        final dayEntries = grouped[date]!;
-                        
-                        // Calculate daily net movement
-                        double dailyNet = 0;
-                        for (var e in dayEntries) {
-                           if (e is TransactionTimelineEntry) {
-                              if (!e.transaction.skipFromStats) {
-                                if (e.transaction.type == TransactionType.income) dailyNet += e.transaction.amount;
-                                if (e.transaction.type == TransactionType.expense) dailyNet -= e.transaction.amount;
-                              }
-                           }
-                        }
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest
-                                          .withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      DateFormat.yMMMd().format(date),
-                                      style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                  if (dailyNet != 0)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: (dailyNet > 0 ? Colors.teal : Colors.red).withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        '${dailyNet > 0 ? '+' : ''}${dailyNet.toStringAsFixed(0)}',
-                                        style: TextStyle(
-                                          color: dailyNet > 0 ? Colors.teal : Colors.red,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                ],
                               ),
                             ),
-                            ...dayEntries.map((entry) {
-                              return TimelineEntryTile(
-                                entry: entry,
-                                accountMap: accountMap,
-                                categoryMap: catMap,
-                                compact: _isCompact,
-                                onTapTransaction: (t) {
-                                  context.push(
-                                    '/transaction-details',
-                                    extra: t,
-                                  );
-                                },
-                              );
-                            }),
-                            const Gap(8),
-                          ],
-                        );
-                      },
+                            bottom: PreferredSize(
+                              preferredSize: const Size.fromHeight(150),
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 16,
+                                  right: 16,
+                                  bottom: 8,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Expanded(
+                                          child: Text(
+                                            'Transactions',
+                                            style: TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(_isCompact ? Icons.view_agenda : Icons.view_headline),
+                                          tooltip: _isCompact ? 'Comfortable View' : 'Concise View',
+                                          onPressed: () => setState(() => _isCompact = !_isCompact),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.filter_list),
+                                          tooltip: 'Filters',
+                                          onPressed: _openFilters,
+                                        ),
+                                        if (!Platform.isAndroid)
+                                          IconButton(
+                                            icon: const Icon(Icons.refresh),
+                                            tooltip: 'Refresh',
+                                            onPressed: () {
+                                              ref.invalidate(timelineProvider);
+                                              ref.invalidate(accountsWithBalanceProvider);
+                                            },
+                                          ),
+                                      ],
+                                    ),
+                                    const Gap(16),
+                                    Card(
+                                      elevation: 0,
+                                      color: Theme.of(context).colorScheme.surfaceContainer.withOpacity(0.6),
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  const Row(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      Icon(Icons.arrow_downward, size: 16, color: Colors.teal),
+                                                      Gap(8),
+                                                      Text('Total Income', style: TextStyle(color: Colors.teal)),
+                                                    ],
+                                                  ),
+                                                  const Gap(8),
+                                                  Text(
+                                                    '$currency${totalIncome.toStringAsFixed(0)}',
+                                                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              width: 1, height: 50, color: Theme.of(context).colorScheme.outlineVariant,
+                                            ),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  const Row(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      Icon(Icons.arrow_upward, size: 16, color: Colors.red),
+                                                      Gap(8),
+                                                      Text('Total Expense', style: TextStyle(color: Colors.red)),
+                                                    ],
+                                                  ),
+                                                  const Gap(8),
+                                                  Text(
+                                                    '$currency${totalExpense.toStringAsFixed(0)}',
+                                                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (entries.isEmpty)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 80),
+                                child: const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No activity found')))
+                              ),
+                            )
+                          else
+                            SliverPadding(
+                              padding: EdgeInsets.only(
+                                left: 16,
+                                right: 16,
+                                top: 8,
+                                bottom: MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 80,
+                              ),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                    final date = sortedDates[index];
+            
+                                    final dayEntries = grouped[date]!;
+                                    
+                                    // Calculate daily net movement
+                                    double dailyNet = 0;
+                                    for (var e in dayEntries) {
+                                       if (e is TransactionTimelineEntry) {
+                                          if (!e.transaction.skipFromStats) {
+                                            if (e.transaction.type == TransactionType.income) dailyNet += e.transaction.amount;
+                                            if (e.transaction.type == TransactionType.expense) dailyNet -= e.transaction.amount;
+                                          }
+                                       }
+                                    }
+            
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .surfaceContainerHighest
+                                                      .withOpacity(0.5),
+                                                  borderRadius: BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  DateFormat.yMMMd().format(date),
+                                                  style: TextStyle(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (dailyNet != 0)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: (dailyNet > 0 ? Colors.teal : Colors.red).withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Text(
+                                                    '${dailyNet > 0 ? '+' : ''}${dailyNet.toStringAsFixed(0)}',
+                                                    style: TextStyle(
+                                                      color: dailyNet > 0 ? Colors.teal : Colors.red,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        ...dayEntries.map((entry) {
+                                          return TimelineEntryTile(
+                                            entry: entry,
+                                            accountMap: accountMap,
+                                            categoryMap: catMap,
+                                            compact: _isCompact,
+                                            onTapTransaction: (t) {
+                                              context.push(
+                                                '/transaction-details',
+                                                extra: t,
+                                              );
+                                            },
+                                          );
+                                        }),
+                                        const Gap(8),
+                                      ],
+                                    );
+                                  },
+                                  childCount: sortedDates.length,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     );
                   },
                   loading: () => const Center(child: CircularProgressIndicator()),
@@ -389,7 +374,6 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, st) => Center(child: Text('Error: $e')),
         ),
-      ),
-    );
+      );
+    }
   }
-}

@@ -120,10 +120,19 @@ class BackupService {
         throw Exception('Invalid file format. Expected .sqlite or .db file');
       }
 
+      // Close the database to release file locks
+      await _db.close();
+
+      // Delete the existing database file and any associated WAL/SHM files
+      if (await dbFile.exists()) await dbFile.delete();
+      final walFile = File('${dbFile.path}-wal');
+      if (await walFile.exists()) await walFile.delete();
+      final shmFile = File('${dbFile.path}-shm');
+      if (await shmFile.exists()) await shmFile.delete();
+
       await sourceFile.copy(dbFile.path);
-      // It requires an app restart to take full effect usually, 
-      // but copying the file while drift is open can be tricky. 
-      // Luckily on mobile/desktop copying over the sqlite file generally works if we restart.
+      
+      // Since the db connection is closed, the app will need a restart.
     } else {
       throw Exception('Import cancelled');
     }

@@ -62,6 +62,13 @@ class MorePage extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/subscriptions'), // Placeholder
           ),
+          ListTile(
+            leading: const CircleAvatar(backgroundColor: Colors.amber, child: Icon(Icons.inventory_2, color: Colors.white)),
+            title: const Text('Assets'),
+            subtitle: const Text('Manage static properties and objects'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/assets'),
+          ),
           const Divider(),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),

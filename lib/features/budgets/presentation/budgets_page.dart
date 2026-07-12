@@ -213,18 +213,36 @@ class BudgetsPage extends ConsumerWidget {
               // Summary Cards
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(child: _SummaryCard(
-                      title: 'Total Allocated', 
-                      amount: summary.income, 
-                      color: Colors.blue,
-                      onTap: () => _showAllocationDialog(context, ref, summary.income),
-                    )),
-                    const SizedBox(width: 8),
-                    Expanded(child: _SummaryCard(title: 'Assigned', amount: summary.assigned, color: Colors.purple)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _SummaryCard(title: 'To Assign', amount: summary.toAssign, color: summary.toAssign < 0 ? Colors.redAccent : Colors.green)),
+                    Row(
+                      children: [
+                        Expanded(child: _SummaryCard(
+                          title: 'Total Allocated', 
+                          amount: summary.income, 
+                          color: Colors.blue,
+                          onTap: () => _showAllocationDialog(context, ref, summary.income),
+                        )),
+                        const SizedBox(width: 8),
+                        Expanded(child: _SummaryCard(title: 'Assigned', amount: summary.assigned, color: Colors.purple)),
+                        const SizedBox(width: 8),
+                        Expanded(child: _SummaryCard(title: 'To Assign', amount: summary.toAssign, color: summary.toAssign < 0 ? Colors.redAccent : Colors.green)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Builder(
+                      builder: (ctx) {
+                        final double totalUtilized = budgets.fold(0.0, (sum, b) => sum + b.spent);
+                        final double totalLeft = summary.assigned - totalUtilized;
+                        return Row(
+                          children: [
+                            Expanded(child: _SummaryCard(title: 'Total Utilized', amount: totalUtilized, color: Colors.orange)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _SummaryCard(title: 'Total Left', amount: totalLeft, color: totalLeft < 0 ? Colors.redAccent : Colors.teal)),
+                          ],
+                        );
+                      }
+                    ),
                   ],
                 ),
               ),

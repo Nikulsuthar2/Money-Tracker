@@ -5,6 +5,8 @@ import 'package:money_manager/features/accounts/domain/account.dart';
 import 'package:money_manager/features/accounts/data/accounts_repository.dart';
 import 'package:money_manager/features/transactions/data/transactions_repository.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
+import 'package:money_manager/features/transactions/application/timeline_provider.dart';
+import 'package:money_manager/features/transactions/domain/timeline_entry.dart';
 import 'package:gap/gap.dart';
 
 import 'package:money_manager/core/providers/currency_provider.dart';
@@ -25,7 +27,7 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final account = widget.account;
-    final transactionsAsync = ref.watch(transactionsStreamProvider);
+    final timelineAsync = ref.watch(timelineProvider);
     final theme = Theme.of(context);
     final currency = ref.watch(currencyProvider);
 
@@ -116,8 +118,28 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
             ],
           ),
         ),
-        body: transactionsAsync.when(
-          data: (allTransactions) {
+        body: timelineAsync.when(
+          data: (entries) {
+            final allTransactions = <Transaction>[];
+            for (var entry in entries) {
+               if (entry is TransactionTimelineEntry) {
+                  final tx = entry.transaction;
+                  final subs = <SubTransaction>[];
+                  for (var exp in entry.expenses) {
+                     final splits = entry.splits[exp.id] ?? [];
+                     if (splits.isEmpty) {
+                        subs.add(SubTransaction()..amount = exp.totalAmount..categoryId = exp.categoryId..isMine = true);
+                     } else {
+                        for (var s in splits) {
+                           subs.add(SubTransaction()..amount = s.amount..categoryId = exp.categoryId..isMine = s.personId == 0);
+                        }
+                     }
+                  }
+                  if (subs.isNotEmpty) tx.subTransactions = subs;
+                  allTransactions.add(tx);
+               }
+            }
+
             final accountTransactions = allTransactions.where((t) => 
               t.fromAccountId == account.id || t.toAccountId == account.id
             ).toList();

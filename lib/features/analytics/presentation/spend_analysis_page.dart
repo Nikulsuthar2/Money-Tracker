@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/categories/application/categories_providers.dart';
@@ -100,7 +101,8 @@ class _SpendAnalysisPageState extends ConsumerState<SpendAnalysisPage> {
   List<Transaction> _filterTransactions(List<Transaction> all) {
     return all.where((t) {
       if (t.skipFromStats) return false;
-      if (t.type != TransactionType.expense) return false; // Spend Analysis only looks at expenses
+      if (t.isSettlement || t.mode == TransactionMode.settlement) return false;
+      if (t.type != TransactionType.expense && t.type != TransactionType.buyInvestment) return false;
 
       if (_period == 'Monthly') {
         return t.date.year == _selectedDate.year && t.date.month == _selectedDate.month;
@@ -148,9 +150,38 @@ class _SpendAnalysisPageState extends ConsumerState<SpendAnalysisPage> {
               double totalSpend = 0;
               
               for (var t in transactions) {
-                final catId = t.categoryId ?? -1;
-                categoryTotals[catId] = (categoryTotals[catId] ?? 0) + t.amount;
-                totalSpend += t.amount;
+                if (t.subTransactions != null && t.subTransactions!.isNotEmpty) {
+                  for (var sub in t.subTransactions!) {
+                    bool isMine = false;
+                    double amt = 0;
+                    int catId = t.categoryId ?? -1;
+                    
+                    if (sub is SubTransaction) {
+                      isMine = sub.isMine;
+                      amt = sub.amount;
+                      if (sub.categoryId != null) catId = sub.categoryId!;
+                    } else if (sub is Map) {
+                      isMine = sub['isMine'] == true;
+                      amt = (sub['amount'] as num?)?.toDouble() ?? 0.0;
+                      if (sub['categoryId'] != null) catId = sub['categoryId'] as int;
+                    } else if (sub.runtimeType.toString() == 'SubTransaction' || sub.runtimeType.toString() == 'SubTransactionItem') {
+                      try {
+                        isMine = sub.isMine == true;
+                        amt = (sub.amount as num).toDouble();
+                        if (sub.categoryId != null) catId = sub.categoryId as int;
+                      } catch (_) {}
+                    }
+                    
+                    if (isMine) {
+                      categoryTotals[catId] = (categoryTotals[catId] ?? 0) + amt;
+                      totalSpend += amt;
+                    }
+                  }
+                } else {
+                  final catId = t.categoryId ?? -1;
+                  categoryTotals[catId] = (categoryTotals[catId] ?? 0) + t.amount;
+                  totalSpend += t.amount;
+                }
               }
 
               final sortedEntries = categoryTotals.entries.toList()
@@ -169,12 +200,9 @@ class _SpendAnalysisPageState extends ConsumerState<SpendAnalysisPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton.filledTonal(
+                        IconButton(
                           onPressed: _period == 'Custom' ? null : _prevPeriod, 
                           icon: const Icon(Icons.chevron_left),
-                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                          padding: EdgeInsets.zero,
-                          iconSize: 20,
                         ),
                         Expanded(
                           child: InkWell(
@@ -202,12 +230,9 @@ class _SpendAnalysisPageState extends ConsumerState<SpendAnalysisPage> {
                             ),
                           ),
                         ),
-                        IconButton.filledTonal(
+                        IconButton(
                           onPressed: _period == 'Custom' ? null : _nextPeriod, 
                           icon: const Icon(Icons.chevron_right),
-                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                          padding: EdgeInsets.zero,
-                          iconSize: 20,
                         ),
                       ],
                     ),
@@ -223,7 +248,7 @@ class _SpendAnalysisPageState extends ConsumerState<SpendAnalysisPage> {
                         children: [
                           const Text('Total Spend', style: TextStyle(fontSize: 16, color: Colors.grey)),
                           const Gap(4),
-                          Text('$currency${totalSpend.toStringAsFixed(2)}', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.red)),
+                          Text('$currency${totalSpend == totalSpend.truncateToDouble() ? totalSpend.toStringAsFixed(0) : totalSpend.toStringAsFixed(2)}', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.red)),
                         ],
                       ),
                     ),
@@ -269,43 +294,51 @@ class _SpendAnalysisPageState extends ConsumerState<SpendAnalysisPage> {
                           elevation: 0,
                           color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                           margin: const EdgeInsets.only(bottom: 8),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40, height: 40,
-                                  decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
-                                  alignment: Alignment.center,
-                                  child: cat != null 
-                                      ? CategoryIconWidget(iconData: cat.iconData, color: cat.color, size: 24)
-                                      : Icon(Icons.help_outline, color: color),
-                                ),
-                                const Gap(16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                      const Gap(4),
-                                      LinearProgressIndicator(
-                                        value: e.value / totalSpend,
-                                        backgroundColor: color.withOpacity(0.1),
-                                        color: color,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ],
+                          child: InkWell(
+                            onTap: () {
+                              final startStr = _customRange?.start.toIso8601String() ?? _selectedDate.toIso8601String();
+                              final endStr = _customRange?.end.toIso8601String() ?? _selectedDate.toIso8601String();
+                              context.push('/category-spending/${e.key}?period=$_period&start=$startStr&end=$endStr');
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40, height: 40,
+                                    decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
+                                    alignment: Alignment.center,
+                                    child: cat != null 
+                                        ? CategoryIconWidget(iconData: cat.iconData, color: cat.color, size: 24)
+                                        : Icon(Icons.help_outline, color: color),
                                   ),
-                                ),
-                                const Gap(16),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text('$currency${e.value.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                    Text('${pct.toStringAsFixed(1)}%', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                                  ],
-                                )
-                              ],
+                                  const Gap(16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                        const Gap(4),
+                                        LinearProgressIndicator(
+                                          value: e.value / totalSpend,
+                                          backgroundColor: color.withOpacity(0.1),
+                                          color: color,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Gap(16),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text('$currency${e.value == e.value.truncateToDouble() ? e.value.toStringAsFixed(0) : e.value.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                      Text('${pct.toStringAsFixed(1)}%', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                    ],
+                                  )
+                                ],
+                              ),
                             ),
                           ),
                         );

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:money_manager/features/accounts/application/accounts_providers.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
 import 'package:money_manager/features/analytics/application/analytics_transactions_provider.dart';
+import 'package:money_manager/features/assets/application/assets_providers.dart';
 import 'package:money_manager/core/providers/currency_provider.dart';
 import 'package:gap/gap.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -25,37 +26,60 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
     final theme = Theme.of(context);
     final currency = ref.watch(currencyProvider);
     final accountsAsync = ref.watch(accountsWithBalanceProvider);
+    final assetsAsync = ref.watch(assetsStreamProvider);
     final transactionsAsync = ref.watch(analyticsTransactionsProvider);
 
     return accountsAsync.when(
         data: (accounts) {
           double netWorth = 0;
           for (var a in accounts) {
-            netWorth += a.balance; // Using balance (which handles both cash and investments properly now)
+            netWorth += a.totalContributionToNetWorth; // Include both cash balance and invested amounts
           }
 
-          return transactionsAsync.when(
+          return assetsAsync.when(
+            data: (assets) {
+              for (var a in assets) {
+                netWorth += a.value;
+              }
+
+              return transactionsAsync.when(
             data: (allTransactions) {
               final transactions = allTransactions ?? [];
               
               // Calculate Average Monthly Spend & Savings Rate
-              // We'll look at the last 3 months
+              // We'll look at the last 90 days
               final now = DateTime.now();
-              final threeMonthsAgo = DateTime(now.year, now.month - 3, 1);
+              final ninetyDaysAgo = now.subtract(const Duration(days: 90));
               
-              double totalIncomeLast3M = 0;
-              double totalExpenseLast3M = 0;
+              double totalIncomeLast90D = 0;
+              double totalExpenseLast90D = 0;
+              DateTime? earliestActiveDate;
               
               for (var t in transactions) {
                 if (t.skipFromStats) continue;
-                if (t.date.isAfter(threeMonthsAgo)) {
-                   if (t.type == TransactionType.income) totalIncomeLast3M += t.amount;
-                   if (t.type == TransactionType.expense) totalExpenseLast3M += t.amount;
+                if (t.isSettlement || t.mode == TransactionMode.settlement) continue;
+                
+                if (t.date.isAfter(ninetyDaysAgo)) {
+                   final effectiveAmt = t.effectiveAmount;
+                   if (t.type == TransactionType.income || t.type == TransactionType.sellInvestment) totalIncomeLast90D += effectiveAmt;
+                   if (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment) totalExpenseLast90D += effectiveAmt;
+                   
+                   if (earliestActiveDate == null || t.date.isBefore(earliestActiveDate)) {
+                     earliestActiveDate = t.date;
+                   }
                 }
               }
               
-              final avgMonthlySpend = totalExpenseLast3M / 3;
-              final avgMonthlyIncome = totalIncomeLast3M / 3;
+              double activeMonths = 3.0; // Default to 3
+              if (earliestActiveDate != null) {
+                final activeDays = now.difference(earliestActiveDate).inDays;
+                activeMonths = (activeDays / 30.0).clamp(1.0, 3.0); // Between 1 and 3 months
+              } else {
+                activeMonths = 1.0;
+              }
+              
+              final avgMonthlySpend = totalExpenseLast90D / activeMonths;
+              final avgMonthlyIncome = totalIncomeLast90D / activeMonths;
               
               final runwayMonths = avgMonthlySpend > 0 ? (netWorth / avgMonthlySpend) : 0.0;
               final savingsRate = avgMonthlyIncome > 0 ? ((avgMonthlyIncome - avgMonthlySpend) / avgMonthlyIncome) * 100 : 0.0;
@@ -98,12 +122,12 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
                       ),
                     ),
                   ),
-                  const Gap(24),
+                  const Gap(16),
                   
                   // Key Metrics Grid
                   const Text('Key Metrics', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  const Gap(8),
                   GridView.count(
+                    padding: const EdgeInsets.only(top: 16, bottom: 0),
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -141,8 +165,6 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
                       ),
                     ],
                   ),
-                  const Gap(8),
-
                   // Spend Analysis Link
                   Card(
                     elevation: 0,
@@ -185,6 +207,10 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
                   _buildChart(transactions, currency, theme),
                 ],
               );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, s) => Center(child: Text('Error: $e')),
+          );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, s) => Center(child: Text('Error: $e')),
@@ -268,15 +294,15 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
           if (t.skipFromStats) continue;
           if (t.date.year == date.year && t.date.month == date.month && t.date.day == date.day) {
             if (_isTotalView) {
-              if (t.type == TransactionType.income) income += t.amount;
-              if (t.type == TransactionType.expense) expense += t.amount;
+              if (t.type == TransactionType.income || t.type == TransactionType.sellInvestment) income += t.amount;
+              if (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment) expense += t.amount;
               if (t.type == TransactionType.transfer) {
                 if (t.fromAccountId == null || t.isSettlement) income += t.amount;
                 if (t.toAccountId == null || t.isSettlement) expense += t.amount;
               }
             } else {
-              if (t.type == TransactionType.income) income += t.amount;
-              if (t.type == TransactionType.expense) expense += t.amount;
+              if (t.type == TransactionType.income || t.type == TransactionType.sellInvestment) income += t.amount;
+              if (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment) expense += t.amount;
             }
           }
         }
@@ -301,15 +327,15 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
           if (t.skipFromStats) continue;
           if (t.date.year == date.year && t.date.month == date.month) {
             if (_isTotalView) {
-              if (t.type == TransactionType.income) income += t.amount;
-              if (t.type == TransactionType.expense) expense += t.amount;
+              if (t.type == TransactionType.income || t.type == TransactionType.sellInvestment) income += t.amount;
+              if (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment) expense += t.amount;
               if (t.type == TransactionType.transfer) {
                 if (t.fromAccountId == null || t.isSettlement) income += t.amount;
                 if (t.toAccountId == null || t.isSettlement) expense += t.amount;
               }
             } else {
-              if (t.type == TransactionType.income) income += t.amount;
-              if (t.type == TransactionType.expense) expense += t.amount;
+              if (t.type == TransactionType.income || t.type == TransactionType.sellInvestment) income += t.amount;
+              if (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment) expense += t.amount;
             }
           }
         }
@@ -331,15 +357,15 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
           if (t.skipFromStats) continue;
           if (t.date.year == year) {
             if (_isTotalView) {
-              if (t.type == TransactionType.income) income += t.amount;
-              if (t.type == TransactionType.expense) expense += t.amount;
+              if (t.type == TransactionType.income || t.type == TransactionType.sellInvestment) income += t.amount;
+              if (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment) expense += t.amount;
               if (t.type == TransactionType.transfer) {
                 if (t.fromAccountId == null || t.isSettlement) income += t.amount;
                 if (t.toAccountId == null || t.isSettlement) expense += t.amount;
               }
             } else {
-              if (t.type == TransactionType.income) income += t.amount;
-              if (t.type == TransactionType.expense) expense += t.amount;
+              if (t.type == TransactionType.income || t.type == TransactionType.sellInvestment) income += t.amount;
+              if (t.type == TransactionType.expense || t.type == TransactionType.buyInvestment) expense += t.amount;
             }
           }
         }

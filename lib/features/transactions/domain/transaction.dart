@@ -22,6 +22,27 @@ class Transaction {
   int? relatedTransactionId;
   bool hasLedgerEntries = false;
   TransactionMode mode = TransactionMode.regular;
+
+  double get effectiveAmount {
+    if (subTransactions != null && subTransactions!.isNotEmpty) {
+      double myAmount = 0;
+      for (var sub in subTransactions!) {
+        if (sub is SubTransaction && sub.isMine) {
+          myAmount += sub.amount;
+        } else if (sub is Map) {
+          if (sub['isMine'] == true) {
+             myAmount += (sub['amount'] as num).toDouble();
+          }
+        } else if (sub.runtimeType.toString() == 'SubTransaction' || sub.runtimeType.toString() == 'SubTransactionItem') {
+           try {
+             if (sub.isMine == true) myAmount += (sub.amount as num).toDouble();
+           } catch (_) {}
+        }
+      }
+      return myAmount;
+    }
+    return amount;
+  }
 }
 
 enum TransactionType {

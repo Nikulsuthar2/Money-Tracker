@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class Account {
   int id = 0;
   String name = '';
@@ -20,6 +22,16 @@ class Account {
   // --- Legacy UI Stubs (to be removed safely later) ---
   double get openingBalance => initialBalance;
   set openingBalance(double v) => initialBalance = v;
+
+  IconData get flutterIcon {
+    if (iconData.startsWith('material:')) {
+      final code = int.tryParse(iconData.split(':')[1]);
+      if (code != null) {
+        return IconData(code, fontFamily: 'MaterialIcons');
+      }
+    }
+    return Icons.account_balance_wallet;
+  }
 }
 
 enum AccountType {

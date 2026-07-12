@@ -110,13 +110,23 @@ class _AccountAnalyticsTabState extends ConsumerState<AccountAnalyticsTab> {
     double netSpend = 0;
     for (final t in timeFilteredTransactions) {
       if (t.skipFromStats) continue;
+      
+      final bool isSettlement = t.isSettlement || t.mode == TransactionMode.settlement;
+      final double effectiveAmt = t.effectiveAmount;
+
       if (t.type == TransactionType.income && t.toAccountId == widget.account.id) {
         totalIn += t.amount;
-        netIn += t.amount;
-      }
-      if (t.type == TransactionType.expense && t.fromAccountId == widget.account.id) {
+        if (!isSettlement) netIn += effectiveAmt;
+      } else if (t.type == TransactionType.expense && t.fromAccountId == widget.account.id) {
         totalOut += t.amount;
-        netSpend += t.amount;
+        if (!isSettlement) netSpend += effectiveAmt;
+      } else if (t.type == TransactionType.transfer) {
+        if (t.toAccountId == widget.account.id) {
+          totalIn += t.amount;
+        }
+        if (t.fromAccountId == widget.account.id) {
+          totalOut += t.amount;
+        }
       }
     }
 

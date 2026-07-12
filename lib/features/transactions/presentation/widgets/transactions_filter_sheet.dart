@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:money_manager/features/transactions/domain/transaction.dart';
@@ -58,10 +59,15 @@ class _TransactionsFilterSheetState extends ConsumerState<TransactionsFilterShee
     final theme = Theme.of(context);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      height: MediaQuery.of(context).size.height * 0.8,
-      child: Column(
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          color: theme.colorScheme.surface.withOpacity(0.8),
+          padding: const EdgeInsets.all(24),
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
@@ -188,13 +194,15 @@ class _TransactionsFilterSheetState extends ConsumerState<TransactionsFilterShee
           ),
           const Gap(16),
           FilledButton(
-            onPressed: _apply,
-            child: const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('Apply Filters', style: TextStyle(fontSize: 16)),
-            ),
+                onPressed: _apply,
+                child: const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('Apply Filters', style: TextStyle(fontSize: 16)),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

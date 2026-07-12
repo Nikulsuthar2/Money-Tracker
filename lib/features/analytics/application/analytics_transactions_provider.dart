@@ -25,10 +25,16 @@ final analyticsTransactionsProvider = StreamProvider<List<Transaction>>((ref) {
                   // This transaction has one or more Expense items (split or categorized)
                   for (final e in linkedExpenses) {
                      final splits = allSplits.where((s) => s.expenseId == e.id).toList();
-                     final mySplit = splits.where((s) => s.personId == 0).firstOrNull;
                      
-                     // If there are no splits, it means I paid the full amount for this specific item
-                     final double myTrueExpenseAmount = mySplit != null ? mySplit.amount : e.totalAmount;
+                     double myTrueExpenseAmount = 0.0;
+                     if (splits.isEmpty) {
+                        myTrueExpenseAmount = e.totalAmount;
+                     } else {
+                        final mySplits = splits.where((s) => s.personId == 0);
+                        if (mySplits.isNotEmpty) {
+                           myTrueExpenseAmount = mySplits.fold(0.0, (sum, s) => sum + s.amount);
+                        }
+                     }
 
                      if (myTrueExpenseAmount > 0) {
                         final adjustedTxn = Transaction()
@@ -60,8 +66,14 @@ final analyticsTransactionsProvider = StreamProvider<List<Transaction>>((ref) {
         for (var e in allExpenses) {
            if (e.transactionId == null) {
               final splits = allSplits.where((s) => s.expenseId == e.id).toList();
-              final mySplit = splits.where((s) => s.personId == 0).firstOrNull;
-              final double myTrueExpenseAmount = mySplit?.amount ?? 0.0;
+              
+              double myTrueExpenseAmount = 0.0;
+              if (splits.isNotEmpty) {
+                 final mySplits = splits.where((s) => s.personId == 0);
+                 if (mySplits.isNotEmpty) {
+                    myTrueExpenseAmount = mySplits.fold(0.0, (sum, s) => sum + s.amount);
+                 }
+              }
 
               if (myTrueExpenseAmount > 0) {
                  final syntheticTxn = Transaction()

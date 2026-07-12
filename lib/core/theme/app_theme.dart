@@ -27,7 +27,7 @@ class AppTheme {
             side: BorderSide(color: Colors.grey.withOpacity(0.1))
         ),
       ),
-      textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme),
+      textTheme: ThemeData.light().textTheme.apply(fontFamily: 'Poppins'),
     );
   }
 
@@ -64,7 +64,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+      textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Poppins'),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: darkBackground,
         indicatorColor: scheme.primary.withOpacity(0.2),

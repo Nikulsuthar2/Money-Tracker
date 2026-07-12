@@ -110,6 +110,18 @@ class BudgetAllocations extends Table {
   RealColumn get amount => real()();
 }
 
+@DataClassName('AssetItemData')
+class AssetItems extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get type => text()(); // e.g., real estate, vehicle, jewelry, etc.
+  RealColumn get value => real()();
+  TextColumn get iconData => text().withDefault(const Constant('material:57522'))();
+  IntColumn get color => integer().withDefault(const Constant(0xFF2196F3))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
 @DataClassName('GoalData')
 class Goals extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -173,12 +185,13 @@ LazyDatabase _openConnection() {
   InvestmentHoldings,
   Budgets,
   BudgetAllocations,
+  AssetItems,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration {
@@ -224,6 +237,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 12) {
           await m.addColumn(investmentHoldings, investmentHoldings.type);
         }
+        if (from < 13) {
+          await m.createTable(assetItems);
+        }
       },
     );
   }
@@ -241,6 +257,7 @@ class AppDatabase extends _$AppDatabase {
       await delete(goalContributions).go();
       await delete(investmentHoldings).go();
       await delete(budgets).go();
+      await delete(assetItems).go();
     });
   }
 
